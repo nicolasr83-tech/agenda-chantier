@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chantier Agenda">
+<meta name="theme-color" content="#1F3864">
+<title>Agenda Chantier – Cabinet Arragon</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --navy:#1F3864;--blue:#2E75B6;--lblue:#D6E4F7;--white:#fff;
+    --grey:#F4F5F7;--border:#DEE2E8;--text:#1A1D23;--muted:#6B7280;
+    --green:#16A34A;--green-bg:#DCFCE7;--radius:12px;--safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);overscroll-behavior:none}
+
+  /* Header */
+  .header{background:var(--navy);color:var(--white);padding:52px 20px 12px;text-align:center}
+  .header h1{font-size:18px;font-weight:600;letter-spacing:.01em}
+  .header p{font-size:12px;opacity:.65;margin-top:3px}
+  .user-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;min-height:28px}
+  .user-avatar{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}
+  .user-name{font-size:12px;color:rgba(255,255,255,.8);font-weight:500}
+  .btn-signout{font-size:11px;color:rgba(255,255,255,.5);background:none;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;cursor:pointer}
+  .btn-signin{font-size:12px;color:var(--white);background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:5px 14px;cursor:pointer;font-weight:500}
+  .btn-signin:active{background:rgba(255,255,255,.25)}
+
+  /* Steps nav */
+  .steps{display:flex;background:var(--navy);padding:0 20px 16px;gap:0}
+  .step{flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:11px;font-weight:500;color:rgba(255,255,255,.45);cursor:pointer;transition:all .2s}
+  .step.active{background:rgba(255,255,255,.15);color:var(--white)}
+  .step.done{color:rgba(255,255,255,.7)}
+  .step-num{display:block;font-size:16px;font-weight:700;margin-bottom:2px}
+
+  /* Pages */
+  .page{display:none;padding:16px 16px calc(80px + var(--safe-bottom));animation:fadeIn .18s ease}
+  .page.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Section label */
+  .section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+
+  /* Search */
+  .search-wrap{position:relative}
+  .search-wrap input{width:100%;padding:12px 12px 12px 40px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;background:var(--white);outline:none;-webkit-appearance:none}
+  .search-wrap input:focus{border-color:var(--blue)}
+  .search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:17px}
+  .search-row{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+  .search-row .search-wrap{flex:1}
+  .btn-new{background:var(--blue);color:var(--white);border:none;border-radius:var(--radius);padding:0 14px;height:46px;font-size:24px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .btn-new:active{opacity:.8}
+
+  /* Dossier list */
+  .dos-list{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);overflow:hidden;max-height:320px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .dos-item{padding:13px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .1s}
+  .dos-item:last-child{border-bottom:none}
+  .dos-item:active{background:var(--lblue)}
+  .dos-item.selected{background:var(--lblue)}
+  .dos-num{font-size:12px;font-weight:700;color:var(--blue);min-width:72px;font-family:monospace}
+  .dos-info{flex:1;min-width:0}
+  .dos-client{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dos-lieu{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dos-check{color:var(--blue);font-size:18px;opacity:0}
+  .dos-item.selected .dos-check{opacity:1}
+  .no-result{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* Nouveau dossier */
+  .new-dos-banner{display:none;background:var(--white);border:1.5px dashed var(--blue);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+  .new-dos-banner.visible{display:block}
+  .new-dos-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+  .new-dos-field{margin-bottom:8px}
+  .new-dos-field label{font-size:11px;color:var(--muted);font-weight:500;display:block;margin-bottom:4px}
+  .new-dos-field input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--grey);outline:none;-webkit-appearance:none;color:var(--text)}
+  .new-dos-field input:focus{border-color:var(--blue);background:var(--white)}
+  .btn-create{width:100%;background:var(--blue);color:var(--white);border:none;border-radius:var(--radius);padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+  .btn-create:active{opacity:.85}
+
+  /* Prestation cards */
+  .prest-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .prest-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:14px 12px;cursor:pointer;transition:all .15s}
+  .prest-card:active{transform:scale(.97)}
+  .prest-card.selected{border-color:var(--blue);background:var(--lblue)}
+  .prest-code{font-size:20px;font-weight:700;color:var(--blue);font-family:monospace;margin-bottom:3px}
+  .prest-name{font-size:12px;color:var(--text);font-weight:500;margin-bottom:2px}
+  .prest-prix{font-size:11px;color:var(--muted)}
+
+  /* Date */
+  .date-input{width:100%;padding:14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:16px;background:var(--white);outline:none;-webkit-appearance:none;color:var(--text)}
+  .date-input:focus{border-color:var(--blue)}
+
+  /* Preview */
+  .preview-card{background:var(--white);border:2px solid var(--blue);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  .preview-label{font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  .preview-title{font-size:22px;font-weight:700;color:var(--navy);font-family:monospace;word-break:break-all;margin-bottom:6px}
+  .preview-meta{font-size:13px;color:var(--muted);line-height:1.5;white-space:pre-line}
+
+  /* Buttons bottom */
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:12px 16px var(--safe-bottom);display:flex;gap:10px;z-index:100}
+  .btn{flex:1;padding:15px;border-radius:var(--radius);font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--blue);color:var(--white)}
+  .btn-secondary{background:var(--grey);color:var(--text);border:1.5px solid var(--border)}
+  .btn-success{background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-decoration:none}
+  .btn-copy{background:var(--grey);color:var(--text);border:1.5px solid var(--border)}
+  .btn-disabled{opacity:.4;pointer-events:none}
+
+  /* Status / spinner */
+  .status-bar{background:var(--lblue);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--blue);display:none;align-items:center;gap:10px}
+  .status-bar.visible{display:flex}
+  .spinner{width:16px;height:16px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .status-bar.error{background:#FEE2E2;color:#991B1B}
+  .status-bar.success{background:var(--green-bg);color:#166534}
+
+  /* Toast */
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);color:var(--white);padding:10px 20px;border-radius:30px;font-size:14px;font-weight:600;z-index:999;transition:transform .3s ease;background:var(--green)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  /* Login screen */
+  .login-screen{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center}
+  .login-screen.visible{display:flex}
+  .login-logo{font-size:48px;margin-bottom:16px}
+  .login-title{font-size:22px;font-weight:700;color:var(--white);margin-bottom:8px}
+  .login-sub{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:32px;line-height:1.5}
+  .btn-google{background:var(--white);color:#1A1D23;border:none;border-radius:var(--radius);padding:16px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;max-width:300px;justify-content:center}
+  .btn-google:active{opacity:.9}
+  .google-icon{width:20px;height:20px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-logo">📋</div>
+  <div class="login-title">Agenda Chantier</div>
+  <div class="login-sub">Cabinet Arragon – Géomètre Topographe<br><br>Connecte-toi pour créer des événements directement dans le calendrier partagé.</div>
+  <button class="btn-google" onclick="signIn()">
+    <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Se connecter avec Google
+  </button>
+</div>
+
+<!-- APP -->
+<div class="header">
+  <h1>Agenda Chantier</h1>
+  <p>Cabinet Arragon – Géomètre Topographe</p>
+  <div class="user-bar" id="user-bar">
+    <button class="btn-signin" onclick="signIn()" id="btn-signin-header">Se connecter</button>
+  </div>
+</div>
+
+<div class="steps" id="steps-nav">
+  <div class="step active" onclick="goStep(0)"><span class="step-num">1</span>Dossier</div>
+  <div class="step" onclick="goStep(1)"><span class="step-num">2</span>Prestation</div>
+  <div class="step" onclick="goStep(2)"><span class="step-num">3</span>Date</div>
+  <div class="step" onclick="goStep(3)"><span class="step-num">4</span>Créer</div>
+</div>
+
+<!-- PAGE 1 : DOSSIER -->
+<div class="page active" id="page-0">
+  <p class="section-label">Sélectionner le dossier</p>
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="search" placeholder="N° dossier, client ou chantier…" oninput="filterDos()" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <button class="btn-new" onclick="toggleNewDos()" title="Créer un dossier">＋</button>
+  </div>
+  <div class="new-dos-banner" id="new-dos-banner">
+    <div class="new-dos-title">Nouveau dossier</div>
+    <div class="new-dos-field"><label>N° de dossier *</label><input type="text" id="new-num" placeholder="ex : 41521/40" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+    <div class="new-dos-field"><label>Client</label><input type="text" id="new-client" placeholder="ex : NGE Fondations" autocomplete="off"></div>
+    <div class="new-dos-field"><label>Chantier / Lieu</label><input type="text" id="new-lieu" placeholder="ex : Marseille Centre" autocomplete="off"></div>
+    <button class="btn-create" onclick="createDossier()">Créer et sélectionner →</button>
+  </div>
+  <div class="dos-list" id="dos-list"></div>
+</div>
+
+<!-- PAGE 2 : PRESTATION -->
+<div class="page" id="page-1">
+  <p class="section-label">Type de prestation</p>
+  <div class="prest-grid" id="prest-grid"></div>
+</div>
+
+<!-- PAGE 3 : DATE -->
+<div class="page" id="page-2">
+  <p class="section-label">Date de l'intervention</p>
+  <input type="date" class="date-input" id="jour">
+  <div style="height:16px"></div>
+  <p class="section-label">Aperçu</p>
+  <div class="preview-card" id="mini-preview" style="display:none">
+    <div class="preview-label">Titre agenda</div>
+    <div class="preview-title" id="mini-title"></div>
+    <div class="preview-meta" id="mini-meta"></div>
+  </div>
+</div>
+
+<!-- PAGE 4 : CONFIRMER -->
+<div class="page" id="page-3">
+  <p class="section-label">Récapitulatif</p>
+  <div class="preview-card">
+    <div class="preview-label">Titre de l'événement</div>
+    <div class="preview-title" id="final-title">—</div>
+    <div class="preview-meta" id="final-meta"></div>
+  </div>
+  <div class="status-bar" id="status-bar"><div class="spinner" id="spinner"></div><span id="status-msg"></span></div>
+  <div style="display:flex;flex-direction:column;gap:10px" id="action-btns">
+    <button class="btn btn-success" id="btn-insert" onclick="insertEvent()">📅 Enregistrer dans le calendrier</button>
+    <button class="btn btn-copy" onclick="copyTitle()">📋 Copier le titre uniquement</button>
+    <button class="btn btn-secondary" onclick="reset()" style="margin-top:4px">Nouvel événement</button>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+  <button class="btn btn-secondary" id="btn-back" onclick="prevStep()" style="display:none;max-width:90px">← Retour</button>
+  <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Suivant →</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const CLIENT_ID   = "437762143522-cpav4sobt0k0qjar7dctrm28tnqd2i6b.apps.googleusercontent.com";
+const CALENDAR_ID = "826a1e6b264172714a4fffdfb31441c9847b7d0f4fc22e27836a34c2014b64fe@group.calendar.google.com";
+const SCOPES      = "https://www.googleapis.com/auth/calendar.events";
+
+// ── Données ───────────────────────────────────────────────────────────────────
+const CHANTIERS = [
+  ["41521/5","NGE Fondations","Aix Canopée"],
+  ["41521/6","NGE Fondations","Toulon Rue Saunier"],
+  ["41521/7","NGE Fondations","Toulon Bd de Paris"],
+  ["41521/8","NGE Fondations","Antibes Parc Florea"],
+  ["41521/9","NGE Fondations","Antibes Square Cerutti"],
+  ["41521/11","NGE Fondations","Cavaillon EPHAD"],
+  ["41521/12","NGE Fondations","Les Pennes Plan de Campagne"],
+  ["41521/13","NGE Fondations","Sanary AER"],
+  ["41521/14","NGE Fondations","Hyères Gambetta"],
+  ["41521/15","NGE Fondations","Marseille Annexx"],
+  ["41521/16","NGE Fondations","Aubagne Alta"],
+  ["41521/17","NGE Fondations","St Etienne du Grès"],
+  ["41521/18","NGE Fondations","Marseille Rue Auphan"],
+  ["41521/19","NGE Fondations","Le Lavandou"],
+  ["41521/20","NGE Fondations","Miramas"],
+  ["41521/21","NGE Fondations","Cagnes"],
+  ["41521/22","NGE Fondations","Ensues la Redonne"],
+  ["41521/23","NGE Fondations","Marignane"],
+  ["41521/24","NGE Fondations","Istres"],
+  ["41521/25","NGE Fondations","Oraison"],
+  ["41521/26","NGE Fondations","Mougins"],
+  ["41521/27","NGE Fondations","Les Pennes Plan de Campagne 2"],
+  ["41521/28","NGE Fondations","Tallard"],
+  ["41521/29","NGE Fondations","Marignane P3b"],
+  ["41521/30","NGE Fondations","Marseille Aygualades"],
+  ["41521/31","NGE Fondations","Manosque"],
+  ["41521/32","NGE Fondations","Le Thor"],
+  ["41521/33","NGE Fondations Muret","Les Pennes Plan de Campagne"],
+  ["41521/34","NGE Fondations","GAP"],
+  ["41521/35","NGE Fondations Drap","Ollioules"],
+  ["41521/36","NGE Fondations","La Garde"],
+  ["41521/37","NGE Fondations","Hyères St Martin"],
+  ["41521/38","NGE Fondations","Nice Garibaldi"],
+  ["41521/39","NGE Fondations","Antibes 1 Rue Lacan"],
+  ["40553/18","NGE GTR","Marseille Geze"],
+  ["40553/19","NGE GC","Valtram Aubagne"],
+  ["40553/20","NGE GC","Arles Gare"],
+  ["40553/21","NGE GTR","Valtram CDM"],
+  ["40553/22","NGE GC","SNCF Blancarde"],
+  ["40553/23","NGE GTR","A7/A54"],
+  ["40553/24","NGE GC","La Garde SNCF"],
+  ["40553/25","NGE GC","SNCF Blancarde 2"],
+  ["40553/26","NGE GTR","Toulon Stand de Tir"],
+  ["40553/27","NGE GTR","Marseille Aygualades"],
+  ["40553/28","Guintoli Arles","Salon de Provence"],
+  ["40553/29","NGE GC","Les Arcs"],
+  ["40553/30","NGE GC","Cheval Blanc"],
+  ["40553/31","NGE GC","Les Pennes Mirabeau"],
+  ["40553/32","NGE GC","Ventabren A8 PI71"],
+  ["40553/33","NGE GC","Fos Sur Mer DPF"],
+  ["40553/34","Guintoli Arles","Arles 1"],
+  ["40553/35","Guintoli Arles","Arles 2"],
+  ["40553/36","NGE GC","Toulon Lagoubran"],
+  ["40553/37","NGE GC","Carnoules"],
+  ["40553/38","NGE GC","Arles Hangars"],
+  ["40553/39","NGE GC","Nice Polygo St Roch"],
+  ["40553/40","NGE GC","Le Revest les Eaux"],
+  ["40553/41","NGE GC","Hyères Barreau St Martin"],
+  ["40553/42","NGE GC","Rousset ST Micro"],
+  ["40553/43","Guintoli Le Luc","Hyères la Sauvette"],
+  ["41934","Colas GC","Mallemort"],
+  ["41215/1","NGE GC","Toulon A57"],
+  ["41580","Solusol","Toulon SoZen"],
+  ["41686","Colas ENV","Cuers"],
+  ["41400/15","MAMP","Arbois Suivi B2"],
+  ["41400/16","MAMP","Arbois Volume B3"],
+  ["41400/17","MAMP","Arbois Fissures Talus B3"],
+  ["41729","SLTP","Mairie de Grans"],
+  ["41681","Franki","Marseille Aura"],
+  ["41681/1","Franki","Monteux"],
+  ["41681/2","Franki","Aix Clos Brunet"],
+  ["41684","Razel","La Farlède / Ollioules"],
+  ["41684/1","Razel","Arsenal Toulon"],
+  ["41922","Razel","Cavalaire sur Mer"],
+  ["41922/1","Razel","La Garde - La Clue"],
+  ["41645","Geoprim","Hyères Iles d'Or"],
+  ["41479","Bouygues TP","Menton"],
+  ["41578","BIT","Menton"],
+];
+
+const PRESTATIONS = [
+  {code:"1T", name:"Terrain journée",    prix:"620 €",  duree:8},
+  {code:"HT", name:"Terrain ½ journée", prix:"480 €",  duree:4},
+  {code:"B",  name:"Bureau / étude",     prix:"520 €",  duree:8},
+  {code:"N",  name:"Nuit",               prix:"1 060 €",duree:8},
+  {code:"S3D",name:"Scan 3D",            prix:"1 200 €",duree:8},
+];
+
+// ── Auth state ────────────────────────────────────────────────────────────────
+let tokenClient = null;
+let accessToken = null;
+let currentUser = null;
+
+let selectedDos  = null;
+let selectedCode = null;
+let currentStep  = 0;
+let customDossiers = [];
+
+try { customDossiers = JSON.parse(localStorage.getItem("customDossiers") || "[]"); } catch(e){}
+
+// ── Google Identity ───────────────────────────────────────────────────────────
+window.addEventListener("load", () => {
+  // Tente de restaurer le token
+  const saved = sessionStorage.getItem("gtoken");
+  const savedUser = sessionStorage.getItem("guser");
+  if (saved) {
+    accessToken = saved;
+    currentUser = savedUser ? JSON.parse(savedUser) : null;
+    renderUserBar();
+  }
+  initTokenClient();
+});
+
+function initTokenClient() {
+  if (!window.google) { setTimeout(initTokenClient, 300); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { showToast("Connexion annulée", true); return; }
+      accessToken = resp.access_token;
+      sessionStorage.setItem("gtoken", accessToken);
+      fetchUserInfo();
+      document.getElementById("login-screen").classList.remove("visible");
+    },
+  });
+}
+
+function signIn() {
+  if (!tokenClient) { showToast("Chargement en cours…", false); setTimeout(signIn, 500); return; }
+  tokenClient.requestAccessToken({prompt: accessToken ? "" : "consent"});
+}
+
+function signOut() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null; currentUser = null;
+  sessionStorage.removeItem("gtoken");
+  sessionStorage.removeItem("guser");
+  renderUserBar();
+  showToast("Déconnecté");
+}
+
+function fetchUserInfo() {
+  fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: {Authorization: "Bearer " + accessToken}
+  }).then(r=>r.json()).then(u=>{
+    currentUser = u;
+    sessionStorage.setItem("guser", JSON.stringify(u));
+    renderUserBar();
+  });
+}
+
+function renderUserBar() {
+  const bar = document.getElementById("user-bar");
+  if (currentUser && accessToken) {
+    bar.innerHTML = `
+      ${currentUser.picture ? `<img class="user-avatar" src="${currentUser.picture}" referrerpolicy="no-referrer">` : ""}
+      <span class="user-name">${currentUser.name || currentUser.email}</span>
+      <button class="btn-signout" onclick="signOut()">Déco</button>`;
+  } else {
+    bar.innerHTML = `<button class="btn-signin" onclick="signIn()">Se connecter avec Google</button>`;
+  }
+}
+
+// ── Insérer l'événement dans Google Calendar ──────────────────────────────────
+async function insertEvent() {
+  if (!accessToken) { signIn(); return; }
+  const jour = document.getElementById("jour").value;
+  if (!jour || !selectedDos || !selectedCode) return;
+
+  const p = PRESTATIONS.find(x=>x.code===selectedCode);
+  const titre = getTitle();
+  const description = `${selectedDos[1]} – ${selectedDos[2]}\n${p.name} (${p.prix})\nSaisi via Agenda Chantier Arragon`;
+
+  // Heure de début : 8h pour terrain/bureau, 21h pour nuit
+  const startHour = selectedCode === "N" ? 21 : 8;
+  const endHour   = startHour + p.duree;
+  const startDt   = `${jour}T${String(startHour).padStart(2,"0")}:00:00`;
+  const endDt     = `${jour}T${String(endHour).padStart(2,"0")}:00:00`;
+
+  const event = {
+    summary: titre,
+    description,
+    start: {dateTime: startDt, timeZone: "Europe/Paris"},
+    end:   {dateTime: endDt,   timeZone: "Europe/Paris"},
+    colorId: selectedCode === "N" ? "9" : selectedCode === "S3D" ? "6" : selectedCode === "B" ? "7" : "1",
+  };
+
+  setStatus("loading", "Enregistrement en cours…");
+
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(event),
+      }
+    );
+    if (!resp.ok) {
+      const err = await resp.json();
+      if (resp.status === 401) { accessToken = null; signIn(); return; }
+      throw new Error(err.error?.message || resp.status);
+    }
+    const created = await resp.json();
+    setStatus("success", `✅ Événement créé dans le calendrier Arragon`);
+    document.getElementById("action-btns").style.display = "none";
+  } catch(e) {
+    setStatus("error", "❌ Erreur : " + e.message);
+  }
+}
+
+function setStatus(type, msg) {
+  const bar = document.getElementById("status-bar");
+  const sp  = document.getElementById("spinner");
+  bar.className = "status-bar visible " + type;
+  bar.style.display = "flex";
+  sp.style.display  = type === "loading" ? "block" : "none";
+  document.getElementById("status-msg").textContent = msg;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function allDossiers() { return [...CHANTIERS, ...customDossiers]; }
+
+function toggleNewDos() {
+  const b = document.getElementById("new-dos-banner");
+  b.classList.toggle("visible");
+  if (b.classList.contains("visible")) setTimeout(()=>document.getElementById("new-num").focus(),100);
+}
+
+function createDossier() {
+  const num    = document.getElementById("new-num").value.trim();
+  const client = document.getElementById("new-client").value.trim() || "—";
+  const lieu   = document.getElementById("new-lieu").value.trim() || "—";
+  if (!num) { document.getElementById("new-num").focus(); return; }
+  if (!allDossiers().find(([d])=>d===num)) {
+    customDossiers.push([num, client, lieu]);
+    try { localStorage.setItem("customDossiers", JSON.stringify(customDossiers)); } catch(e){}
+  }
+  document.getElementById("new-dos-banner").classList.remove("visible");
+  ["new-num","new-client","new-lieu"].forEach(id=>document.getElementById(id).value="");
+  selectDos(num, client, lieu);
+}
+
+function buildDosList(list) {
+  const el = document.getElementById("dos-list");
+  if (!list.length) { el.innerHTML='<div class="no-result">Aucun dossier trouvé</div>'; return; }
+  el.innerHTML = list.map(([dos,cl,lieu])=>`
+    <div class="dos-item${selectedDos&&selectedDos[0]===dos?' selected':''}"
+         onclick="selectDos('${dos}','${cl.replace(/'/g,"\\'")}','${lieu.replace(/'/g,"\\'")}')">
+      <div class="dos-num">${dos}</div>
+      <div class="dos-info"><div class="dos-client">${cl}</div><div class="dos-lieu">${lieu}</div></div>
+      <span class="dos-check">✓</span>
+    </div>`).join("");
+}
+
+function filterDos() {
+  const q = document.getElementById("search").value.toLowerCase();
+  buildDosList(q ? allDossiers().filter(([d,c,l])=>(d+c+l).toLowerCase().includes(q)) : allDossiers());
+}
+
+function selectDos(dos, cl, lieu) {
+  selectedDos = [dos, cl, lieu];
+  const q = document.getElementById("search").value.toLowerCase();
+  buildDosList(q ? allDossiers().filter(([d,c,l])=>(d+c+l).toLowerCase().includes(q)) : allDossiers());
+  setTimeout(()=>nextStep(), 250);
+}
+
+function buildPrestGrid() {
+  document.getElementById("prest-grid").innerHTML = PRESTATIONS.map(p=>`
+    <div class="prest-card${selectedCode===p.code?' selected':''}" onclick="selectPrest('${p.code}')">
+      <div class="prest-code">${p.code}</div>
+      <div class="prest-name">${p.name}</div>
+      <div class="prest-prix">${p.prix}</div>
+    </div>`).join("");
+}
+
+function selectPrest(code) {
+  selectedCode = code;
+  buildPrestGrid();
+  setTimeout(()=>nextStep(), 200);
+}
+
+function getTitle() {
+  if (!selectedDos || !selectedCode) return "";
+  return `${selectedDos[0]}_${selectedCode}`;
+}
+
+function getMeta() {
+  if (!selectedDos || !selectedCode) return "";
+  const p = PRESTATIONS.find(x=>x.code===selectedCode);
+  const j = document.getElementById("jour").value;
+  let parts = [`${selectedDos[1]} – ${selectedDos[2]}`, p ? p.name+" · "+p.prix : ""];
+  if (j) {
+    const d = new Date(j+"T12:00:00");
+    parts.push(d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}));
+  }
+  return parts.join("\n");
+}
+
+function goStep(n) { if (n > currentStep) return; currentStep=n; renderStep(); }
+
+function nextStep() {
+  if (currentStep===0 && !selectedDos) return;
+  if (currentStep===1 && !selectedCode) return;
+  if (currentStep < 3) { currentStep++; renderStep(); }
+}
+
+function prevStep() { if (currentStep > 0) { currentStep--; renderStep(); } }
+
+function renderStep() {
+  document.querySelectorAll(".page").forEach((p,i)=>p.classList.toggle("active",i===currentStep));
+  document.querySelectorAll(".step").forEach((s,i)=>{
+    s.classList.toggle("active",i===currentStep);
+    s.classList.toggle("done",i<currentStep);
+  });
+  const back=document.getElementById("btn-back");
+  const next=document.getElementById("btn-next");
+  back.style.display = currentStep>0 && currentStep<3 ? "block" : "none";
+
+  if (currentStep===3) {
+    next.style.display="none"; back.style.display="none";
+    document.getElementById("final-title").textContent = getTitle()||"—";
+    document.getElementById("final-meta").textContent  = getMeta();
+    document.getElementById("status-bar").className    = "status-bar";
+    document.getElementById("action-btns").style.display = "flex";
+    // Si pas connecté, changer le libellé du bouton
+    document.getElementById("btn-insert").textContent =
+      accessToken ? "📅 Enregistrer dans le calendrier" : "🔐 Se connecter et enregistrer";
+  } else if (currentStep===2) {
+    next.style.display="block"; next.textContent="Valider →";
+    const t=getTitle();
+    if (t) {
+      const mp=document.getElementById("mini-preview");
+      mp.style.display="block";
+      document.getElementById("mini-title").textContent=t;
+      document.getElementById("mini-meta").textContent=getMeta();
+    }
+  } else {
+    next.style.display="block";
+    next.textContent=currentStep===1?"Choisir la date →":"Suivant →";
+  }
+  if (currentStep===1) buildPrestGrid();
+  if (currentStep===0) {
+    buildDosList(allDossiers());
+    document.getElementById("search").value="";
+    document.getElementById("new-dos-banner").classList.remove("visible");
+  }
+}
+
+function copyTitle() {
+  const t=document.getElementById("final-title").textContent;
+  if (!t||t==="—") return;
+  navigator.clipboard.writeText(t).then(()=>showToast("Titre copié !"));
+}
+
+function reset() {
+  selectedDos=null; selectedCode=null; currentStep=0;
+  document.getElementById("jour").value=new Date().toISOString().slice(0,10);
+  renderStep();
+}
+
+function showToast(msg, isError=false) {
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  t.style.background=isError?"#DC2626":"var(--green)";
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+
+// Init
+document.getElementById("jour").value=new Date().toISOString().slice(0,10);
+document.getElementById("jour").addEventListener("change",()=>{
+  const mp=document.getElementById("mini-preview");
+  if (getTitle()) {
+    mp.style.display="block";
+    document.getElementById("mini-title").textContent=getTitle();
+    document.getElementById("mini-meta").textContent=getMeta();
+  }
+});
+buildDosList(allDossiers());
+</script>
+</body>
+</html>
