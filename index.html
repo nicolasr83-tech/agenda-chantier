@@ -5,618 +5,941 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Chantier Agenda">
+<meta name="apple-mobile-web-app-title" content="Arragon Planning">
 <meta name="theme-color" content="#1F3864">
-<title>Agenda Chantier – Cabinet Arragon</title>
+<title>Planning – Cabinet Arragon</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  :root{
-    --navy:#1F3864;--blue:#2E75B6;--lblue:#D6E4F7;--white:#fff;
-    --grey:#F4F5F7;--border:#DEE2E8;--text:#1A1D23;--muted:#6B7280;
-    --green:#16A34A;--green-bg:#DCFCE7;--radius:12px;--safe-bottom:env(safe-area-inset-bottom,0px);
-  }
-  html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);overscroll-behavior:none}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --navy:#1F3864;--blue:#2E75B6;--lblue:#D6E4F7;--white:#fff;
+  --grey:#F4F5F7;--border:#DEE2E8;--text:#1A1D23;--muted:#6B7280;
+  --green:#16A34A;--green-bg:#DCFCE7;--red:#DC2626;
+  --radius:10px;--safe-bottom:env(safe-area-inset-bottom,0px);
+  --sidebar-w:300px;
+}
+html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);overflow:hidden}
 
-  /* Header */
-  .header{background:var(--navy);color:var(--white);padding:52px 20px 12px;text-align:center}
-  .header h1{font-size:18px;font-weight:600;letter-spacing:.01em}
-  .header p{font-size:12px;opacity:.65;margin-top:3px}
-  .user-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;min-height:28px}
-  .user-avatar{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}
-  .user-name{font-size:12px;color:rgba(255,255,255,.8);font-weight:500}
-  .btn-signout{font-size:11px;color:rgba(255,255,255,.5);background:none;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;cursor:pointer}
-  .btn-signin{font-size:12px;color:var(--white);background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:5px 14px;cursor:pointer;font-weight:500}
-  .btn-signin:active{background:rgba(255,255,255,.25)}
+/* ── Header ── */
+.header{background:var(--navy);color:var(--white);display:flex;align-items:center;padding:0 16px;height:56px;gap:12px;position:relative;z-index:200}
+.header h1{font-size:16px;font-weight:700;flex:1}
+.user-chip{display:flex;align-items:center;gap:6px;cursor:pointer}
+.user-avatar{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);object-fit:cover}
+.user-name{font-size:12px;color:rgba(255,255,255,.8);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-icon{background:rgba(255,255,255,.12);border:none;color:var(--white);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.btn-icon:active{opacity:.7}
+.btn-signin-h{font-size:12px;color:var(--white);background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:5px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
 
-  /* Steps nav */
-  .steps{display:flex;background:var(--navy);padding:0 20px 16px;gap:0}
-  .step{flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:11px;font-weight:500;color:rgba(255,255,255,.45);cursor:pointer;transition:all .2s}
-  .step.active{background:rgba(255,255,255,.15);color:var(--white)}
-  .step.done{color:rgba(255,255,255,.7)}
-  .step-num{display:block;font-size:16px;font-weight:700;margin-bottom:2px}
+/* ── Layout ── */
+.app{display:flex;height:calc(100vh - 56px);overflow:hidden;position:relative}
 
-  /* Pages */
-  .page{display:none;padding:16px 16px calc(80px + var(--safe-bottom));animation:fadeIn .18s ease}
-  .page.active{display:block}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* ── Sidebar ── */
+.sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .25s ease;z-index:150;flex-shrink:0}
+.sidebar.hidden{transform:translateX(-100%);position:absolute;top:0;left:0;height:100%;box-shadow:4px 0 20px rgba(0,0,0,.15)}
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.stab{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.stab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.sidebar-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sidebar-panel{display:none;padding:12px}
+.sidebar-panel.active{display:block}
 
-  /* Section label */
-  .section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+/* Sidebar items */
+.s-section{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px}
+.s-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:6px;background:var(--white)}
+.s-item:hover{background:var(--grey)}
+.s-dot{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--white)}
+.s-name{flex:1;font-size:13px;font-weight:500}
+.s-sub{font-size:11px;color:var(--muted)}
+.s-edit{font-size:13px;color:var(--muted);cursor:pointer;padding:4px;border:none;background:none}
+.s-edit:hover{color:var(--blue)}
+.btn-add-s{width:100%;padding:10px;border:1.5px dashed var(--blue);border-radius:8px;background:none;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;margin-top:4px}
+.btn-add-s:active{background:var(--lblue)}
 
-  /* Search */
-  .search-wrap{position:relative}
-  .search-wrap input{width:100%;padding:12px 12px 12px 40px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;background:var(--white);outline:none;-webkit-appearance:none}
-  .search-wrap input:focus{border-color:var(--blue)}
-  .search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:17px}
-  .search-row{display:flex;gap:8px;margin-bottom:12px;align-items:center}
-  .search-row .search-wrap{flex:1}
-  .btn-new{background:var(--blue);color:var(--white);border:none;border-radius:var(--radius);padding:0 14px;height:46px;font-size:24px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-  .btn-new:active{opacity:.8}
+/* Form dans sidebar */
+.s-form{background:var(--grey);border-radius:8px;padding:12px;margin-bottom:10px;display:none}
+.s-form.visible{display:block}
+.s-form-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:8px}
+.s-field{margin-bottom:7px}
+.s-field label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px;font-weight:500}
+.s-field input,.s-field select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
+.s-field input:focus{border-color:var(--blue)}
+.s-form-btns{display:flex;gap:6px;margin-top:8px}
+.s-btn-save{flex:1;background:var(--blue);color:var(--white);border:none;border-radius:7px;padding:9px;font-size:13px;font-weight:600;cursor:pointer}
+.s-btn-cancel{background:var(--white);border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
 
-  /* Dossier list */
-  .dos-list{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);overflow:hidden;max-height:320px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-  .dos-item{padding:13px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .1s}
-  .dos-item:last-child{border-bottom:none}
-  .dos-item:active{background:var(--lblue)}
-  .dos-item.selected{background:var(--lblue)}
-  .dos-num{font-size:12px;font-weight:700;color:var(--blue);min-width:72px;font-family:monospace}
-  .dos-info{flex:1;min-width:0}
-  .dos-client{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dos-lieu{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dos-check{color:var(--blue);font-size:18px;opacity:0}
-  .dos-item.selected .dos-check{opacity:1}
-  .no-result{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+/* Couleurs */
+.color-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.csw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+.csw.sel{border-color:var(--navy);box-shadow:0 0 0 2px var(--white),0 0 0 3px var(--navy)}
 
-  /* Nouveau dossier */
-  .new-dos-banner{display:none;background:var(--white);border:1.5px dashed var(--blue);border-radius:var(--radius);padding:14px;margin-bottom:12px}
-  .new-dos-banner.visible{display:block}
-  .new-dos-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
-  .new-dos-field{margin-bottom:8px}
-  .new-dos-field label{font-size:11px;color:var(--muted);font-weight:500;display:block;margin-bottom:4px}
-  .new-dos-field input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--grey);outline:none;-webkit-appearance:none;color:var(--text)}
-  .new-dos-field input:focus{border-color:var(--blue);background:var(--white)}
-  .btn-create{width:100%;background:var(--blue);color:var(--white);border:none;border-radius:var(--radius);padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
-  .btn-create:active{opacity:.85}
+/* ── Calendrier principal ── */
+.cal-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.cal-nav{display:flex;align-items:center;padding:10px 14px;gap:8px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0}
+.cal-title{flex:1;font-size:16px;font-weight:700;text-align:center}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--text)}
+.cal-nav-btn:hover{background:var(--grey)}
+.btn-today{background:var(--blue);color:var(--white);border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
 
-  /* Prestation cards */
-  .prest-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .prest-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:14px 12px;cursor:pointer;transition:all .15s}
-  .prest-card:active{transform:scale(.97)}
-  .prest-card.selected{border-color:var(--blue);background:var(--lblue)}
-  .prest-code{font-size:20px;font-weight:700;color:var(--blue);font-family:monospace;margin-bottom:3px}
-  .prest-name{font-size:12px;color:var(--text);font-weight:500;margin-bottom:2px}
-  .prest-prix{font-size:11px;color:var(--muted)}
+/* Grille */
+.cal-grid{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10}
+.cal-dow-cell{padding:6px 0;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.cal-dow-cell:first-child,.cal-dow-cell:last-child{color:var(--red)}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(80px,1fr)}
+.cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;position:relative;transition:background .1s;min-height:80px;background:var(--white)}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell:hover{background:#f8faff}
+.cal-cell.other-month{background:#fafafa}
+.cal-cell.other-month .day-num{color:#ccc}
+.cal-cell.today{background:#eff6ff}
+.cal-cell.today .day-num{background:var(--blue);color:var(--white);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-cell.weekend .day-num{color:var(--red)}
+.day-num{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 
-  /* Date */
-  .date-input{width:100%;padding:14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:16px;background:var(--white);outline:none;-webkit-appearance:none;color:var(--text)}
-  .date-input:focus{border-color:var(--blue)}
+/* Events in cell */
+.ev-chip{border-radius:4px;padding:2px 5px;font-size:10px;font-weight:600;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--white);line-height:1.4}
+.ev-chip:hover{opacity:.85}
+.ev-more{font-size:10px;color:var(--muted);padding:1px 4px;cursor:pointer}
+.ev-more:hover{text-decoration:underline}
 
-  /* Preview */
-  .preview-card{background:var(--white);border:2px solid var(--blue);border-radius:var(--radius);padding:18px;margin-bottom:16px}
-  .preview-label{font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-  .preview-title{font-size:22px;font-weight:700;color:var(--navy);font-family:monospace;word-break:break-all;margin-bottom:6px}
-  .preview-meta{font-size:13px;color:var(--muted);line-height:1.5;white-space:pre-line}
+/* FAB mobile */
+.fab{display:none;position:fixed;bottom:calc(20px + var(--safe-bottom));right:20px;width:52px;height:52px;border-radius:50%;background:var(--blue);color:var(--white);border:none;font-size:26px;cursor:pointer;box-shadow:0 4px 16px rgba(46,117,182,.4);z-index:100;align-items:center;justify-content:center}
+@media(max-width:768px){
+  .fab{display:flex}
+  .sidebar{position:absolute;top:0;left:0;height:100%;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .cal-cell{min-height:56px}
+  .ev-chip{font-size:9px}
+}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:140}
+.overlay.visible{display:block}
 
-  /* Buttons bottom */
-  .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:12px 16px var(--safe-bottom);display:flex;gap:10px;z-index:100}
-  .btn{flex:1;padding:15px;border-radius:var(--radius);font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
-  .btn:active{transform:scale(.97)}
-  .btn-primary{background:var(--blue);color:var(--white)}
-  .btn-secondary{background:var(--grey);color:var(--text);border:1.5px solid var(--border)}
-  .btn-success{background:var(--green);color:var(--white);display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-decoration:none}
-  .btn-copy{background:var(--grey);color:var(--text);border:1.5px solid var(--border)}
-  .btn-disabled{opacity:.4;pointer-events:none}
+/* ── Modal création/édition ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:14px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{padding:18px 18px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.modal-title{font-size:17px;font-weight:700;color:var(--navy)}
+.modal-date{font-size:13px;color:var(--muted);margin-top:2px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px;line-height:1}
+.modal-body{padding:16px 18px}
+.m-field{margin-bottom:14px}
+.m-field label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.m-select{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.m-select:focus{border-color:var(--blue)}
+.m-input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--white);outline:none;color:var(--text)}
+.m-input:focus{border-color:var(--blue)}
+.m-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-toggle{display:flex;background:var(--grey);border-radius:8px;padding:3px}
+.m-toggle button{flex:1;padding:8px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;background:none;color:var(--muted);transition:all .15s}
+.m-toggle button.active{background:var(--white);color:var(--navy);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.collab-preview{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--grey);border-radius:8px;margin-top:6px}
+.cp-dot{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--white)}
+.cp-info{font-size:13px;font-weight:500}
+.modal-footer{padding:0 18px 18px;display:flex;gap:8px}
+.btn-modal-cancel{flex:1;padding:13px;border-radius:8px;font-size:14px;font-weight:500;border:1.5px solid var(--border);background:var(--white);color:var(--text);cursor:pointer}
+.btn-modal-save{flex:2;padding:13px;border-radius:8px;font-size:14px;font-weight:700;background:var(--blue);color:var(--white);border:none;cursor:pointer}
+.btn-modal-save:active{opacity:.9}
+.btn-modal-del{padding:13px 14px;border-radius:8px;font-size:16px;border:1.5px solid #fecaca;background:#fff5f5;color:var(--red);cursor:pointer}
 
-  /* Status / spinner */
-  .status-bar{background:var(--lblue);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--blue);display:none;align-items:center;gap:10px}
-  .status-bar.visible{display:flex}
-  .spinner{width:16px;height:16px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .status-bar.error{background:#FEE2E2;color:#991B1B}
-  .status-bar.success{background:var(--green-bg);color:#166534}
+/* Modal event detail */
+.ev-detail{background:var(--white);border-radius:14px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.ev-detail-header{padding:16px 18px;display:flex;align-items:center;gap:10px}
+.ev-detail-color{width:10px;align-self:stretch;border-radius:4px;flex-shrink:0}
+.ev-detail-info{flex:1}
+.ev-detail-title{font-size:16px;font-weight:700}
+.ev-detail-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.ev-detail-actions{display:flex;gap:8px;padding:0 18px 16px}
 
-  /* Toast */
-  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);color:var(--white);padding:10px 20px;border-radius:30px;font-size:14px;font-weight:600;z-index:999;transition:transform .3s ease;background:var(--green)}
-  .toast.show{transform:translateX(-50%) translateY(0)}
+/* Status */
+.status-toast{position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(30px);background:var(--green);color:var(--white);padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .3s ease;pointer-events:none}
+.status-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.status-toast.error{background:var(--red)}
+.loading-bar{height:3px;background:var(--blue);position:fixed;top:56px;left:0;width:0;z-index:999;transition:width .3s}
 
-  /* Login screen */
-  .login-screen{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center}
-  .login-screen.visible{display:flex}
-  .login-logo{font-size:48px;margin-bottom:16px}
-  .login-title{font-size:22px;font-weight:700;color:var(--white);margin-bottom:8px}
-  .login-sub{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:32px;line-height:1.5}
-  .btn-google{background:var(--white);color:#1A1D23;border:none;border-radius:var(--radius);padding:16px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;max-width:300px;justify-content:center}
-  .btn-google:active{opacity:.9}
-  .google-icon{width:20px;height:20px}
+/* Login */
+.login-overlay{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center}
+.login-overlay.visible{display:flex}
+.login-logo{font-size:56px;margin-bottom:16px}
+.login-title{font-size:24px;font-weight:700;color:var(--white);margin-bottom:8px}
+.login-sub{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:36px;line-height:1.6;max-width:300px}
+.btn-google{background:var(--white);color:#1a1d23;border:none;border-radius:12px;padding:16px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;max-width:280px;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 </style>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
-<div class="login-screen" id="login-screen">
-  <div class="login-logo">📋</div>
-  <div class="login-title">Agenda Chantier</div>
-  <div class="login-sub">Cabinet Arragon – Géomètre Topographe<br><br>Connecte-toi pour créer des événements directement dans le calendrier partagé.</div>
+<!-- Login -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-logo">📐</div>
+  <div class="login-title">Arragon Planning</div>
+  <div class="login-sub">Cabinet Arragon – Géomètre Topographe<br>Connecte-toi pour accéder au calendrier partagé.</div>
   <button class="btn-google" onclick="signIn()">
-    <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
     Se connecter avec Google
   </button>
 </div>
 
-<!-- APP -->
+<!-- App -->
 <div class="header">
-  <h1>Agenda Chantier</h1>
-  <p>Cabinet Arragon – Géomètre Topographe</p>
-  <div class="user-bar" id="user-bar">
-    <button class="btn-signin" onclick="signIn()" id="btn-signin-header">Se connecter</button>
+  <button class="btn-icon" id="sidebar-toggle" onclick="toggleSidebar()" title="Panneau de gestion">☰</button>
+  <h1>Arragon Planning</h1>
+  <div id="user-bar">
+    <button class="btn-signin-h" onclick="signIn()">Se connecter</button>
   </div>
 </div>
 
-<div class="steps" id="steps-nav">
-  <div class="step active" onclick="goStep(0)"><span class="step-num">1</span>Dossier</div>
-  <div class="step" onclick="goStep(1)"><span class="step-num">2</span>Prestation</div>
-  <div class="step" onclick="goStep(2)"><span class="step-num">3</span>Date</div>
-  <div class="step" onclick="goStep(3)"><span class="step-num">4</span>Créer</div>
-</div>
+<div class="app">
+  <!-- Overlay mobile pour fermer sidebar -->
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-<!-- PAGE 1 : DOSSIER -->
-<div class="page active" id="page-0">
-  <p class="section-label">Sélectionner le dossier</p>
-  <div class="search-row">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="search" id="search" placeholder="N° dossier, client ou chantier…" oninput="filterDos()" autocomplete="off" autocorrect="off" spellcheck="false">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-tabs">
+      <div class="stab active" onclick="switchSTab('dossiers')">📁 Dossiers</div>
+      <div class="stab" onclick="switchSTab('collabs')">👤 Collabs</div>
+      <div class="stab" onclick="switchSTab('materiel')">🔧 Matériel</div>
     </div>
-    <button class="btn-new" onclick="toggleNewDos()" title="Créer un dossier">＋</button>
+    <div class="sidebar-content">
+
+      <!-- DOSSIERS -->
+      <div class="sidebar-panel active" id="sp-dossiers">
+        <div class="s-form" id="dos-form">
+          <div class="s-form-title" id="dos-form-title">Nouveau dossier</div>
+          <div class="s-field"><label>N° dossier *</label><input id="f-dos-num" placeholder="ex: 41521/40" autocomplete="off"></div>
+          <div class="s-field"><label>Client</label><input id="f-dos-client" placeholder="ex: NGE Fondations" autocomplete="off"></div>
+          <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="ex: Marseille Centre" autocomplete="off"></div>
+          <div class="s-form-btns">
+            <button class="s-btn-cancel" onclick="closeDosForm()">Annuler</button>
+            <button class="s-btn-save" onclick="saveDos()">Enregistrer</button>
+          </div>
+        </div>
+        <input type="search" id="s-search-dos" placeholder="Rechercher…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-bottom:8px;outline:none" oninput="renderSidebarDos()">
+        <div id="s-dos-list"></div>
+        <button class="btn-add-s" onclick="openDosForm()">＋ Ajouter un dossier</button>
+      </div>
+
+      <!-- COLLABS -->
+      <div class="sidebar-panel" id="sp-collabs">
+        <div class="s-form" id="collab-form">
+          <div class="s-form-title" id="collab-form-title">Nouveau collaborateur</div>
+          <div class="s-field"><label>Prénom Nom *</label><input id="f-collab-name" placeholder="ex: Marie Dupont" autocomplete="off"></div>
+          <div class="s-field"><label>Couleur agenda</label>
+            <div class="color-row" id="collab-color-row"></div>
+          </div>
+          <div class="s-form-btns">
+            <button class="s-btn-cancel" onclick="closeCollabForm()">Annuler</button>
+            <button class="s-btn-save" onclick="saveCollab()">Enregistrer</button>
+          </div>
+        </div>
+        <div id="s-collab-list"></div>
+        <button class="btn-add-s" onclick="openCollabForm()">＋ Ajouter un collaborateur</button>
+      </div>
+
+      <!-- MATERIEL -->
+      <div class="sidebar-panel" id="sp-materiel">
+        <div class="s-form" id="mat-form">
+          <div class="s-form-title" id="mat-form-title">Nouveau matériel</div>
+          <div class="s-field"><label>Nom *</label><input id="f-mat-name" placeholder="ex: GPS Leica GS18" autocomplete="off"></div>
+          <div class="s-field"><label>Catégorie</label>
+            <select id="f-mat-cat">
+              <option>Instrument topo</option>
+              <option>Drone</option>
+              <option>Véhicule</option>
+              <option>Scanner 3D</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="s-form-btns">
+            <button class="s-btn-cancel" onclick="closeMatForm()">Annuler</button>
+            <button class="s-btn-save" onclick="saveMat()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="s-section">Instruments topo</div>
+        <div id="s-mat-list-topo"></div>
+        <div class="s-section">Véhicules</div>
+        <div id="s-mat-list-vehicule"></div>
+        <div class="s-section">Autre matériel</div>
+        <div id="s-mat-list-autre"></div>
+        <button class="btn-add-s" onclick="openMatForm()">＋ Ajouter du matériel</button>
+      </div>
+    </div>
   </div>
-  <div class="new-dos-banner" id="new-dos-banner">
-    <div class="new-dos-title">Nouveau dossier</div>
-    <div class="new-dos-field"><label>N° de dossier *</label><input type="text" id="new-num" placeholder="ex : 41521/40" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-    <div class="new-dos-field"><label>Client</label><input type="text" id="new-client" placeholder="ex : NGE Fondations" autocomplete="off"></div>
-    <div class="new-dos-field"><label>Chantier / Lieu</label><input type="text" id="new-lieu" placeholder="ex : Marseille Centre" autocomplete="off"></div>
-    <button class="btn-create" onclick="createDossier()">Créer et sélectionner →</button>
+
+  <!-- Calendrier -->
+  <div class="cal-wrap">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+      <div class="cal-title" id="cal-title">Juillet 2026</div>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
+    </div>
+    <div class="cal-dow" id="cal-dow"></div>
+    <div class="cal-grid">
+      <div class="cal-days" id="cal-days"></div>
+    </div>
   </div>
-  <div class="dos-list" id="dos-list"></div>
 </div>
 
-<!-- PAGE 2 : PRESTATION -->
-<div class="page" id="page-1">
-  <p class="section-label">Type de prestation</p>
-  <div class="prest-grid" id="prest-grid"></div>
-</div>
+<!-- FAB mobile -->
+<button class="fab" onclick="openModal(null)" title="Créer un événement">＋</button>
 
-<!-- PAGE 3 : DATE -->
-<div class="page" id="page-2">
-  <p class="section-label">Date de l'intervention</p>
-  <input type="date" class="date-input" id="jour">
-  <div style="height:16px"></div>
-  <p class="section-label">Aperçu</p>
-  <div class="preview-card" id="mini-preview" style="display:none">
-    <div class="preview-label">Titre agenda</div>
-    <div class="preview-title" id="mini-title"></div>
-    <div class="preview-meta" id="mini-meta"></div>
+<!-- Modal création/édition -->
+<div class="modal-bg" id="modal-bg" onclick="handleModalBgClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Nouvel événement</div>
+        <div class="modal-date" id="modal-date"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field">
+        <label>Dossier / Chantier</label>
+        <select class="m-select" id="m-dossier" onchange="updateModalPreview()"></select>
+      </div>
+      <div class="m-field">
+        <label>Collaborateur</label>
+        <select class="m-select" id="m-collab" onchange="updateModalPreview()"></select>
+        <div class="collab-preview" id="collab-preview" style="display:none">
+          <div class="cp-dot" id="cp-dot"></div>
+          <span class="cp-info" id="cp-info"></span>
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Prestation</label>
+        <div class="m-toggle" id="m-prest-toggle">
+          <button class="active" onclick="setPrest('1T',this)">1J Terrain</button>
+          <button onclick="setPrest('HT',this)">½J Terrain</button>
+          <button onclick="setPrest('B',this)">Bureau</button>
+          <button onclick="setPrest('N',this)">Nuit</button>
+          <button onclick="setPrest('S3D',this)">Scan 3D</button>
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Matériel (optionnel)</label>
+        <select class="m-select" id="m-materiel">
+          <option value="">— Aucun —</option>
+        </select>
+        <div id="m-mat-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none">⚠ Ce matériel est déjà affecté ce jour-là</div>
+      </div>
+      <div class="m-row">
+        <div class="m-field">
+          <label>Date début</label>
+          <input type="date" class="m-input" id="m-date-start" onchange="checkMatConflict()">
+        </div>
+        <div class="m-field">
+          <label>Date fin</label>
+          <input type="date" class="m-input" id="m-date-end">
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Notes</label>
+        <input type="text" class="m-input" id="m-notes" placeholder="Informations complémentaires…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-del" id="btn-del" onclick="deleteEvent()" style="display:none" title="Supprimer">🗑</button>
+      <button class="btn-modal-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-modal-save" onclick="saveEvent()" id="btn-modal-save">Enregistrer</button>
+    </div>
   </div>
 </div>
 
-<!-- PAGE 4 : CONFIRMER -->
-<div class="page" id="page-3">
-  <p class="section-label">Récapitulatif</p>
-  <div class="preview-card">
-    <div class="preview-label">Titre de l'événement</div>
-    <div class="preview-title" id="final-title">—</div>
-    <div class="preview-meta" id="final-meta"></div>
-  </div>
-  <div class="status-bar" id="status-bar"><div class="spinner" id="spinner"></div><span id="status-msg"></span></div>
-  <div style="display:flex;flex-direction:column;gap:10px" id="action-btns">
-    <button class="btn btn-success" id="btn-insert" onclick="insertEvent()">📅 Enregistrer dans le calendrier</button>
-    <button class="btn btn-copy" onclick="copyTitle()">📋 Copier le titre uniquement</button>
-    <button class="btn btn-secondary" onclick="reset()" style="margin-top:4px">Nouvel événement</button>
-  </div>
-</div>
+<!-- Status -->
+<div class="status-toast" id="toast"></div>
+<div class="loading-bar" id="loading-bar"></div>
 
-<!-- Bottom bar -->
-<div class="bottom-bar">
-  <button class="btn btn-secondary" id="btn-back" onclick="prevStep()" style="display:none;max-width:90px">← Retour</button>
-  <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Suivant →</button>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
-// ── Config ────────────────────────────────────────────────────────────────────
-// Origine autorisée : https://nicolasr83-tech.github.io
+// ══ CONFIG ════════════════════════════════════════════════════════════════════
 const CLIENT_ID   = "437762143522-cpav4sobt0k0qjar7dctrm28tnqd2i6b.apps.googleusercontent.com";
 const CALENDAR_ID = "826a1e6b264172714a4fffdfb31441c9847b7d0f4fc22e27836a34c2014b64fe@group.calendar.google.com";
 const SCOPES      = "https://www.googleapis.com/auth/calendar.events";
 
-// ── Données ───────────────────────────────────────────────────────────────────
-const CHANTIERS = [
-  ["41521/5","NGE Fondations","Aix Canopée"],
-  ["41521/6","NGE Fondations","Toulon Rue Saunier"],
-  ["41521/7","NGE Fondations","Toulon Bd de Paris"],
-  ["41521/8","NGE Fondations","Antibes Parc Florea"],
-  ["41521/9","NGE Fondations","Antibes Square Cerutti"],
-  ["41521/11","NGE Fondations","Cavaillon EPHAD"],
-  ["41521/12","NGE Fondations","Les Pennes Plan de Campagne"],
-  ["41521/13","NGE Fondations","Sanary AER"],
-  ["41521/14","NGE Fondations","Hyères Gambetta"],
-  ["41521/15","NGE Fondations","Marseille Annexx"],
-  ["41521/16","NGE Fondations","Aubagne Alta"],
-  ["41521/17","NGE Fondations","St Etienne du Grès"],
-  ["41521/18","NGE Fondations","Marseille Rue Auphan"],
-  ["41521/19","NGE Fondations","Le Lavandou"],
-  ["41521/20","NGE Fondations","Miramas"],
-  ["41521/21","NGE Fondations","Cagnes"],
-  ["41521/22","NGE Fondations","Ensues la Redonne"],
-  ["41521/23","NGE Fondations","Marignane"],
-  ["41521/24","NGE Fondations","Istres"],
-  ["41521/25","NGE Fondations","Oraison"],
-  ["41521/26","NGE Fondations","Mougins"],
-  ["41521/27","NGE Fondations","Les Pennes Plan de Campagne 2"],
-  ["41521/28","NGE Fondations","Tallard"],
-  ["41521/29","NGE Fondations","Marignane P3b"],
-  ["41521/30","NGE Fondations","Marseille Aygualades"],
-  ["41521/31","NGE Fondations","Manosque"],
-  ["41521/32","NGE Fondations","Le Thor"],
-  ["41521/33","NGE Fondations Muret","Les Pennes Plan de Campagne"],
-  ["41521/34","NGE Fondations","GAP"],
-  ["41521/35","NGE Fondations Drap","Ollioules"],
-  ["41521/36","NGE Fondations","La Garde"],
-  ["41521/37","NGE Fondations","Hyères St Martin"],
-  ["41521/38","NGE Fondations","Nice Garibaldi"],
-  ["41521/39","NGE Fondations","Antibes 1 Rue Lacan"],
-  ["40553/18","NGE GTR","Marseille Geze"],
-  ["40553/19","NGE GC","Valtram Aubagne"],
-  ["40553/20","NGE GC","Arles Gare"],
-  ["40553/21","NGE GTR","Valtram CDM"],
-  ["40553/22","NGE GC","SNCF Blancarde"],
-  ["40553/23","NGE GTR","A7/A54"],
-  ["40553/24","NGE GC","La Garde SNCF"],
-  ["40553/25","NGE GC","SNCF Blancarde 2"],
-  ["40553/26","NGE GTR","Toulon Stand de Tir"],
-  ["40553/27","NGE GTR","Marseille Aygualades"],
-  ["40553/28","Guintoli Arles","Salon de Provence"],
-  ["40553/29","NGE GC","Les Arcs"],
-  ["40553/30","NGE GC","Cheval Blanc"],
-  ["40553/31","NGE GC","Les Pennes Mirabeau"],
-  ["40553/32","NGE GC","Ventabren A8 PI71"],
-  ["40553/33","NGE GC","Fos Sur Mer DPF"],
-  ["40553/34","Guintoli Arles","Arles 1"],
-  ["40553/35","Guintoli Arles","Arles 2"],
-  ["40553/36","NGE GC","Toulon Lagoubran"],
-  ["40553/37","NGE GC","Carnoules"],
-  ["40553/38","NGE GC","Arles Hangars"],
-  ["40553/39","NGE GC","Nice Polygo St Roch"],
-  ["40553/40","NGE GC","Le Revest les Eaux"],
-  ["40553/41","NGE GC","Hyères Barreau St Martin"],
-  ["40553/42","NGE GC","Rousset ST Micro"],
-  ["40553/43","Guintoli Le Luc","Hyères la Sauvette"],
-  ["41934","Colas GC","Mallemort"],
-  ["41215/1","NGE GC","Toulon A57"],
-  ["41580","Solusol","Toulon SoZen"],
-  ["41686","Colas ENV","Cuers"],
-  ["41400/15","MAMP","Arbois Suivi B2"],
-  ["41400/16","MAMP","Arbois Volume B3"],
-  ["41400/17","MAMP","Arbois Fissures Talus B3"],
-  ["41729","SLTP","Mairie de Grans"],
-  ["41681","Franki","Marseille Aura"],
-  ["41681/1","Franki","Monteux"],
-  ["41681/2","Franki","Aix Clos Brunet"],
-  ["41684","Razel","La Farlède / Ollioules"],
-  ["41684/1","Razel","Arsenal Toulon"],
-  ["41922","Razel","Cavalaire sur Mer"],
-  ["41922/1","Razel","La Garde - La Clue"],
-  ["41645","Geoprim","Hyères Iles d'Or"],
-  ["41479","Bouygues TP","Menton"],
+const GCAL_COLORS = [
+  {id:"1",hex:"#7986CB"},{id:"2",hex:"#33B679"},{id:"3",hex:"#8E24AA"},
+  {id:"4",hex:"#E67C73"},{id:"5",hex:"#F6BF26"},{id:"6",hex:"#F4511E"},
+  {id:"7",hex:"#039BE5"},{id:"8",hex:"#616161"},{id:"9",hex:"#3F51B5"},
+  {id:"10",hex:"#0B8043"},{id:"11",hex:"#D50000"},
+];
+const PREST_HOURS = {
+  "1T":{start:8,dur:8},"HT":{start:8,dur:4},"B":{start:8,dur:8},
+  "N":{start:21,dur:8},"S3D":{start:7,dur:10}
+};
+
+// ══ STATE ═════════════════════════════════════════════════════════════════════
+let accessToken=null, currentUser=null, tokenClient=null;
+let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
+let calEvents=[];
+let editingEventId=null;
+let selectedPrest="1T";
+let selectedCollabColorId="7";
+let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
+
+function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+const BASE_DOSSIERS=[
+  ["41521/5","NGE Fondations","Aix Canopée"],["41521/6","NGE Fondations","Toulon Rue Saunier"],
+  ["41521/7","NGE Fondations","Toulon Bd de Paris"],["41521/8","NGE Fondations","Antibes Parc Florea"],
+  ["41521/9","NGE Fondations","Antibes Square Cerutti"],["41521/11","NGE Fondations","Cavaillon EPHAD"],
+  ["41521/12","NGE Fondations","Les Pennes Plan de Campagne"],["41521/13","NGE Fondations","Sanary AER"],
+  ["41521/14","NGE Fondations","Hyères Gambetta"],["41521/15","NGE Fondations","Marseille Annexx"],
+  ["41521/16","NGE Fondations","Aubagne Alta"],["41521/17","NGE Fondations","St Etienne du Grès"],
+  ["41521/18","NGE Fondations","Marseille Rue Auphan"],["41521/19","NGE Fondations","Le Lavandou"],
+  ["41521/20","NGE Fondations","Miramas"],["41521/21","NGE Fondations","Cagnes"],
+  ["41521/29","NGE Fondations","Marignane P3b"],["41521/30","NGE Fondations","Marseille Aygualades"],
+  ["41521/31","NGE Fondations","Manosque"],["41521/36","NGE Fondations","La Garde"],
+  ["41521/37","NGE Fondations","Hyères St Martin"],["41521/38","NGE Fondations","Nice Garibaldi"],
+  ["40553/22","NGE GC","SNCF Blancarde"],["40553/27","NGE GTR","Marseille Aygualades"],
+  ["40553/33","NGE GC","Fos Sur Mer DPF"],["40553/36","NGE GC","Toulon Lagoubran"],
+  ["40553/37","NGE GC","Carnoules"],["40553/39","NGE GC","Nice Polygo St Roch"],
+  ["40553/40","NGE GC","Le Revest les Eaux"],["40553/41","NGE GC","Hyères Barreau St Martin"],
+  ["40553/42","NGE GC","Rousset ST Micro"],["40553/43","Guintoli Le Luc","Hyères la Sauvette"],
+  ["41934","Colas GC","Mallemort"],["41215/1","NGE GC","Toulon A57"],
+  ["41580","Solusol","Toulon SoZen"],["41686","Colas ENV","Cuers"],
+  ["41684","Razel","La Farlède / Ollioules"],["41684/1","Razel","Arsenal Toulon"],
+  ["41922","Razel","Cavalaire sur Mer"],["41922/1","Razel","La Garde - La Clue"],
+  ["41645","Geoprim","Hyères Iles d'Or"],["41479","Bouygues TP","Menton"],
   ["41578","BIT","Menton"],
 ];
 
-const PRESTATIONS = [
-  {code:"1T", name:"Terrain journée",    prix:"620 €",  duree:8},
-  {code:"HT", name:"Terrain ½ journée", prix:"480 €",  duree:4},
-  {code:"B",  name:"Bureau / étude",     prix:"520 €",  duree:8},
-  {code:"N",  name:"Nuit",               prix:"1 060 €",duree:8},
-  {code:"S3D",name:"Scan 3D",            prix:"1 200 €",duree:8},
+let customDossiers  = ls("arr_dossiers")  || [];
+let collabs         = ls("arr_collabs")   || [{name:"Nicolas R.",colorId:"7"},{name:"Mickael",colorId:"2"}];
+let materiels       = ls("arr_materiels") || [
+  {name:"GPS Leica GS18 T",cat:"Instrument topo"},
+  {name:"Station Totale Leica TS16",cat:"Instrument topo"},
+  {name:"Drone DJI M350",cat:"Drone"},
+  {name:"Scanner Leica RTC360",cat:"Scanner 3D"},
+  {name:"Peugeot Expert",cat:"Véhicule"},
 ];
 
-// ── Auth state ────────────────────────────────────────────────────────────────
-let tokenClient = null;
-let accessToken = null;
-let currentUser = null;
+function allDossiers(){return [...BASE_DOSSIERS,...customDossiers];}
+function collabColor(c){return (GCAL_COLORS.find(x=>x.id===c.colorId)||GCAL_COLORS[6]).hex;}
+function collabInit(name){return name.trim().split(/\s+/).map(w=>w[0]||"").join("").toUpperCase().slice(0,2);}
 
-let selectedDos  = null;
-let selectedCode = null;
-let currentStep  = 0;
-let customDossiers = [];
-
-try { customDossiers = JSON.parse(localStorage.getItem("customDossiers") || "[]"); } catch(e){}
-
-// ── Google Identity ───────────────────────────────────────────────────────────
-window.addEventListener("load", () => {
-  // Tente de restaurer le token
-  const saved = sessionStorage.getItem("gtoken");
-  const savedUser = sessionStorage.getItem("guser");
-  if (saved) {
-    accessToken = saved;
-    currentUser = savedUser ? JSON.parse(savedUser) : null;
-    renderUserBar();
-  }
+// ══ AUTH ══════════════════════════════════════════════════════════════════════
+window.addEventListener("load",()=>{
+  const t=sessionStorage.getItem("arr_token");
+  if(t){accessToken=t; currentUser=ls("arr_user"); renderUserBar(); loadCalendar();}
+  else document.getElementById("login-overlay").classList.add("visible");
   initTokenClient();
+  renderDow();
+  buildCalendar();
 });
 
-function initTokenClient() {
-  if (!window.google) { setTimeout(initTokenClient, 300); return; }
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (resp) => {
-      if (resp.error) { showToast("Connexion annulée", true); return; }
-      accessToken = resp.access_token;
-      sessionStorage.setItem("gtoken", accessToken);
+function initTokenClient(){
+  if(!window.google){setTimeout(initTokenClient,300);return;}
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error){showToast("Connexion annulée",true);return;}
+      accessToken=resp.access_token;
+      sessionStorage.setItem("arr_token",accessToken);
       fetchUserInfo();
-      document.getElementById("login-screen").classList.remove("visible");
-    },
+      document.getElementById("login-overlay").classList.remove("visible");
+      loadCalendar();
+    }
   });
 }
-
-function signIn() {
-  if (!tokenClient) { showToast("Chargement en cours…", false); setTimeout(signIn, 500); return; }
-  tokenClient.requestAccessToken({prompt: accessToken ? "" : "consent"});
+function signIn(){
+  if(!tokenClient){setTimeout(signIn,400);return;}
+  tokenClient.requestAccessToken({prompt:accessToken?"":"consent"});
 }
-
-function signOut() {
-  if (accessToken) google.accounts.oauth2.revoke(accessToken);
-  accessToken = null; currentUser = null;
-  sessionStorage.removeItem("gtoken");
-  sessionStorage.removeItem("guser");
-  renderUserBar();
-  showToast("Déconnecté");
+function signOut(){
+  if(accessToken)google.accounts.oauth2.revoke(accessToken);
+  accessToken=null;currentUser=null;
+  sessionStorage.removeItem("arr_token");lsSet("arr_user",null);
+  calEvents=[];buildCalendar();renderUserBar();
+  document.getElementById("login-overlay").classList.add("visible");
 }
-
-function fetchUserInfo() {
-  fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: {Authorization: "Bearer " + accessToken}
-  }).then(r=>r.json()).then(u=>{
-    currentUser = u;
-    sessionStorage.setItem("guser", JSON.stringify(u));
-    renderUserBar();
-  });
+function fetchUserInfo(){
+  fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}})
+    .then(r=>r.json()).then(u=>{currentUser=u;lsSet("arr_user",u);renderUserBar();});
 }
-
-function renderUserBar() {
-  const bar = document.getElementById("user-bar");
-  if (currentUser && accessToken) {
-    bar.innerHTML = `
-      ${currentUser.picture ? `<img class="user-avatar" src="${currentUser.picture}" referrerpolicy="no-referrer">` : ""}
-      <span class="user-name">${currentUser.name || currentUser.email}</span>
-      <button class="btn-signout" onclick="signOut()">Déco</button>`;
-  } else {
-    bar.innerHTML = `<button class="btn-signin" onclick="signIn()">Se connecter avec Google</button>`;
+function renderUserBar(){
+  const bar=document.getElementById("user-bar");
+  if(currentUser&&accessToken){
+    bar.innerHTML=`<div class="user-chip" onclick="signOut()" title="Se déconnecter">
+      ${currentUser.picture?`<img class="user-avatar" src="${currentUser.picture}" referrerpolicy="no-referrer">`:""}
+      <span class="user-name">${currentUser.name||currentUser.email}</span>
+    </div>`;
+  }else{
+    bar.innerHTML=`<button class="btn-signin-h" onclick="signIn()">Se connecter</button>`;
   }
 }
 
-// ── Insérer l'événement dans Google Calendar ──────────────────────────────────
-async function insertEvent() {
-  if (!accessToken) { signIn(); return; }
-  const jour = document.getElementById("jour").value;
-  if (!jour || !selectedDos || !selectedCode) return;
+// ══ CALENDAR LOAD ═════════════════════════════════════════════════════════════
+async function loadCalendar(){
+  if(!accessToken)return;
+  const first=new Date(curYear,curMonth,1);
+  const last=new Date(curYear,curMonth+1,0);
+  const tMin=first.toISOString();
+  const tMax=new Date(last.getFullYear(),last.getMonth(),last.getDate(),23,59,59).toISOString();
+  setLoading(true);
+  try{
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
+    const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
+    if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}setLoading(false);return;}
+    const data=await resp.json();
+    calEvents=data.items||[];
+    buildCalendar();
+  }catch(e){showToast("Erreur chargement",true);}
+  setLoading(false);
+}
 
-  const p = PRESTATIONS.find(x=>x.code===selectedCode);
-  const titre = getTitle();
-  const description = `${selectedDos[1]} – ${selectedDos[2]}\n${p.name} (${p.prix})\nSaisi via Agenda Chantier Arragon`;
+function setLoading(on){
+  const bar=document.getElementById("loading-bar");
+  bar.style.width=on?"60%":"100%";
+  if(!on)setTimeout(()=>{bar.style.width="0";bar.style.transition="none";setTimeout(()=>bar.style.transition="width .3s",50);},300);
+}
 
-  // Heure de début : 8h pour terrain/bureau, 21h pour nuit
-  const startHour = selectedCode === "N" ? 21 : 8;
-  const endHour   = startHour + p.duree;
-  const startDt   = `${jour}T${String(startHour).padStart(2,"0")}:00:00`;
-  const endDt     = `${jour}T${String(endHour).padStart(2,"0")}:00:00`;
+// ══ CALENDAR RENDER ═══════════════════════════════════════════════════════════
+const MONTHS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DAYS=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
 
-  const event = {
-    summary: titre,
-    description,
-    start: {dateTime: startDt, timeZone: "Europe/Paris"},
-    end:   {dateTime: endDt,   timeZone: "Europe/Paris"},
-    colorId: selectedCode === "N" ? "9" : selectedCode === "S3D" ? "6" : selectedCode === "B" ? "7" : "1",
+function renderDow(){
+  document.getElementById("cal-dow").innerHTML=DAYS.map((d,i)=>
+    `<div class="cal-dow-cell" style="${i>=5?'color:var(--red)':''}">${d}</div>`).join("");
+}
+
+function buildCalendar(){
+  document.getElementById("cal-title").textContent=`${MONTHS[curMonth]} ${curYear}`;
+  const today=new Date();
+  const first=new Date(curYear,curMonth,1);
+  let startDow=first.getDay(); // 0=dim
+  startDow=startDow===0?6:startDow-1; // lundi=0
+  const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+  const totalCells=Math.ceil((startDow+daysInMonth)/7)*7;
+
+  // Index events by date
+  const byDate={};
+  calEvents.forEach(ev=>{
+    const d=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    if(!d)return;
+    if(!byDate[d])byDate[d]=[];
+    byDate[d].push(ev);
+  });
+
+  let html="";
+  for(let i=0;i<totalCells;i++){
+    const dayOffset=i-startDow;
+    const cellDate=new Date(curYear,curMonth,1+dayOffset);
+    const y=cellDate.getFullYear(),m=cellDate.getMonth(),d=cellDate.getDate();
+    const dateStr=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const inMonth=m===curMonth;
+    const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+    const isWeekend=cellDate.getDay()===0||cellDate.getDay()===6;
+    const evs=byDate[dateStr]||[];
+
+    let cls="cal-cell";
+    if(!inMonth)cls+=" other-month";
+    if(isToday)cls+=" today";
+    if(isWeekend)cls+=" weekend";
+
+    const dayNumHtml=isToday?`<div class="day-num"><span>${d}</span></div>`:`<div class="day-num">${d}</div>`;
+
+    const maxShow=3;
+    const chipsHtml=evs.slice(0,maxShow).map(ev=>{
+      const col=getEventColor(ev);
+      const lbl=getEventLabel(ev);
+      return `<div class="ev-chip" style="background:${col}" onclick="event.stopPropagation();openEditModal('${ev.id}')" title="${ev.summary||''}">${lbl}</div>`;
+    }).join("");
+    const moreHtml=evs.length>maxShow?`<div class="ev-more">+${evs.length-maxShow} autre${evs.length-maxShow>1?"s":""}</div>`:"";
+
+    html+=`<div class="${cls}" onclick="openModal('${dateStr}')">
+      ${dayNumHtml}${chipsHtml}${moreHtml}</div>`;
+  }
+  document.getElementById("cal-days").innerHTML=html;
+}
+
+function getEventColor(ev){
+  if(ev.colorId){
+    const c=GCAL_COLORS.find(x=>x.id===ev.colorId);
+    if(c)return c.hex;
+  }
+  // Try to match collab from title
+  const m=ev.summary?.match(/_([A-Z]{2})$/);
+  if(m){
+    const init=m[1];
+    const c=collabs.find(x=>collabInit(x.name)===init);
+    if(c)return collabColor(c);
+  }
+  return "#2E75B6";
+}
+
+function getEventLabel(ev){
+  // Format: "41521/30_1T_NR" → show short
+  const s=ev.summary||"";
+  const parts=s.split("_");
+  if(parts.length>=2)return parts.slice(0,2).join("_")+(parts[2]?" "+parts[2]:"");
+  return s.slice(0,16);
+}
+
+function changeMonth(delta){
+  curMonth+=delta;
+  if(curMonth>11){curMonth=0;curYear++;}
+  if(curMonth<0){curMonth=11;curYear--;}
+  buildCalendar();
+  loadCalendar();
+}
+function goToday(){
+  curYear=new Date().getFullYear();curMonth=new Date().getMonth();
+  buildCalendar();loadCalendar();
+}
+
+// ══ MODAL CREATE / EDIT ═══════════════════════════════════════════════════════
+function openModal(dateStr){
+  editingEventId=null;
+  document.getElementById("modal-title").textContent="Nouvel événement";
+  document.getElementById("btn-del").style.display="none";
+  document.getElementById("btn-modal-save").textContent="Enregistrer";
+  // Date
+  const d=dateStr||new Date().toISOString().slice(0,10);
+  document.getElementById("m-date-start").value=d;
+  document.getElementById("m-date-end").value=d;
+  document.getElementById("modal-date").textContent=formatDateFr(d);
+  document.getElementById("m-notes").value="";
+  // Reset prest
+  setPrest("1T",document.querySelector("#m-prest-toggle button"));
+  populateModalSelects();
+  document.getElementById("m-materiel").value="";
+  document.getElementById("m-mat-warning").style.display="none";
+  document.getElementById("modal-bg").classList.add("open");
+}
+
+function openEditModal(eventId){
+  const ev=calEvents.find(e=>e.id===eventId);
+  if(!ev)return;
+  editingEventId=eventId;
+  document.getElementById("modal-title").textContent="Modifier l'événement";
+  document.getElementById("btn-del").style.display="flex";
+  document.getElementById("btn-modal-save").textContent="Mettre à jour";
+
+  const dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10)||new Date().toISOString().slice(0,10);
+  const dEnd=ev.end?.date||ev.end?.dateTime?.slice(0,10)||dStart;
+  document.getElementById("m-date-start").value=dStart;
+  document.getElementById("m-date-end").value=dEnd;
+  document.getElementById("modal-date").textContent=formatDateFr(dStart);
+
+  populateModalSelects();
+
+  // Parse title: "DOS_CODE_INIT"
+  const parts=(ev.summary||"").split("_");
+  if(parts.length>=1){
+    const sel=document.getElementById("m-dossier");
+    for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===parts[0]){sel.selectedIndex=i;break;}}
+  }
+  if(parts.length>=2){
+    const code=parts[1];
+    document.querySelectorAll("#m-prest-toggle button").forEach(btn=>{
+      if(btn.onclick?.toString().includes(`'${code}'`)||btn.dataset.code===code){setPrest(code,btn);}
+    });
+    const btns=document.querySelectorAll("#m-prest-toggle button");
+    const codeMap={"1T":0,"HT":1,"B":2,"N":3,"S3D":4};
+    if(codeMap[code]!==undefined){
+      btns.forEach(b=>b.classList.remove("active"));
+      btns[codeMap[code]]?.classList.add("active");
+      selectedPrest=code;
+    }
+  }
+  if(parts.length>=3){
+    const init=parts[2];
+    const ci=collabs.findIndex(c=>collabInit(c.name)===init);
+    if(ci>=0){document.getElementById("m-collab").value=ci;}
+  } else if(ev.colorId){
+    // Try to find collab by colorId
+    const ci=collabs.findIndex(c=>c.colorId===ev.colorId);
+    if(ci>=0)document.getElementById("m-collab").value=ci;
+  }
+  document.getElementById("m-notes").value=ev.description?.split("\n")[2]||"";
+  updateModalPreview();
+  document.getElementById("modal-bg").classList.add("open");
+}
+
+function populateModalSelects(){
+  // Dossiers
+  const ds=document.getElementById("m-dossier");
+  ds.innerHTML=allDossiers().map(([num,cl,lieu])=>
+    `<option value="${num}">${num} – ${cl} – ${lieu}</option>`).join("");
+  // Collabs
+  const cs=document.getElementById("m-collab");
+  cs.innerHTML=collabs.map((c,i)=>`<option value="${i}">${c.name}</option>`).join("");
+  updateModalPreview();
+  // Matériel
+  const ms=document.getElementById("m-materiel");
+  ms.innerHTML=`<option value="">— Aucun —</option>`+
+    materiels.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
+}
+
+function updateModalPreview(){
+  const idx=parseInt(document.getElementById("m-collab").value);
+  const preview=document.getElementById("collab-preview");
+  if(isNaN(idx)||idx<0||idx>=collabs.length){preview.style.display="none";return;}
+  const c=collabs[idx];
+  const hex=collabColor(c);
+  document.getElementById("cp-dot").style.background=hex;
+  document.getElementById("cp-dot").textContent=collabInit(c.name);
+  document.getElementById("cp-info").textContent=c.name;
+  preview.style.display="flex";
+}
+
+function setPrest(code,el){
+  selectedPrest=code;
+  document.querySelectorAll("#m-prest-toggle button").forEach(b=>b.classList.remove("active"));
+  if(el)el.classList.add("active");
+  checkMatConflict();
+}
+
+function checkMatConflict(){
+  const matIdx=parseInt(document.getElementById("m-materiel").value);
+  const d=document.getElementById("m-date-start").value;
+  const warn=document.getElementById("m-mat-warning");
+  if(isNaN(matIdx)||matIdx<0||!d){warn.style.display="none";return;}
+  const matName=materiels[matIdx]?.name;
+  const conflict=calEvents.some(ev=>{
+    const evD=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    return evD===d && ev.id!==editingEventId && ev.description?.includes(matName);
+  });
+  warn.style.display=conflict?"block":"none";
+}
+
+function closeModal(){document.getElementById("modal-bg").classList.remove("open");}
+function handleModalBgClick(e){if(e.target===document.getElementById("modal-bg"))closeModal();}
+
+function buildTitle(){
+  const dos=document.getElementById("m-dossier").value;
+  const idx=parseInt(document.getElementById("m-collab").value);
+  const init=(!isNaN(idx)&&collabs[idx])?collabInit(collabs[idx].name):"";
+  return `${dos}_${selectedPrest}${init?"_"+init:""}`;
+}
+
+async function saveEvent(){
+  if(!accessToken){signIn();return;}
+  const dStart=document.getElementById("m-date-start").value;
+  const dEnd=document.getElementById("m-date-end").value||dStart;
+  const dos=document.getElementById("m-dossier").value;
+  if(!dStart||!dos){showToast("Remplis les champs obligatoires",true);return;}
+
+  const idx=parseInt(document.getElementById("m-collab").value);
+  const collab=(!isNaN(idx)&&collabs[idx])?collabs[idx]:null;
+  const pHours=PREST_HOURS[selectedPrest]||{start:8,dur:8};
+  const startDt=`${dStart}T${String(pHours.start).padStart(2,"0")}:00:00`;
+  const endH=pHours.start+pHours.dur;
+  const endDt=`${dEnd}T${String(endH).padStart(2,"0")}:00:00`;
+  const matIdx=parseInt(document.getElementById("m-materiel").value);
+  const matName=(!isNaN(matIdx)&&materiels[matIdx])?materiels[matIdx].name:"";
+  const dosInfo=allDossiers().find(([n])=>n===dos);
+  const notes=document.getElementById("m-notes").value.trim();
+
+  const desc=[
+    dosInfo?`${dosInfo[1]} – ${dosInfo[2]}`:"",
+    collab?`Collaborateur : ${collab.name}`:"",
+    notes,
+    matName?`Matériel : ${matName}`:"",
+    "Créé via Arragon Planning"
+  ].filter(Boolean).join("\n");
+
+  const event={
+    summary:buildTitle(),
+    description:desc,
+    start:{dateTime:startDt,timeZone:"Europe/Paris"},
+    end:{dateTime:endDt,timeZone:"Europe/Paris"},
+    colorId:collab?.colorId||"1",
   };
 
-  setStatus("loading", "Enregistrement en cours…");
+  const isEdit=!!editingEventId;
+  const url=isEdit
+    ?`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${editingEventId}`
+    :`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`;
+  const method=isEdit?"PUT":"POST";
 
-  try {
-    const resp = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + accessToken,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(event),
-      }
-    );
-    if (!resp.ok) {
-      const err = await resp.json();
-      if (resp.status === 401) { accessToken = null; signIn(); return; }
-      throw new Error(err.error?.message || resp.status);
-    }
-    const created = await resp.json();
-    setStatus("success", `✅ Événement créé dans le calendrier Arragon`);
-    document.getElementById("action-btns").style.display = "none";
-  } catch(e) {
-    setStatus("error", "❌ Erreur : " + e.message);
-  }
+  document.getElementById("btn-modal-save").textContent="⏳";
+  try{
+    const resp=await fetch(url,{method,headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify(event)});
+    if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}throw new Error(resp.status);}
+    const created=await resp.json();
+    if(isEdit){const i=calEvents.findIndex(e=>e.id===editingEventId);if(i>=0)calEvents[i]=created;}
+    else calEvents.push(created);
+    buildCalendar();
+    closeModal();
+    showToast(isEdit?"Événement mis à jour ✓":"Événement créé ✓");
+  }catch(e){showToast("Erreur : "+e.message,true);}
+  document.getElementById("btn-modal-save").textContent=isEdit?"Mettre à jour":"Enregistrer";
 }
 
-function setStatus(type, msg) {
-  const bar = document.getElementById("status-bar");
-  const sp  = document.getElementById("spinner");
-  bar.className = "status-bar visible " + type;
-  bar.style.display = "flex";
-  sp.style.display  = type === "loading" ? "block" : "none";
-  document.getElementById("status-msg").textContent = msg;
+async function deleteEvent(){
+  if(!accessToken||!editingEventId)return;
+  if(!confirm("Supprimer cet événement du calendrier ?"))return;
+  try{
+    await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${editingEventId}`,
+      {method:"DELETE",headers:{Authorization:"Bearer "+accessToken}});
+    calEvents=calEvents.filter(e=>e.id!==editingEventId);
+    buildCalendar();closeModal();showToast("Événement supprimé");
+  }catch(e){showToast("Erreur suppression",true);}
 }
 
-// ── Navigation ────────────────────────────────────────────────────────────────
-function allDossiers() { return [...CHANTIERS, ...customDossiers]; }
-
-function toggleNewDos() {
-  const b = document.getElementById("new-dos-banner");
-  b.classList.toggle("visible");
-  if (b.classList.contains("visible")) setTimeout(()=>document.getElementById("new-num").focus(),100);
+// ══ SIDEBAR ═══════════════════════════════════════════════════════════════════
+let sidebarOpen=window.innerWidth>768;
+function toggleSidebar(){sidebarOpen=!sidebarOpen;applySidebar();}
+function closeSidebar(){sidebarOpen=false;applySidebar();}
+function applySidebar(){
+  document.getElementById("sidebar").classList.toggle("open",sidebarOpen);
+  document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 
-function createDossier() {
-  const num    = document.getElementById("new-num").value.trim();
-  const client = document.getElementById("new-client").value.trim() || "—";
-  const lieu   = document.getElementById("new-lieu").value.trim() || "—";
-  if (!num) { document.getElementById("new-num").focus(); return; }
-  if (!allDossiers().find(([d])=>d===num)) {
-    customDossiers.push([num, client, lieu]);
-    try { localStorage.setItem("customDossiers", JSON.stringify(customDossiers)); } catch(e){}
-  }
-  document.getElementById("new-dos-banner").classList.remove("visible");
-  ["new-num","new-client","new-lieu"].forEach(id=>document.getElementById(id).value="");
-  selectDos(num, client, lieu);
-}
-
-function buildDosList(list) {
-  const el = document.getElementById("dos-list");
-  if (!list.length) { el.innerHTML='<div class="no-result">Aucun dossier trouvé</div>'; return; }
-  el.innerHTML = list.map(([dos,cl,lieu])=>`
-    <div class="dos-item${selectedDos&&selectedDos[0]===dos?' selected':''}"
-         onclick="selectDos('${dos}','${cl.replace(/'/g,"\\'")}','${lieu.replace(/'/g,"\\'")}')">
-      <div class="dos-num">${dos}</div>
-      <div class="dos-info"><div class="dos-client">${cl}</div><div class="dos-lieu">${lieu}</div></div>
-      <span class="dos-check">✓</span>
-    </div>`).join("");
-}
-
-function filterDos() {
-  const q = document.getElementById("search").value.toLowerCase();
-  buildDosList(q ? allDossiers().filter(([d,c,l])=>(d+c+l).toLowerCase().includes(q)) : allDossiers());
-}
-
-function selectDos(dos, cl, lieu) {
-  selectedDos = [dos, cl, lieu];
-  const q = document.getElementById("search").value.toLowerCase();
-  buildDosList(q ? allDossiers().filter(([d,c,l])=>(d+c+l).toLowerCase().includes(q)) : allDossiers());
-  setTimeout(()=>nextStep(), 250);
-}
-
-function buildPrestGrid() {
-  document.getElementById("prest-grid").innerHTML = PRESTATIONS.map(p=>`
-    <div class="prest-card${selectedCode===p.code?' selected':''}" onclick="selectPrest('${p.code}')">
-      <div class="prest-code">${p.code}</div>
-      <div class="prest-name">${p.name}</div>
-      <div class="prest-prix">${p.prix}</div>
-    </div>`).join("");
-}
-
-function selectPrest(code) {
-  selectedCode = code;
-  buildPrestGrid();
-  setTimeout(()=>nextStep(), 200);
-}
-
-function getTitle() {
-  if (!selectedDos || !selectedCode) return "";
-  return `${selectedDos[0]}_${selectedCode}`;
-}
-
-function getMeta() {
-  if (!selectedDos || !selectedCode) return "";
-  const p = PRESTATIONS.find(x=>x.code===selectedCode);
-  const j = document.getElementById("jour").value;
-  let parts = [`${selectedDos[1]} – ${selectedDos[2]}`, p ? p.name+" · "+p.prix : ""];
-  if (j) {
-    const d = new Date(j+"T12:00:00");
-    parts.push(d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}));
-  }
-  return parts.join("\n");
-}
-
-function goStep(n) { if (n > currentStep) return; currentStep=n; renderStep(); }
-
-function nextStep() {
-  if (currentStep===0 && !selectedDos) return;
-  if (currentStep===1 && !selectedCode) return;
-  if (currentStep < 3) { currentStep++; renderStep(); }
-}
-
-function prevStep() { if (currentStep > 0) { currentStep--; renderStep(); } }
-
-function renderStep() {
-  document.querySelectorAll(".page").forEach((p,i)=>p.classList.toggle("active",i===currentStep));
-  document.querySelectorAll(".step").forEach((s,i)=>{
-    s.classList.toggle("active",i===currentStep);
-    s.classList.toggle("done",i<currentStep);
+function switchSTab(tab){
+  document.querySelectorAll(".stab").forEach((t,i)=>{
+    const tabs=["dossiers","collabs","materiel"];
+    t.classList.toggle("active",tabs[i]===tab);
   });
-  const back=document.getElementById("btn-back");
-  const next=document.getElementById("btn-next");
-  back.style.display = currentStep>0 && currentStep<3 ? "block" : "none";
+  document.querySelectorAll(".sidebar-panel").forEach(p=>p.classList.remove("active"));
+  document.getElementById("sp-"+tab)?.classList.add("active");
+}
 
-  if (currentStep===3) {
-    next.style.display="none"; back.style.display="none";
-    document.getElementById("final-title").textContent = getTitle()||"—";
-    document.getElementById("final-meta").textContent  = getMeta();
-    document.getElementById("status-bar").className    = "status-bar";
-    document.getElementById("action-btns").style.display = "flex";
-    // Si pas connecté, changer le libellé du bouton
-    document.getElementById("btn-insert").textContent =
-      accessToken ? "📅 Enregistrer dans le calendrier" : "🔐 Se connecter et enregistrer";
-  } else if (currentStep===2) {
-    next.style.display="block"; next.textContent="Valider →";
-    const t=getTitle();
-    if (t) {
-      const mp=document.getElementById("mini-preview");
-      mp.style.display="block";
-      document.getElementById("mini-title").textContent=t;
-      document.getElementById("mini-meta").textContent=getMeta();
-    }
-  } else {
-    next.style.display="block";
-    next.textContent=currentStep===1?"Choisir la date →":"Suivant →";
+// ── Dossiers sidebar ──────────────────────────────────────────────────────────
+function renderSidebarDos(){
+  const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
+  const list=allDossiers().filter(([d,c,l])=>!q||(d+c+l).toLowerCase().includes(q));
+  document.getElementById("s-dos-list").innerHTML=list.map(([d,c,l])=>{
+    const ci=customDossiers.findIndex(x=>x[0]===d);
+    return `<div class="s-item">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);font-family:monospace">${d}</div>
+        <div style="font-size:12px;color:var(--muted)">${c} – ${l}</div>
+      </div>
+      ${ci>=0?`<button class="s-edit" onclick="openDosForm(${ci})" title="Modifier">✏️</button>`:""}
+    </div>`;
+  }).join("");
+}
+
+function openDosForm(idx=null){
+  editingDosIdx=idx;
+  document.getElementById("dos-form").classList.add("visible");
+  document.getElementById("dos-form-title").textContent=idx!==null?"Modifier le dossier":"Nouveau dossier";
+  if(idx!==null){
+    const d=customDossiers[idx];
+    document.getElementById("f-dos-num").value=d[0];
+    document.getElementById("f-dos-client").value=d[1];
+    document.getElementById("f-dos-lieu").value=d[2];
+  }else{
+    ["f-dos-num","f-dos-client","f-dos-lieu"].forEach(id=>document.getElementById(id).value="");
   }
-  if (currentStep===1) buildPrestGrid();
-  if (currentStep===0) {
-    buildDosList(allDossiers());
-    document.getElementById("search").value="";
-    document.getElementById("new-dos-banner").classList.remove("visible");
+  setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
+}
+function closeDosForm(){document.getElementById("dos-form").classList.remove("visible");editingDosIdx=null;}
+function saveDos(){
+  const num=document.getElementById("f-dos-num").value.trim();
+  const cl=document.getElementById("f-dos-client").value.trim()||"—";
+  const lieu=document.getElementById("f-dos-lieu").value.trim()||"—";
+  if(!num){document.getElementById("f-dos-num").focus();return;}
+  if(editingDosIdx!==null)customDossiers[editingDosIdx]=[num,cl,lieu];
+  else customDossiers.push([num,cl,lieu]);
+  lsSet("arr_dossiers",customDossiers);
+  closeDosForm();renderSidebarDos();
+}
+
+// ── Collabs sidebar ───────────────────────────────────────────────────────────
+function renderSidebarCollabs(){
+  document.getElementById("s-collab-list").innerHTML=collabs.map((c,i)=>`
+    <div class="s-item">
+      <div class="s-dot" style="background:${collabColor(c)}">${collabInit(c.name)}</div>
+      <div><div class="s-name">${c.name}</div></div>
+      <button class="s-edit" onclick="openCollabForm(${i})">✏️</button>
+    </div>`).join("");
+}
+
+function buildCollabColorPicker(selId){
+  document.getElementById("collab-color-row").innerHTML=GCAL_COLORS.map(c=>
+    `<div class="csw${c.id===selId?" sel":""}" style="background:${c.hex}" title="${c.id}" onclick="pickCollabColor('${c.id}')"></div>`
+  ).join("");
+  selectedCollabColorId=selId||"7";
+}
+function pickCollabColor(id){selectedCollabColorId=id;buildCollabColorPicker(id);}
+
+function openCollabForm(idx=null){
+  editingCollabIdx=idx;
+  document.getElementById("collab-form").classList.add("visible");
+  document.getElementById("collab-form-title").textContent=idx!==null?"Modifier le collaborateur":"Nouveau collaborateur";
+  if(idx!==null){
+    document.getElementById("f-collab-name").value=collabs[idx].name;
+    buildCollabColorPicker(collabs[idx].colorId);
+  }else{
+    document.getElementById("f-collab-name").value="";
+    buildCollabColorPicker("7");
   }
 }
-
-function copyTitle() {
-  const t=document.getElementById("final-title").textContent;
-  if (!t||t==="—") return;
-  navigator.clipboard.writeText(t).then(()=>showToast("Titre copié !"));
+function closeCollabForm(){document.getElementById("collab-form").classList.remove("visible");editingCollabIdx=null;}
+function saveCollab(){
+  const name=document.getElementById("f-collab-name").value.trim();
+  if(!name){document.getElementById("f-collab-name").focus();return;}
+  const entry={name,colorId:selectedCollabColorId};
+  if(editingCollabIdx!==null)collabs[editingCollabIdx]=entry;
+  else collabs.push(entry);
+  lsSet("arr_collabs",collabs);
+  closeCollabForm();renderSidebarCollabs();
 }
 
-function reset() {
-  selectedDos=null; selectedCode=null; currentStep=0;
-  document.getElementById("jour").value=new Date().toISOString().slice(0,10);
-  renderStep();
+// ── Matériel sidebar ──────────────────────────────────────────────────────────
+function renderSidebarMat(){
+  const cats=["Instrument topo","Drone","Scanner 3D","Véhicule","Autre"];
+  const ids=["topo","topo","topo","vehicule","autre"];
+  // Reset
+  ["topo","vehicule","autre"].forEach(id=>document.getElementById("s-mat-list-"+id).innerHTML="");
+  materiels.forEach((m,i)=>{
+    let listId="autre";
+    if(["Instrument topo","Drone","Scanner 3D"].includes(m.cat))listId="topo";
+    else if(m.cat==="Véhicule")listId="vehicule";
+    document.getElementById("s-mat-list-"+listId).innerHTML+=`
+      <div class="s-item">
+        <div style="font-size:18px">${m.cat==="Véhicule"?"🚗":m.cat==="Drone"?"✈️":m.cat==="Scanner 3D"?"📡":"📡"}</div>
+        <div><div class="s-name">${m.name}</div><div class="s-sub">${m.cat}</div></div>
+        <button class="s-edit" onclick="openMatForm(${i})">✏️</button>
+      </div>`;
+  });
 }
 
-function showToast(msg, isError=false) {
+function openMatForm(idx=null){
+  editingMatIdx=idx;
+  document.getElementById("mat-form").classList.add("visible");
+  document.getElementById("mat-form-title").textContent=idx!==null?"Modifier le matériel":"Nouveau matériel";
+  if(idx!==null){
+    document.getElementById("f-mat-name").value=materiels[idx].name;
+    document.getElementById("f-mat-cat").value=materiels[idx].cat;
+  }else{
+    document.getElementById("f-mat-name").value="";
+    document.getElementById("f-mat-cat").value="Instrument topo";
+  }
+}
+function closeMatForm(){document.getElementById("mat-form").classList.remove("visible");editingMatIdx=null;}
+function saveMat(){
+  const name=document.getElementById("f-mat-name").value.trim();
+  if(!name){document.getElementById("f-mat-name").focus();return;}
+  const entry={name,cat:document.getElementById("f-mat-cat").value};
+  if(editingMatIdx!==null)materiels[editingMatIdx]=entry;
+  else materiels.push(entry);
+  lsSet("arr_materiels",materiels);
+  closeMatForm();renderSidebarMat();
+}
+
+// ══ UTILS ═════════════════════════════════════════════════════════════════════
+function formatDateFr(d){
+  if(!d)return"";
+  const dt=new Date(d+"T12:00:00");
+  return dt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+function showToast(msg,err=false){
   const t=document.getElementById("toast");
-  t.textContent=msg;
-  t.style.background=isError?"#DC2626":"var(--green)";
+  t.textContent=msg;t.className="status-toast"+(err?" error":"");
   t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"),2500);
+  setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// Init
-document.getElementById("jour").value=new Date().toISOString().slice(0,10);
-document.getElementById("jour").addEventListener("change",()=>{
-  const mp=document.getElementById("mini-preview");
-  if (getTitle()) {
-    mp.style.display="block";
-    document.getElementById("mini-title").textContent=getTitle();
-    document.getElementById("mini-meta").textContent=getMeta();
-  }
-});
-buildDosList(allDossiers());
+// ══ INIT ══════════════════════════════════════════════════════════════════════
+renderSidebarDos();
+renderSidebarCollabs();
+renderSidebarMat();
+if(window.innerWidth>768)applySidebar();
 </script>
 </body>
 </html>
