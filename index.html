@@ -212,9 +212,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <button class="s-btn-save" onclick="saveDos()">Enregistrer</button>
           </div>
         </div>
-        <input type="search" id="s-search-dos" placeholder="Rechercher…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-bottom:8px;outline:none" oninput="renderSidebarDos()">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+          <input type="search" id="s-search-dos" placeholder="Rechercher…" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;outline:none" oninput="renderSidebarDos()">
+          <button onclick="openDosForm()" title="Nouveau dossier" style="background:var(--blue);color:var(--white);border:none;border-radius:7px;width:34px;height:34px;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">＋</button>
+        </div>
         <div id="s-dos-list"></div>
-        <button class="btn-add-s" onclick="openDosForm()">＋ Ajouter un dossier</button>
       </div>
 
       <!-- COLLABS -->
@@ -295,7 +297,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <div class="modal-body">
       <div class="m-field">
         <label>Dossier / Chantier</label>
-        <select class="m-select" id="m-dossier" onchange="updateModalPreview()"></select>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <div style="position:relative;flex:1">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px">🔍</span>
+            <input type="search" id="m-dos-search" placeholder="Rechercher un dossier…" autocomplete="off" autocorrect="off" spellcheck="false"
+              style="width:100%;padding:10px 10px 10px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;background:var(--white);color:var(--text)"
+              oninput="filterModalDos()">
+          </div>
+        </div>
+        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0" onchange="updateModalPreview()"></select>
       </div>
       <div class="m-field">
         <label>Collaborateur</label>
@@ -512,13 +522,28 @@ function buildCalendar(){
   const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
   const totalCells=Math.ceil((startDow+daysInMonth)/7)*7;
 
-  // Index events by date
+  // Index events by date — span multi-day events across all their days
   const byDate={};
   calEvents.forEach(ev=>{
-    const d=ev.start?.date||ev.start?.dateTime?.slice(0,10);
-    if(!d)return;
-    if(!byDate[d])byDate[d]=[];
-    byDate[d].push(ev);
+    let dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    let dEnd=ev.end?.date||ev.end?.dateTime?.slice(0,10);
+    if(!dStart)return;
+    // For all-day events Google sets end = day after last day, adjust
+    if(ev.end?.date){
+      const endAdj=new Date(dEnd);
+      endAdj.setDate(endAdj.getDate()-1);
+      dEnd=endAdj.toISOString().slice(0,10);
+    }
+    if(!dEnd||dEnd<dStart)dEnd=dStart;
+    // Span across all days between start and end
+    let cur=new Date(dStart+"T12:00:00");
+    const last=new Date(dEnd+"T12:00:00");
+    while(cur<=last){
+      const key=cur.toISOString().slice(0,10);
+      if(!byDate[key])byDate[key]=[];
+      byDate[key].push({...ev, _isStart:key===dStart, _isEnd:key===dEnd, _spanDays:key!==dStart||key!==dEnd});
+      cur.setDate(cur.getDate()+1);
+    }
   });
 
   let html="";
@@ -543,7 +568,8 @@ function buildCalendar(){
     const chipsHtml=evs.slice(0,maxShow).map(ev=>{
       const col=getEventColor(ev);
       const lbl=getEventLabel(ev);
-      return `<div class="ev-chip" style="background:${col}" onclick="event.stopPropagation();openEditModal('${ev.id}')" title="${ev.summary||''}">${lbl}</div>`;
+      const spanIcon=ev._spanDays?(ev._isStart?"→":ev._isEnd?"←":"↔"):"";
+      return `<div class="ev-chip" style="background:${col};opacity:${ev._isStart||!ev._spanDays?1:.85}" onclick="event.stopPropagation();openEditModal('${ev.id}')" title="${ev.summary||''}">${spanIcon?spanIcon+" ":""}${lbl}</div>`;
     }).join("");
     const moreHtml=evs.length>maxShow?`<div class="ev-more">+${evs.length-maxShow} autre${evs.length-maxShow>1?"s":""}</div>`:"";
 
@@ -602,6 +628,7 @@ function openModal(dateStr){
   document.getElementById("m-notes").value="";
   // Reset prest
   setPrest("1T",document.querySelector("#m-prest-toggle button"));
+  const mds=document.getElementById("m-dos-search");if(mds)mds.value="";
   populateModalSelects();
   document.getElementById("m-materiel").value="";
   document.getElementById("m-mat-warning").style.display="none";
@@ -622,9 +649,8 @@ function openEditModal(eventId){
   document.getElementById("m-date-end").value=dEnd;
   document.getElementById("modal-date").textContent=formatDateFr(dStart);
 
+  const mds2=document.getElementById("m-dos-search");if(mds2)mds2.value="";
   populateModalSelects();
-
-  // Parse title: "DOS_CODE_INIT"
   const parts=(ev.summary||"").split("_");
   if(parts.length>=1){
     const sel=document.getElementById("m-dossier");
@@ -657,11 +683,20 @@ function openEditModal(eventId){
   document.getElementById("modal-bg").classList.add("open");
 }
 
+function filterModalDos(){
+  const q=(document.getElementById("m-dos-search")?.value||"").toLowerCase();
+  const list=allDossiers().filter(([d,c,l])=>!q||(d+c+l).toLowerCase().includes(q));
+  const sel=document.getElementById("m-dossier");
+  const current=sel.value;
+  sel.innerHTML=list.map(([num,cl,lieu])=>
+    `<option value="${num}">${num} – ${cl} – ${lieu}</option>`).join("");
+  if(current)for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===current){sel.selectedIndex=i;break;}}
+  updateModalPreview();
+}
+
 function populateModalSelects(){
   // Dossiers
-  const ds=document.getElementById("m-dossier");
-  ds.innerHTML=allDossiers().map(([num,cl,lieu])=>
-    `<option value="${num}">${num} – ${cl} – ${lieu}</option>`).join("");
+  filterModalDos();
   // Collabs
   const cs=document.getElementById("m-collab");
   cs.innerHTML=collabs.map((c,i)=>`<option value="${i}">${c.name}</option>`).join("");
