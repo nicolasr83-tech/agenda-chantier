@@ -364,7 +364,9 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 // ══ CONFIG ════════════════════════════════════════════════════════════════════
 const CLIENT_ID   = "437762143522-cpav4sobt0k0qjar7dctrm28tnqd2i6b.apps.googleusercontent.com";
 const CALENDAR_ID = "826a1e6b264172714a4fffdfb31441c9847b7d0f4fc22e27836a34c2014b64fe@group.calendar.google.com";
-const SCOPES      = "https://www.googleapis.com/auth/calendar.events";
+const SHEET_ID    = "1LQ35QHro8DWAW6JS06qHf-kZgZ8xPxSszZumEPsD1RU";
+const SHEET_NAME  = "Feuille1"; // nom de l'onglet dans le Sheet
+const SCOPES      = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets";
 
 const GCAL_COLORS = [
   {id:"1",hex:"#7986CB"},{id:"2",hex:"#33B679"},{id:"3",hex:"#8E24AA"},
@@ -389,49 +391,26 @@ let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
-const BASE_DOSSIERS=[
-  ["41521/5","NGE Fondations","Aix Canopée"],["41521/6","NGE Fondations","Toulon Rue Saunier"],
-  ["41521/7","NGE Fondations","Toulon Bd de Paris"],["41521/8","NGE Fondations","Antibes Parc Florea"],
-  ["41521/9","NGE Fondations","Antibes Square Cerutti"],["41521/11","NGE Fondations","Cavaillon EPHAD"],
-  ["41521/12","NGE Fondations","Les Pennes Plan de Campagne"],["41521/13","NGE Fondations","Sanary AER"],
-  ["41521/14","NGE Fondations","Hyères Gambetta"],["41521/15","NGE Fondations","Marseille Annexx"],
-  ["41521/16","NGE Fondations","Aubagne Alta"],["41521/17","NGE Fondations","St Etienne du Grès"],
-  ["41521/18","NGE Fondations","Marseille Rue Auphan"],["41521/19","NGE Fondations","Le Lavandou"],
-  ["41521/20","NGE Fondations","Miramas"],["41521/21","NGE Fondations","Cagnes"],
-  ["41521/29","NGE Fondations","Marignane P3b"],["41521/30","NGE Fondations","Marseille Aygualades"],
-  ["41521/31","NGE Fondations","Manosque"],["41521/36","NGE Fondations","La Garde"],
-  ["41521/37","NGE Fondations","Hyères St Martin"],["41521/38","NGE Fondations","Nice Garibaldi"],
-  ["40553/22","NGE GC","SNCF Blancarde"],["40553/27","NGE GTR","Marseille Aygualades"],
-  ["40553/33","NGE GC","Fos Sur Mer DPF"],["40553/36","NGE GC","Toulon Lagoubran"],
-  ["40553/37","NGE GC","Carnoules"],["40553/39","NGE GC","Nice Polygo St Roch"],
-  ["40553/40","NGE GC","Le Revest les Eaux"],["40553/41","NGE GC","Hyères Barreau St Martin"],
-  ["40553/42","NGE GC","Rousset ST Micro"],["40553/43","Guintoli Le Luc","Hyères la Sauvette"],
-  ["41934","Colas GC","Mallemort"],["41215/1","NGE GC","Toulon A57"],
-  ["41580","Solusol","Toulon SoZen"],["41686","Colas ENV","Cuers"],
-  ["41684","Razel","La Farlède / Ollioules"],["41684/1","Razel","Arsenal Toulon"],
-  ["41922","Razel","Cavalaire sur Mer"],["41922/1","Razel","La Garde - La Clue"],
-  ["41645","Geoprim","Hyères Iles d'Or"],["41479","Bouygues TP","Menton"],
-  ["41578","BIT","Menton"],
-];
+// Dossiers — chargés depuis Google Sheets (plus de liste locale fixe)
+let sheetDossiers = []; // sera rempli par loadSheetDossiers()
 
-let customDossiers  = ls("arr_dossiers")  || [];
-let collabs         = ls("arr_collabs")   || [{name:"Nicolas R.",colorId:"7"},{name:"Mickael",colorId:"2"}];
-let materiels       = ls("arr_materiels") || [
+function allDossiers(){ return sheetDossiers; }
+
+let collabs   = ls("arr_collabs")   || [{name:"Nicolas R.",colorId:"7"},{name:"Mickael",colorId:"2"}];
+let materiels = ls("arr_materiels") || [
   {name:"GPS Leica GS18 T",cat:"Instrument topo"},
   {name:"Station Totale Leica TS16",cat:"Instrument topo"},
   {name:"Drone DJI M350",cat:"Drone"},
   {name:"Scanner Leica RTC360",cat:"Scanner 3D"},
   {name:"Peugeot Expert",cat:"Véhicule"},
 ];
-
-function allDossiers(){return [...BASE_DOSSIERS,...customDossiers];}
 function collabColor(c){return (GCAL_COLORS.find(x=>x.id===c.colorId)||GCAL_COLORS[6]).hex;}
 function collabInit(name){return name.trim().split(/\s+/).map(w=>w[0]||"").join("").toUpperCase().slice(0,2);}
 
 // ══ AUTH ══════════════════════════════════════════════════════════════════════
 window.addEventListener("load",()=>{
   const t=sessionStorage.getItem("arr_token");
-  if(t){accessToken=t; currentUser=ls("arr_user"); renderUserBar(); loadCalendar();}
+  if(t){accessToken=t; currentUser=ls("arr_user"); renderUserBar(); loadCalendar(); loadSheetDossiers();}
   else document.getElementById("login-overlay").classList.add("visible");
   initTokenClient();
   renderDow();
@@ -449,6 +428,7 @@ function initTokenClient(){
       fetchUserInfo();
       document.getElementById("login-overlay").classList.remove("visible");
       loadCalendar();
+      loadSheetDossiers();
     }
   });
 }
@@ -833,17 +813,76 @@ function switchSTab(tab){
 }
 
 // ── Dossiers sidebar ──────────────────────────────────────────────────────────
+// ══ GOOGLE SHEETS ═════════════════════════════════════════════════════════════
+async function loadSheetDossiers(){
+  if(!accessToken)return;
+  try{
+    const range=encodeURIComponent(`${SHEET_NAME}!A2:C1000`);
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+    const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
+    if(!resp.ok){console.warn("Sheets read error",resp.status);return;}
+    const data=await resp.json();
+    sheetDossiers=(data.values||[])
+      .filter(r=>r[0]&&r[0].trim())
+      .map(r=>[r[0]?.trim(),r[1]?.trim()||"—",r[2]?.trim()||"—"])
+      .sort((a,b)=>{
+        // Tri naturel sur le n° de dossier : 40553/1 < 40553/10 < 41521/5
+        const parse=s=>{const m=s.match(/^(\d+)(?:[\/\-](\d+))?/);return m?[parseInt(m[1]),parseInt(m[2]||0)]:[0,0];};
+        const [a1,a2]=parse(a[0]), [b1,b2]=parse(b[0]);
+        return a1!==b1?a1-b1:a2-b2;
+      });
+    renderSidebarDos();
+    // Refresh modal if open
+    const mds=document.getElementById("m-dos-search");
+    if(mds)filterModalDos();
+  }catch(e){console.warn("Sheets load error",e);}
+}
+
+async function appendSheetDossier(num,cl,lieu){
+  if(!accessToken)return;
+  try{
+    const range=encodeURIComponent(`${SHEET_NAME}!A:C`);
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    await fetch(url,{
+      method:"POST",
+      headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+      body:JSON.stringify({values:[[num,cl,lieu]]})
+    });
+  }catch(e){console.warn("Sheets append error",e);}
+}
+
+async function updateSheetDossier(rowIdx,num,cl,lieu){
+  // rowIdx = index dans sheetDossiers (0-based) → ligne Sheet = rowIdx+2 (1 en-tête + 1 base)
+  if(!accessToken)return;
+  try{
+    const row=rowIdx+2;
+    const range=encodeURIComponent(`${SHEET_NAME}!A${row}:C${row}`);
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+    await fetch(url,{
+      method:"PUT",
+      headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+      body:JSON.stringify({values:[[num,cl,lieu]]})
+    });
+  }catch(e){console.warn("Sheets update error",e);}
+}
+
 function renderSidebarDos(){
   const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
   const list=allDossiers().filter(([d,c,l])=>!q||(d+c+l).toLowerCase().includes(q));
-  document.getElementById("s-dos-list").innerHTML=list.map(([d,c,l])=>{
-    const ci=customDossiers.findIndex(x=>x[0]===d);
+  const el=document.getElementById("s-dos-list");
+  if(!el)return;
+  if(!list.length&&sheetDossiers.length===0){
+    el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">⏳ Chargement depuis Google Sheets…</div>`;
+    return;
+  }
+  el.innerHTML=list.map(([d,c,l],i)=>{
+    const realIdx=sheetDossiers.findIndex(x=>x[0]===d);
     return `<div class="s-item">
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:700;color:var(--blue);font-family:monospace">${d}</div>
         <div style="font-size:12px;color:var(--muted)">${c} – ${l}</div>
       </div>
-      ${ci>=0?`<button class="s-edit" onclick="openDosForm(${ci})" title="Modifier">✏️</button>`:""}
+      <button class="s-edit" onclick="openDosForm(${realIdx})" title="Modifier">✏️</button>
     </div>`;
   }).join("");
 }
@@ -852,8 +891,8 @@ function openDosForm(idx=null){
   editingDosIdx=idx;
   document.getElementById("dos-form").classList.add("visible");
   document.getElementById("dos-form-title").textContent=idx!==null?"Modifier le dossier":"Nouveau dossier";
-  if(idx!==null){
-    const d=customDossiers[idx];
+  if(idx!==null&&sheetDossiers[idx]){
+    const d=sheetDossiers[idx];
     document.getElementById("f-dos-num").value=d[0];
     document.getElementById("f-dos-client").value=d[1];
     document.getElementById("f-dos-lieu").value=d[2];
@@ -863,15 +902,29 @@ function openDosForm(idx=null){
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
 function closeDosForm(){document.getElementById("dos-form").classList.remove("visible");editingDosIdx=null;}
-function saveDos(){
+
+async function saveDos(){
   const num=document.getElementById("f-dos-num").value.trim();
   const cl=document.getElementById("f-dos-client").value.trim()||"—";
   const lieu=document.getElementById("f-dos-lieu").value.trim()||"—";
   if(!num){document.getElementById("f-dos-num").focus();return;}
-  if(editingDosIdx!==null)customDossiers[editingDosIdx]=[num,cl,lieu];
-  else customDossiers.push([num,cl,lieu]);
-  lsSet("arr_dossiers",customDossiers);
-  closeDosForm();renderSidebarDos();
+
+  const saveBtn=document.querySelector("#dos-form .s-btn-save");
+  if(saveBtn)saveBtn.textContent="⏳";
+
+  if(editingDosIdx!==null){
+    sheetDossiers[editingDosIdx]=[num,cl,lieu];
+    await updateSheetDossier(editingDosIdx,num,cl,lieu);
+  }else{
+    sheetDossiers.push([num,cl,lieu]);
+    await appendSheetDossier(num,cl,lieu);
+  }
+
+  if(saveBtn)saveBtn.textContent="Enregistrer";
+  closeDosForm();
+  renderSidebarDos();
+  filterModalDos();
+  showToast(editingDosIdx!==null?"Dossier mis à jour ✓":"Dossier ajouté ✓");
 }
 
 // ── Collabs sidebar ───────────────────────────────────────────────────────────
@@ -971,7 +1024,7 @@ function showToast(msg,err=false){
 }
 
 // ══ INIT ══════════════════════════════════════════════════════════════════════
-renderSidebarDos();
+renderSidebarDos(); // affiche "chargement..." en attendant Sheets
 renderSidebarCollabs();
 renderSidebarMat();
 if(window.innerWidth>768)applySidebar();
