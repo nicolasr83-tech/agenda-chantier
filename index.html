@@ -726,7 +726,12 @@ function buildTitle(){
   const dos=document.getElementById("m-dossier").value;
   const idx=parseInt(document.getElementById("m-collab").value);
   const init=(!isNaN(idx)&&collabs[idx])?collabInit(collabs[idx].name):"";
-  return `${dos}_${selectedPrest}${init?"_"+init:""}`;
+  // Récupère le lieu depuis la liste des dossiers
+  const dosInfo=allDossiers().find(([n])=>n===dos);
+  const lieu=dosInfo?dosInfo[2]:"";
+  // Extrait la commune (premier mot significatif du lieu)
+  const commune=lieu.split(/[\s\/\-]/)[0]||"";
+  return `${dos}_${selectedPrest}${commune?"_"+commune:""}${init?"_"+init:""}`;
 }
 
 async function saveEvent(){
@@ -826,7 +831,7 @@ async function loadSheetDossiers(){
       .filter(r=>r[0]&&r[0].trim())
       .map(r=>[r[0]?.trim(),r[1]?.trim()||"—",r[2]?.trim()||"—"])
       .sort((a,b)=>{
-        // Tri naturel sur le n° de dossier : 40553/1 < 40553/10 < 41521/5
+        // Tri naturel : 40553/022 < 40553/033 < 41521/005
         const parse=s=>{const m=s.match(/^(\d+)(?:[\/\-](\d+))?/);return m?[parseInt(m[1]),parseInt(m[2]||0)]:[0,0];};
         const [a1,a2]=parse(a[0]), [b1,b2]=parse(b[0]);
         return a1!==b1?a1-b1:a2-b2;
