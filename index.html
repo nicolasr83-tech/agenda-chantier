@@ -182,6 +182,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 <div class="header">
   <button class="btn-icon" id="sidebar-toggle" onclick="toggleSidebar()" title="Panneau de gestion">☰</button>
   <h1>Arragon Planning</h1>
+  <button class="btn-icon" onclick="openExportModal()" title="Exporter pointages">📥</button>
   <div id="user-bar">
     <button class="btn-signin-h" onclick="signIn()">Se connecter</button>
   </div>
@@ -204,9 +205,18 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="sidebar-panel active" id="sp-dossiers">
         <div class="s-form" id="dos-form">
           <div class="s-form-title" id="dos-form-title">Nouveau dossier</div>
-          <div class="s-field"><label>N° dossier *</label><input id="f-dos-num" placeholder="ex: 41521/40" autocomplete="off"></div>
+          <div class="s-field"><label>N° dossier *</label><input id="f-dos-num" placeholder="ex: 41521/040" autocomplete="off"></div>
           <div class="s-field"><label>Client</label><input id="f-dos-client" placeholder="ex: NGE Fondations" autocomplete="off"></div>
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="ex: Marseille Centre" autocomplete="off"></div>
+          <div class="s-field"><label>Interlocuteur</label><input id="f-dos-interlocuteur" placeholder="ex: Jean Martin" autocomplete="off"></div>
+          <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="ex: 12 Rue de la Paix, 83000 Toulon" autocomplete="off"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div class="s-field"><label>Prix 1J Terrain (€)</label><input id="f-dos-p1t" type="number" placeholder="620" autocomplete="off"></div>
+            <div class="s-field"><label>Prix ½J Terrain (€)</label><input id="f-dos-pht" type="number" placeholder="480" autocomplete="off"></div>
+            <div class="s-field"><label>Prix Bureau (€)</label><input id="f-dos-pb" type="number" placeholder="520" autocomplete="off"></div>
+            <div class="s-field"><label>Prix Nuit (€)</label><input id="f-dos-pn" type="number" placeholder="1060" autocomplete="off"></div>
+            <div class="s-field"><label>Prix Scan 3D (€)</label><input id="f-dos-ps3d" type="number" placeholder="1200" autocomplete="off"></div>
+          </div>
           <div class="s-form-btns">
             <button class="s-btn-cancel" onclick="closeDosForm()">Annuler</button>
             <button class="s-btn-save" onclick="saveDos()">Enregistrer</button>
@@ -224,6 +234,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         <div class="s-form" id="collab-form">
           <div class="s-form-title" id="collab-form-title">Nouveau collaborateur</div>
           <div class="s-field"><label>Prénom Nom *</label><input id="f-collab-name" placeholder="ex: Marie Dupont" autocomplete="off"></div>
+          <div class="s-field"><label>Pseudo agenda</label><input id="f-collab-pseudo" placeholder="ex: Micka (utilisé dans le titre)" autocomplete="off"></div>
           <div class="s-field"><label>Couleur agenda</label>
             <div class="color-row" id="collab-color-row"></div>
           </div>
@@ -359,6 +370,45 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 <div class="status-toast" id="toast"></div>
 <div class="loading-bar" id="loading-bar"></div>
 
+<!-- Modal Export -->
+<div class="modal-bg" id="export-modal-bg" onclick="if(event.target===this)closeExportModal()" style="display:none;align-items:center;justify-content:center">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div><div class="modal-title">📥 Exporter les pointages</div></div>
+      <button class="modal-close" onclick="closeExportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field">
+        <label>Mois</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <select class="m-select" id="exp-month">
+            <option value="0">Janvier</option><option value="1">Février</option>
+            <option value="2">Mars</option><option value="3">Avril</option>
+            <option value="4">Mai</option><option value="5">Juin</option>
+            <option value="6">Juillet</option><option value="7">Août</option>
+            <option value="8">Septembre</option><option value="9">Octobre</option>
+            <option value="10">Novembre</option><option value="11">Décembre</option>
+          </select>
+          <select class="m-select" id="exp-year"></select>
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Type d'export</label>
+        <div class="m-toggle" id="exp-type-toggle">
+          <button class="active" onclick="setExpType('global',this)">Global</button>
+          <button onclick="setExpType('chantier',this)">Par chantier</button>
+          <button onclick="setExpType('both',this)">Les deux</button>
+        </div>
+      </div>
+      <div id="export-status" style="font-size:13px;color:var(--muted);margin-top:8px;text-align:center;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeExportModal()">Annuler</button>
+      <button class="btn-modal-save" onclick="runExport()" id="btn-run-export">Générer Excel</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
 // ══ CONFIG ════════════════════════════════════════════════════════════════════
@@ -392,9 +442,10 @@ function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){r
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
 // Dossiers — chargés depuis Google Sheets (plus de liste locale fixe)
-let sheetDossiers = []; // sera rempli par loadSheetDossiers()
+let sheetDossiers = []; // objets {num,client,lieu,interlocuteur,adresse,prix1T,...}
 
 function allDossiers(){ return sheetDossiers; }
+function dosById(num){ return sheetDossiers.find(d=>d.num===num); }
 
 let collabs   = ls("arr_collabs")   || [{name:"Nicolas R.",colorId:"7"},{name:"Mickael",colorId:"2"}];
 let materiels = ls("arr_materiels") || [
@@ -665,11 +716,11 @@ function openEditModal(eventId){
 
 function filterModalDos(){
   const q=(document.getElementById("m-dos-search")?.value||"").toLowerCase();
-  const list=allDossiers().filter(([d,c,l])=>!q||(d+c+l).toLowerCase().includes(q));
+  const list=allDossiers().filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q));
   const sel=document.getElementById("m-dossier");
   const current=sel.value;
-  sel.innerHTML=list.map(([num,cl,lieu])=>
-    `<option value="${num}">${num} – ${cl} – ${lieu}</option>`).join("");
+  sel.innerHTML=list.map(d=>
+    `<option value="${d.num}">${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
   if(current)for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===current){sel.selectedIndex=i;break;}}
   updateModalPreview();
 }
@@ -725,13 +776,12 @@ function handleModalBgClick(e){if(e.target===document.getElementById("modal-bg")
 function buildTitle(){
   const dos=document.getElementById("m-dossier").value;
   const idx=parseInt(document.getElementById("m-collab").value);
-  const init=(!isNaN(idx)&&collabs[idx])?collabInit(collabs[idx].name):"";
-  // Récupère le lieu depuis la liste des dossiers
-  const dosInfo=allDossiers().find(([n])=>n===dos);
-  const lieu=dosInfo?dosInfo[2]:"";
-  // Extrait la commune (premier mot significatif du lieu)
+  const collab=(!isNaN(idx)&&collabs[idx])?collabs[idx]:null;
+  const tag=collab?(collab.pseudo||collabInit(collab.name)):"";
+  const dosInfo=dosById(dos);
+  const lieu=dosInfo?dosInfo.lieu:"";
   const commune=lieu.split(/[\s\/\-]/)[0]||"";
-  return `${dos}_${selectedPrest}${commune?"_"+commune:""}${init?"_"+init:""}`;
+  return `${dos}_${selectedPrest}${commune?"_"+commune:""}${tag?"_"+tag:""}`;
 }
 
 async function saveEvent(){
@@ -749,11 +799,12 @@ async function saveEvent(){
   const endDt=`${dEnd}T${String(endH).padStart(2,"0")}:00:00`;
   const matIdx=parseInt(document.getElementById("m-materiel").value);
   const matName=(!isNaN(matIdx)&&materiels[matIdx])?materiels[matIdx].name:"";
-  const dosInfo=allDossiers().find(([n])=>n===dos);
+  const dosInfo=dosById(dos);
   const notes=document.getElementById("m-notes").value.trim();
 
   const desc=[
-    dosInfo?`${dosInfo[1]} – ${dosInfo[2]}`:"",
+    dosInfo?`${dosInfo.client} – ${dosInfo.lieu}`:"",
+    dosInfo?.interlocuteur?`Interlocuteur : ${dosInfo.interlocuteur}`:"",
     collab?`Collaborateur : ${collab.name}`:"",
     notes,
     matName?`Matériel : ${matName}`:"",
@@ -819,73 +870,84 @@ function switchSTab(tab){
 
 // ── Dossiers sidebar ──────────────────────────────────────────────────────────
 // ══ GOOGLE SHEETS ═════════════════════════════════════════════════════════════
+// Colonnes : A=N°Dossier B=Client C=Lieu D=Interlocuteur E=Adresse F=Prix1T G=PrixHT H=PrixB I=PrixN J=PrixS3D
 async function loadSheetDossiers(){
   if(!accessToken)return;
   try{
-    const range=encodeURIComponent(`${SHEET_NAME}!A2:C1000`);
+    const range=encodeURIComponent(`${SHEET_NAME}!A2:J1000`);
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
     const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
     if(!resp.ok){console.warn("Sheets read error",resp.status);return;}
     const data=await resp.json();
     sheetDossiers=(data.values||[])
       .filter(r=>r[0]&&r[0].trim())
-      .map(r=>[r[0]?.trim(),r[1]?.trim()||"—",r[2]?.trim()||"—"])
+      .map(r=>({
+        num:r[0]?.trim(),
+        client:r[1]?.trim()||"—",
+        lieu:r[2]?.trim()||"—",
+        interlocuteur:r[3]?.trim()||"",
+        adresse:r[4]?.trim()||"",
+        prix1T:parseFloat(r[5])||0,
+        prixHT:parseFloat(r[6])||0,
+        prixB:parseFloat(r[7])||0,
+        prixN:parseFloat(r[8])||0,
+        prixS3D:parseFloat(r[9])||0,
+      }))
       .sort((a,b)=>{
-        // Tri naturel : 40553/022 < 40553/033 < 41521/005
         const parse=s=>{const m=s.match(/^(\d+)(?:[\/\-](\d+))?/);return m?[parseInt(m[1]),parseInt(m[2]||0)]:[0,0];};
-        const [a1,a2]=parse(a[0]), [b1,b2]=parse(b[0]);
+        const [a1,a2]=parse(a.num),[b1,b2]=parse(b.num);
         return a1!==b1?a1-b1:a2-b2;
       });
     renderSidebarDos();
-    // Refresh modal if open
     const mds=document.getElementById("m-dos-search");
     if(mds)filterModalDos();
   }catch(e){console.warn("Sheets load error",e);}
 }
 
-async function appendSheetDossier(num,cl,lieu){
+function dosRow(d){
+  return [d.num,d.client,d.lieu,d.interlocuteur,d.adresse,
+    d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||""];
+}
+
+async function appendSheetDossier(d){
   if(!accessToken)return;
   try{
-    const range=encodeURIComponent(`${SHEET_NAME}!A:C`);
+    const range=encodeURIComponent(`${SHEET_NAME}!A:J`);
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    await fetch(url,{
-      method:"POST",
+    await fetch(url,{method:"POST",
       headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
-      body:JSON.stringify({values:[[num,cl,lieu]]})
-    });
+      body:JSON.stringify({values:[dosRow(d)]})});
   }catch(e){console.warn("Sheets append error",e);}
 }
 
-async function updateSheetDossier(rowIdx,num,cl,lieu){
-  // rowIdx = index dans sheetDossiers (0-based) → ligne Sheet = rowIdx+2 (1 en-tête + 1 base)
+async function updateSheetDossier(rowIdx,d){
   if(!accessToken)return;
   try{
     const row=rowIdx+2;
-    const range=encodeURIComponent(`${SHEET_NAME}!A${row}:C${row}`);
+    const range=encodeURIComponent(`${SHEET_NAME}!A${row}:J${row}`);
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-    await fetch(url,{
-      method:"PUT",
+    await fetch(url,{method:"PUT",
       headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
-      body:JSON.stringify({values:[[num,cl,lieu]]})
-    });
+      body:JSON.stringify({values:[dosRow(d)]})});
   }catch(e){console.warn("Sheets update error",e);}
 }
 
 function renderSidebarDos(){
   const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
-  const list=allDossiers().filter(([d,c,l])=>!q||(d+c+l).toLowerCase().includes(q));
+  const list=allDossiers().filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q));
   const el=document.getElementById("s-dos-list");
   if(!el)return;
   if(!list.length&&sheetDossiers.length===0){
     el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">⏳ Chargement depuis Google Sheets…</div>`;
     return;
   }
-  el.innerHTML=list.map(([d,c,l],i)=>{
-    const realIdx=sheetDossiers.findIndex(x=>x[0]===d);
+  el.innerHTML=list.map(d=>{
+    const realIdx=sheetDossiers.findIndex(x=>x.num===d.num);
     return `<div class="s-item">
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:700;color:var(--blue);font-family:monospace">${d}</div>
-        <div style="font-size:12px;color:var(--muted)">${c} – ${l}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--blue);font-family:monospace">${d.num}</div>
+        <div style="font-size:12px;color:var(--muted)">${d.client} – ${d.lieu}</div>
+        ${d.interlocuteur?`<div style="font-size:11px;color:var(--muted)">👤 ${d.interlocuteur}</div>`:""}
       </div>
       <button class="s-edit" onclick="openDosForm(${realIdx})" title="Modifier">✏️</button>
     </div>`;
@@ -896,13 +958,21 @@ function openDosForm(idx=null){
   editingDosIdx=idx;
   document.getElementById("dos-form").classList.add("visible");
   document.getElementById("dos-form-title").textContent=idx!==null?"Modifier le dossier":"Nouveau dossier";
+  const fields=["f-dos-num","f-dos-client","f-dos-lieu","f-dos-interlocuteur","f-dos-adresse","f-dos-p1t","f-dos-pht","f-dos-pb","f-dos-pn","f-dos-ps3d"];
   if(idx!==null&&sheetDossiers[idx]){
     const d=sheetDossiers[idx];
-    document.getElementById("f-dos-num").value=d[0];
-    document.getElementById("f-dos-client").value=d[1];
-    document.getElementById("f-dos-lieu").value=d[2];
+    document.getElementById("f-dos-num").value=d.num;
+    document.getElementById("f-dos-client").value=d.client;
+    document.getElementById("f-dos-lieu").value=d.lieu;
+    document.getElementById("f-dos-interlocuteur").value=d.interlocuteur||"";
+    document.getElementById("f-dos-adresse").value=d.adresse||"";
+    document.getElementById("f-dos-p1t").value=d.prix1T||"";
+    document.getElementById("f-dos-pht").value=d.prixHT||"";
+    document.getElementById("f-dos-pb").value=d.prixB||"";
+    document.getElementById("f-dos-pn").value=d.prixN||"";
+    document.getElementById("f-dos-ps3d").value=d.prixS3D||"";
   }else{
-    ["f-dos-num","f-dos-client","f-dos-lieu"].forEach(id=>document.getElementById(id).value="");
+    fields.forEach(id=>document.getElementById(id).value="");
   }
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
@@ -910,21 +980,28 @@ function closeDosForm(){document.getElementById("dos-form").classList.remove("vi
 
 async function saveDos(){
   const num=document.getElementById("f-dos-num").value.trim();
-  const cl=document.getElementById("f-dos-client").value.trim()||"—";
-  const lieu=document.getElementById("f-dos-lieu").value.trim()||"—";
   if(!num){document.getElementById("f-dos-num").focus();return;}
-
+  const d={
+    num,
+    client:document.getElementById("f-dos-client").value.trim()||"—",
+    lieu:document.getElementById("f-dos-lieu").value.trim()||"—",
+    interlocuteur:document.getElementById("f-dos-interlocuteur").value.trim(),
+    adresse:document.getElementById("f-dos-adresse").value.trim(),
+    prix1T:parseFloat(document.getElementById("f-dos-p1t").value)||0,
+    prixHT:parseFloat(document.getElementById("f-dos-pht").value)||0,
+    prixB:parseFloat(document.getElementById("f-dos-pb").value)||0,
+    prixN:parseFloat(document.getElementById("f-dos-pn").value)||0,
+    prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
+  };
   const saveBtn=document.querySelector("#dos-form .s-btn-save");
   if(saveBtn)saveBtn.textContent="⏳";
-
   if(editingDosIdx!==null){
-    sheetDossiers[editingDosIdx]=[num,cl,lieu];
-    await updateSheetDossier(editingDosIdx,num,cl,lieu);
+    sheetDossiers[editingDosIdx]=d;
+    await updateSheetDossier(editingDosIdx,d);
   }else{
-    sheetDossiers.push([num,cl,lieu]);
-    await appendSheetDossier(num,cl,lieu);
+    sheetDossiers.push(d);
+    await appendSheetDossier(d);
   }
-
   if(saveBtn)saveBtn.textContent="Enregistrer";
   closeDosForm();
   renderSidebarDos();
@@ -956,17 +1033,20 @@ function openCollabForm(idx=null){
   document.getElementById("collab-form-title").textContent=idx!==null?"Modifier le collaborateur":"Nouveau collaborateur";
   if(idx!==null){
     document.getElementById("f-collab-name").value=collabs[idx].name;
+    document.getElementById("f-collab-pseudo").value=collabs[idx].pseudo||"";
     buildCollabColorPicker(collabs[idx].colorId);
   }else{
     document.getElementById("f-collab-name").value="";
+    document.getElementById("f-collab-pseudo").value="";
     buildCollabColorPicker("7");
   }
 }
 function closeCollabForm(){document.getElementById("collab-form").classList.remove("visible");editingCollabIdx=null;}
 function saveCollab(){
   const name=document.getElementById("f-collab-name").value.trim();
+  const pseudo=document.getElementById("f-collab-pseudo").value.trim();
   if(!name){document.getElementById("f-collab-name").focus();return;}
-  const entry={name,colorId:selectedCollabColorId};
+  const entry={name,pseudo,colorId:selectedCollabColorId};
   if(editingCollabIdx!==null)collabs[editingCollabIdx]=entry;
   else collabs.push(entry);
   lsSet("arr_collabs",collabs);
@@ -1028,7 +1108,216 @@ function showToast(msg,err=false){
   setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// ══ INIT ══════════════════════════════════════════════════════════════════════
+// ══ EXPORT EXCEL ══════════════════════════════════════════════════════════════
+let expType="global";
+const MONTHS_FR=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const PREST_KEYS=["1T","HT","B","N","S3D"];
+const PREST_LABELS=["Terrain 1J","Terrain 1/2J","Bureau Étude","Nuit","Scan 3D"];
+const PRIX_KEYS=["prix1T","prixHT","prixB","prixN","prixS3D"];
+const PRIX_DEFAULT=[620,480,520,1060,1200];
+
+function openExportModal(){
+  // Pré-sélectionner mois courant
+  document.getElementById("exp-month").value=curMonth;
+  const yearSel=document.getElementById("exp-year");
+  yearSel.innerHTML="";
+  for(let y=curYear-1;y<=curYear+1;y++){
+    yearSel.innerHTML+=`<option value="${y}"${y===curYear?" selected":""}>${y}</option>`;
+  }
+  document.getElementById("export-status").style.display="none";
+  document.getElementById("export-modal-bg").style.display="flex";
+}
+function closeExportModal(){document.getElementById("export-modal-bg").style.display="none";}
+function setExpType(t,el){
+  expType=t;
+  document.querySelectorAll("#exp-type-toggle button").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+}
+
+async function runExport(){
+  const month=parseInt(document.getElementById("exp-month").value);
+  const year=parseInt(document.getElementById("exp-year").value);
+  const btn=document.getElementById("btn-run-export");
+  const status=document.getElementById("export-status");
+  btn.textContent="⏳ Chargement…";
+  status.style.display="block";
+  status.textContent="Récupération des événements…";
+
+  // Charger les événements du mois
+  const first=new Date(year,month,1).toISOString();
+  const last=new Date(year,month+1,0,23,59,59).toISOString();
+  let events=[];
+  try{
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(first)}&timeMax=${encodeURIComponent(last)}&singleEvents=true&orderBy=startTime&maxResults=500`;
+    const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
+    const data=await resp.json();
+    events=data.items||[];
+  }catch(e){status.textContent="Erreur chargement calendrier";btn.textContent="Générer Excel";return;}
+
+  // Parser les événements : titre = DOS_CODE_commune_tag
+  const byDossier={};
+  events.forEach(ev=>{
+    const title=ev.summary||"";
+    const parts=title.split("_");
+    if(parts.length<2)return;
+    const dos=parts[0];
+    const code=parts[1];
+    if(!PREST_KEYS.includes(code))return;
+    const dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    if(!byDossier[dos])byDossier[dos]=[];
+    byDossier[dos].push({date:dStart,code,title});
+  });
+
+  status.textContent="Génération du fichier Excel…";
+
+  if(expType==="global"||expType==="both"){
+    generateGlobalXlsx(year,month,byDossier);
+  }
+  if(expType==="chantier"||expType==="both"){
+    // Petit délai entre les téléchargements
+    const delay=expType==="both"?600:0;
+    setTimeout(()=>generateChantierXlsx(year,month,byDossier),delay);
+  }
+
+  btn.textContent="Générer Excel";
+  status.textContent="✅ Fichier(s) généré(s) !";
+  setTimeout(()=>closeExportModal(),2000);
+}
+
+// ── Génération CSV→XLSX pur JS ────────────────────────────────────────────────
+function downloadXlsx(wb, filename){
+  // Encode workbook as XLSX using a minimal implementation
+  // On utilise une lib CDN injectée dynamiquement
+  if(!window.XLSX){
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload=()=>doDownload(wb,filename);
+    document.head.appendChild(s);
+  }else{
+    doDownload(wb,filename);
+  }
+}
+function doDownload(wb,filename){
+  const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+  const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+}
+
+function generateGlobalXlsx(year,month,byDossier){
+  const wb={SheetNames:[],Sheets:{}};
+  const ws={};
+  const monthName=MONTHS_FR[month];
+
+  // En-têtes
+  const headers=["N° Dossier","Client","Lieu","Interlocuteur","Terrain 1J","Terrain 1/2J","Bureau","Nuit","Scan 3D","TOTAL (€)"];
+  headers.forEach((h,i)=>{ws[xlsCell(0,i)]={v:h,t:"s"};});
+
+  let row=1;
+  Object.entries(byDossier).sort(([a],[b])=>a.localeCompare(b)).forEach(([dos,evs])=>{
+    const dosInfo=dosById(dos);
+    const totals={};
+    PREST_KEYS.forEach(k=>totals[k]=0);
+    evs.forEach(ev=>{ if(totals[ev.code]!==undefined)totals[ev.code]++; });
+    // Calcul montant
+    let total=0;
+    PREST_KEYS.forEach((k,i)=>{
+      const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
+      total+=totals[k]*prix;
+    });
+    const r=[
+      dos,
+      dosInfo?.client||"",
+      dosInfo?.lieu||"",
+      dosInfo?.interlocuteur||"",
+      totals["1T"],totals["HT"],totals["B"],totals["N"],totals["S3D"],
+      total
+    ];
+    r.forEach((v,i)=>{ws[xlsCell(row,i)]={v,t:typeof v==="number"?"n":"s"};});
+    row++;
+  });
+  ws["!ref"]=`A1:J${row}`;
+  const sheetName=`Récap ${monthName} ${year}`;
+  wb.SheetNames.push(sheetName);
+  wb.Sheets[sheetName]=ws;
+  downloadXlsx(wb,`Pointage_Global_${monthName}_${year}.xlsx`);
+}
+
+function generateChantierXlsx(year,month,byDossier){
+  const wb={SheetNames:[],Sheets:{}};
+  const monthName=MONTHS_FR[month];
+
+  Object.entries(byDossier).sort(([a],[b])=>a.localeCompare(b)).forEach(([dos,evs])=>{
+    const dosInfo=dosById(dos);
+    const ws={};
+    // En-tête style feuille de pointage Arragon
+    const meta=[
+      ["Cabinet Arragon"],
+      ["FEUILLE DE POINTAGE"],
+      [monthName.toUpperCase()+" "+year],
+      ["Client :", dosInfo?.client||""],
+      ["N° Dossier :", dos],
+      ["Société :", "Cabinet Arragon"],
+      ["Poste occupé :", "Géomètre - Topographe"],
+      [],
+    ];
+    let r=0;
+    meta.forEach(row=>{
+      row.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});
+      r++;
+    });
+    // En-têtes prestations
+    const hdr=["Ouvrage","","Terrain 1J","Terrain 1/2J","Bureau Étude","Nuit","Scan 3D"];
+    hdr.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});
+    r++;
+    // Totaux par prestation
+    const totals={};PREST_KEYS.forEach(k=>totals[k]=0);
+    evs.forEach(ev=>{if(totals[ev.code]!==undefined)totals[ev.code]++;});
+    const dataRow=[`${dos} ${dosInfo?.lieu||""}`,"",...PREST_KEYS.map(k=>totals[k])];
+    dataRow.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
+    r++;
+    // Ligne TOTAL
+    const totRow=["TOTAL","",...PREST_KEYS.map(k=>totals[k])];
+    totRow.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
+    r+=2;
+    // Prix
+    ws[xlsCell(r,0)]={v:"Prix jour",t:"s"};
+    PREST_KEYS.forEach((k,i)=>{
+      const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
+      ws[xlsCell(r,i+2)]={v:prix,t:"n"};
+    });
+    r++;
+    // Total €
+    ws[xlsCell(r,0)]={v:"TOTAL",t:"s"};
+    let grandTotal=0;
+    PREST_KEYS.forEach((k,i)=>{
+      const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
+      const montant=totals[k]*prix;
+      grandTotal+=montant;
+      ws[xlsCell(r,i+2)]={v:montant,t:"n"};
+    });
+    ws[xlsCell(r,7)]={v:grandTotal,t:"n"};
+    r++;
+    // Dates passées
+    r++;
+    ws[xlsCell(r,0)]={v:"Dates d'intervention :",t:"s"};
+    evs.forEach((ev,i)=>{ws[xlsCell(r,i+1)]={v:ev.date,t:"s"};});
+
+    ws["!ref"]=`A1:H${r+2}`;
+    const sheetName=dos.replace("/","-").slice(0,31);
+    wb.SheetNames.push(sheetName);
+    wb.Sheets[sheetName]=ws;
+  });
+
+  downloadXlsx(wb,`Pointage_Chantiers_${monthName}_${year}.xlsx`);
+}
+
+function xlsCell(r,c){
+  const col=String.fromCharCode(65+c);
+  return `${col}${r+1}`;
+}
 renderSidebarDos(); // affiche "chargement..." en attendant Sheets
 renderSidebarCollabs();
 renderSidebarMat();
