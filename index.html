@@ -595,14 +595,14 @@ function buildCalendar(){
 
     const dayNumHtml=isToday?`<div class="day-num"><span>${d}</span></div>`:`<div class="day-num">${d}</div>`;
 
-    const maxShow=6;
+    const maxShow=3;
     const chipsHtml=evs.slice(0,maxShow).map(ev=>{
       const col=getEventColor(ev);
       const lbl=getEventLabel(ev);
       const spanIcon=ev._spanDays?(ev._isStart?"→":ev._isEnd?"←":"↔"):"";
       return `<div class="ev-chip" style="background:${col};opacity:${ev._isStart||!ev._spanDays?1:.85}" onclick="event.stopPropagation();openEditModal('${ev.id}')" title="${ev.summary||''}">${spanIcon?spanIcon+" ":""}${lbl}</div>`;
     }).join("");
-    const moreHtml=evs.length>maxShow?`<div class="ev-more" onclick="event.stopPropagation();showMoreEvents(this,'${dateStr}')" data-date="${dateStr}">+${evs.length-maxShow} autre${evs.length-maxShow>1?"s":""}</div>`:"";
+    const moreHtml=evs.length>maxShow?`<div class="ev-more">+${evs.length-maxShow} autre${evs.length-maxShow>1?"s":""}</div>`:"";
 
     html+=`<div class="${cls}" onclick="openModal('${dateStr}')">
       ${dayNumHtml}${chipsHtml}${moreHtml}</div>`;
@@ -610,52 +610,7 @@ function buildCalendar(){
   document.getElementById("cal-days").innerHTML=html;
 }
 
-function showMoreEvents(el,dateStr){
-  // Retire un éventuel popup existant
-  document.querySelectorAll(".more-popup").forEach(p=>p.remove());
-  const byDate={};
-  calEvents.forEach(ev=>{
-    let dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10);
-    let dEnd=ev.end?.date||ev.end?.dateTime?.slice(0,10);
-    if(!dStart)return;
-    if(ev.end?.date){const e=new Date(dEnd);e.setDate(e.getDate()-1);dEnd=e.toISOString().slice(0,10);}
-    if(!dEnd||dEnd<dStart)dEnd=dStart;
-    let cur=new Date(dStart+"T12:00:00");
-    const last=new Date(dEnd+"T12:00:00");
-    while(cur<=last){
-      const key=cur.toISOString().slice(0,10);
-      if(!byDate[key])byDate[key]=[];
-      byDate[key].push(ev);
-      cur.setDate(cur.getDate()+1);
-    }
-  });
-  const evs=byDate[dateStr]||[];
-  const popup=document.createElement("div");
-  popup.className="more-popup";
-  popup.style.cssText="position:fixed;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:10px;z-index:500;min-width:200px;max-width:260px";
-  popup.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase">${formatDateFr(dateStr)}</div>`+
-    evs.map(ev=>{
-      const col=getEventColor(ev);
-      const lbl=getEventLabel(ev);
-      return `<div style="display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:6px;cursor:pointer;margin-bottom:3px" onmouseover="this.style.background='var(--grey)'" onmouseout="this.style.background=''" onclick="document.querySelectorAll('.more-popup').forEach(p=>p.remove());openEditModal('${ev.id}')">
-        <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
-        <span style="font-size:12px;font-weight:500">${lbl}</span>
-      </div>`;
-    }).join("")+
-    `<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
-      <div style="font-size:11px;color:var(--blue);cursor:pointer;text-align:center" onclick="document.querySelectorAll('.more-popup').forEach(p=>p.remove());openModal('${dateStr}')">＋ Nouvel événement</div>
-    </div>`;
-  document.body.appendChild(popup);
-  // Positionner près du bouton
-  const rect=el.getBoundingClientRect();
-  popup.style.left=Math.min(rect.left,window.innerWidth-270)+"px";
-  popup.style.top=(rect.bottom+4)+"px";
-  // Fermer si clic ailleurs
-  setTimeout(()=>document.addEventListener("click",function h(){
-    popup.remove();document.removeEventListener("click",h);
-  }),10);
-}
-
+function getEventColor(ev){
   if(ev.colorId){
     const c=GCAL_COLORS.find(x=>x.id===ev.colorId);
     if(c)return c.hex;
@@ -745,20 +700,14 @@ function openEditModal(eventId){
       selectedPrest=code;
     }
   }
-  // Détection du collaborateur : cherche le tag en fin de titre (après commune)
-  // Format: DOS_CODE_commune_TAG  ou  DOS_CODE_TAG
   if(parts.length>=3){
-    const tag=parts[parts.length-1]; // dernier segment = pseudo ou initiales
-    // Cherche par pseudo d'abord
-    let ci=collabs.findIndex(c=>c.pseudo&&c.pseudo.toLowerCase()===tag.toLowerCase());
-    // Sinon par initiales
-    if(ci<0) ci=collabs.findIndex(c=>collabInit(c.name).toLowerCase()===tag.toLowerCase());
-    // Sinon par colorId de l'événement
-    if(ci<0&&ev.colorId) ci=collabs.findIndex(c=>c.colorId===ev.colorId);
-    if(ci>=0) document.getElementById("m-collab").value=ci;
+    const init=parts[2];
+    const ci=collabs.findIndex(c=>collabInit(c.name)===init);
+    if(ci>=0){document.getElementById("m-collab").value=ci;}
   } else if(ev.colorId){
+    // Try to find collab by colorId
     const ci=collabs.findIndex(c=>c.colorId===ev.colorId);
-    if(ci>=0) document.getElementById("m-collab").value=ci;
+    if(ci>=0)document.getElementById("m-collab").value=ci;
   }
   document.getElementById("m-notes").value=ev.description?.split("\n")[2]||"";
   updateModalPreview();
@@ -1205,7 +1154,7 @@ async function runExport(){
     events=data.items||[];
   }catch(e){status.textContent="Erreur chargement calendrier";btn.textContent="Générer Excel";return;}
 
-  // Parser les événements : compte les jours réels pour les événements multi-jours
+  // Parser les événements : titre = DOS_CODE_commune_tag
   const byDossier={};
   events.forEach(ev=>{
     const title=ev.summary||"";
@@ -1214,28 +1163,9 @@ async function runExport(){
     const dos=parts[0];
     const code=parts[1];
     if(!PREST_KEYS.includes(code))return;
-
-    // Calcul du nombre de jours réels (hors week-end)
-    let dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10);
-    let dEnd=ev.end?.date||ev.end?.dateTime?.slice(0,10);
-    if(!dStart)return;
-    if(ev.end?.date){const e=new Date(dEnd);e.setDate(e.getDate()-1);dEnd=e.toISOString().slice(0,10);}
-    if(!dEnd||dEnd<dStart)dEnd=dStart;
-
-    // Compter les jours ouvrés (lun-ven)
-    let nbJours=0;
-    let cur=new Date(dStart+"T12:00:00");
-    const last=new Date(dEnd+"T12:00:00");
-    while(cur<=last){
-      const dow=cur.getDay();
-      if(dow!==0&&dow!==6)nbJours++;
-      cur.setDate(cur.getDate()+1);
-    }
-    // Pour les HT (demi-journée) on compte 0.5 par occurrence
-    const qty=code==="HT"?nbJours*0.5:nbJours;
-
+    const dStart=ev.start?.date||ev.start?.dateTime?.slice(0,10);
     if(!byDossier[dos])byDossier[dos]=[];
-    byDossier[dos].push({date:dStart,dateEnd:dEnd,code,title,nbJours,qty});
+    byDossier[dos].push({date:dStart,code,title});
   });
 
   status.textContent="Génération du fichier Excel…";
@@ -1276,162 +1206,112 @@ function doDownload(wb,filename){
   a.click();
 }
 
-function get_col_letter(idx){return String.fromCharCode(65+idx);}
-
 function generateGlobalXlsx(year,month,byDossier){
   const wb={SheetNames:[],Sheets:{}};
+  const ws={};
   const monthName=MONTHS_FR[month];
-  const dossiersActifs=Object.keys(byDossier).sort();
 
-  // ── Feuille 1 : Style Suivi Pointages Arragon ─────────────────────────────
-  const ws1={};
-  // Titre ligne 1
-  ws1["A1"]={v:`SUIVI POINTAGES CHANTIERS – ${monthName.toUpperCase()} ${year}`,t:"s"};
-  // En-têtes ligne 2
-  const hdrs=["N° Dossier","Client / Chantier","Interlocuteur",
-    "Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","Total Jours",
-    "Montant (€)","Pointage Envoyé","BC Reçu","Facture Envoyée","Observations"];
-  hdrs.forEach((h,i)=>{ws1[xlsCell(1,i)]={v:h,t:"s"};});
+  // En-têtes
+  const headers=["N° Dossier","Client","Lieu","Interlocuteur","Terrain 1J","Terrain 1/2J","Bureau","Nuit","Scan 3D","TOTAL (€)"];
+  headers.forEach((h,i)=>{ws[xlsCell(0,i)]={v:h,t:"s"};});
 
-  let row=2;
-  dossiersActifs.forEach(dos=>{
-    const evs=byDossier[dos];
+  let row=1;
+  Object.entries(byDossier).sort(([a],[b])=>a.localeCompare(b)).forEach(([dos,evs])=>{
     const dosInfo=dosById(dos);
-    const totals={};PREST_KEYS.forEach(k=>totals[k]=0);
-    evs.forEach(ev=>{if(totals[ev.code]!==undefined)totals[ev.code]+=ev.qty;});
+    const totals={};
+    PREST_KEYS.forEach(k=>totals[k]=0);
+    evs.forEach(ev=>{ if(totals[ev.code]!==undefined)totals[ev.code]++; });
+    // Calcul montant
     let total=0;
     PREST_KEYS.forEach((k,i)=>{
       const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
       total+=totals[k]*prix;
     });
-    const totalJours=PREST_KEYS.reduce((s,k)=>s+totals[k],0);
-    [dos,
-     `${dosInfo?.client||""} – ${dosInfo?.lieu||""}`,
-     dosInfo?.interlocuteur||"",
-     totals["1T"],totals["HT"],totals["B"],totals["N"],totals["S3D"],
-     totalJours,total,
-     "⏳ En attente","⏳ En attente","⏳ En attente",""
-    ].forEach((v,i)=>{ws1[xlsCell(row,i)]={v,t:typeof v==="number"?"n":"s"};});
+    const r=[
+      dos,
+      dosInfo?.client||"",
+      dosInfo?.lieu||"",
+      dosInfo?.interlocuteur||"",
+      totals["1T"],totals["HT"],totals["B"],totals["N"],totals["S3D"],
+      total
+    ];
+    r.forEach((v,i)=>{ws[xlsCell(row,i)]={v,t:typeof v==="number"?"n":"s"};});
     row++;
   });
-  // Ligne totaux
-  ws1[xlsCell(row,0)]={v:"TOTAUX",t:"s"};
-  [3,4,5,6,7,8,9].forEach(ci=>{
-    const col=get_col_letter(ci);
-    ws1[xlsCell(row,ci)]={v:`=SUM(${col}3:${col}${row})`,t:"n"};
-  });
-  ws1["!ref"]=`A1:N${row+1}`;
-  wb.SheetNames.push(`Suivi ${monthName}`);
-  wb.Sheets[`Suivi ${monthName}`]=ws1;
-
-  // ── Feuille 2 : Récap simple ─────────────────────────────────────────────
-  const ws2={};
-  ["N° Dossier","Client","Lieu",...PREST_LABELS,"TOTAL (€)"]
-    .forEach((h,i)=>{ws2[xlsCell(0,i)]={v:h,t:"s"};});
-  let r2=1;
-  dossiersActifs.forEach(dos=>{
-    const evs=byDossier[dos];const dosInfo=dosById(dos);
-    const totals={};PREST_KEYS.forEach(k=>totals[k]=0);
-    evs.forEach(ev=>{if(totals[ev.code]!==undefined)totals[ev.code]+=ev.qty;});
-    let total=0;
-    PREST_KEYS.forEach((k,i)=>{const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=totals[k]*prix;});
-    [dos,dosInfo?.client||"",dosInfo?.lieu||"",...PREST_KEYS.map(k=>totals[k]||0),total]
-      .forEach((v,i)=>{ws2[xlsCell(r2,i)]={v,t:typeof v==="number"?"n":"s"};});
-    r2++;
-  });
-  ws2["!ref"]=`A1:I${r2+1}`;
-  wb.SheetNames.push(`Récap ${monthName}`);
-  wb.Sheets[`Récap ${monthName}`]=ws2;
-
+  ws["!ref"]=`A1:J${row}`;
+  const sheetName=`Récap ${monthName} ${year}`;
+  wb.SheetNames.push(sheetName);
+  wb.Sheets[sheetName]=ws;
   downloadXlsx(wb,`Pointage_Global_${monthName}_${year}.xlsx`);
 }
 
 function generateChantierXlsx(year,month,byDossier){
+  const wb={SheetNames:[],Sheets:{}};
   const monthName=MONTHS_FR[month];
 
-  // Un fichier Excel par chantier avec délai entre chaque téléchargement
-  const dossiersActifs=Object.keys(byDossier).sort();
-  dossiersActifs.forEach((dos,idx)=>{
-    setTimeout(()=>{
-      const wb={SheetNames:[],Sheets:{}};
-      const dosInfo=dosById(dos);
-      const evs=byDossier[dos];
-      const ws={};
-
-      // En-tête style Arragon
-      const meta=[
-        ["Cabinet Arragon","","","","","",new Date(year,month,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase()],
-        ["FEUILLE DE POINTAGE"],
-        [""],
-        ["Client :", dosInfo?.client||""],
-        ["N° Dossier :", dos],
-        ["Société :", "Cabinet Arragon"],
-        ["Poste occupé :", "Géomètre - Topographe"],
-        ["Interlocuteur :", dosInfo?.interlocuteur||""],
-        ["Adresse :", dosInfo?.adresse||""],
-        [""],
-      ];
-      let r=0;
-      meta.forEach(row=>{row.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});r++;});
-
-      // En-têtes prestations
-      ["Ouvrage","","Terrain 1J","Terrain ½J","Bureau Étude","Nuit","Scan 3D"]
-        .forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});
+  Object.entries(byDossier).sort(([a],[b])=>a.localeCompare(b)).forEach(([dos,evs])=>{
+    const dosInfo=dosById(dos);
+    const ws={};
+    // En-tête style feuille de pointage Arragon
+    const meta=[
+      ["Cabinet Arragon"],
+      ["FEUILLE DE POINTAGE"],
+      [monthName.toUpperCase()+" "+year],
+      ["Client :", dosInfo?.client||""],
+      ["N° Dossier :", dos],
+      ["Société :", "Cabinet Arragon"],
+      ["Poste occupé :", "Géomètre - Topographe"],
+      [],
+    ];
+    let r=0;
+    meta.forEach(row=>{
+      row.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});
       r++;
+    });
+    // En-têtes prestations
+    const hdr=["Ouvrage","","Terrain 1J","Terrain 1/2J","Bureau Étude","Nuit","Scan 3D"];
+    hdr.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:"s"};});
+    r++;
+    // Totaux par prestation
+    const totals={};PREST_KEYS.forEach(k=>totals[k]=0);
+    evs.forEach(ev=>{if(totals[ev.code]!==undefined)totals[ev.code]++;});
+    const dataRow=[`${dos} ${dosInfo?.lieu||""}`,"",...PREST_KEYS.map(k=>totals[k])];
+    dataRow.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
+    r++;
+    // Ligne TOTAL
+    const totRow=["TOTAL","",...PREST_KEYS.map(k=>totals[k])];
+    totRow.forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
+    r+=2;
+    // Prix
+    ws[xlsCell(r,0)]={v:"Prix jour",t:"s"};
+    PREST_KEYS.forEach((k,i)=>{
+      const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
+      ws[xlsCell(r,i+2)]={v:prix,t:"n"};
+    });
+    r++;
+    // Total €
+    ws[xlsCell(r,0)]={v:"TOTAL",t:"s"};
+    let grandTotal=0;
+    PREST_KEYS.forEach((k,i)=>{
+      const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
+      const montant=totals[k]*prix;
+      grandTotal+=montant;
+      ws[xlsCell(r,i+2)]={v:montant,t:"n"};
+    });
+    ws[xlsCell(r,7)]={v:grandTotal,t:"n"};
+    r++;
+    // Dates passées
+    r++;
+    ws[xlsCell(r,0)]={v:"Dates d'intervention :",t:"s"};
+    evs.forEach((ev,i)=>{ws[xlsCell(r,i+1)]={v:ev.date,t:"s"};});
 
-      // Totaux (avec vrais jours)
-      const totals={};PREST_KEYS.forEach(k=>totals[k]=0);
-      evs.forEach(ev=>{if(totals[ev.code]!==undefined)totals[ev.code]+=ev.qty;});
-      [`${dos} – ${dosInfo?.lieu||""}`,"",...PREST_KEYS.map(k=>totals[k])]
-        .forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
-      r++;
-      ["TOTAL","",...PREST_KEYS.map(k=>totals[k])]
-        .forEach((v,c)=>{ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};});
-      r+=2;
-
-      // Prix
-      ws[xlsCell(r,0)]={v:"Prix jour",t:"s"};
-      PREST_KEYS.forEach((k,i)=>{
-        const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
-        ws[xlsCell(r,i+2)]={v:prix,t:"n"};
-      });
-      r++;
-
-      // Total €
-      ws[xlsCell(r,0)]={v:"TOTAL",t:"s"};
-      let grandTotal=0;
-      PREST_KEYS.forEach((k,i)=>{
-        const prix=dosInfo?dosInfo[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];
-        const montant=totals[k]*prix;
-        grandTotal+=montant;
-        ws[xlsCell(r,i+2)]={v:montant,t:"n"};
-      });
-      ws[xlsCell(r,7)]={v:grandTotal,t:"n"};
-      r+=2;
-
-      // Détail des interventions
-      ws[xlsCell(r,0)]={v:"Détail des interventions :",t:"s"};r++;
-      ws[xlsCell(r,0)]={v:"Date",t:"s"};
-      ws[xlsCell(r,1)]={v:"Date fin",t:"s"};
-      ws[xlsCell(r,2)]={v:"Prestation",t:"s"};
-      ws[xlsCell(r,3)]={v:"Nb jours",t:"s"};
-      r++;
-      evs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(ev=>{
-        ws[xlsCell(r,0)]={v:ev.date,t:"s"};
-        ws[xlsCell(r,1)]={v:ev.dateEnd||ev.date,t:"s"};
-        ws[xlsCell(r,2)]={v:PREST_LABELS[PREST_KEYS.indexOf(ev.code)]||ev.code,t:"s"};
-        ws[xlsCell(r,3)]={v:ev.qty,t:"n"};
-        r++;
-      });
-
-      ws["!ref"]=`A1:H${r+2}`;
-      const sheetName="Pointage";
-      wb.SheetNames.push(sheetName);
-      wb.Sheets[sheetName]=ws;
-      const filename=`Pointage_${dos.replace("/","-")}_${monthName}_${year}.xlsx`;
-      downloadXlsx(wb,filename);
-    }, idx*800); // 800ms entre chaque téléchargement
+    ws["!ref"]=`A1:H${r+2}`;
+    const sheetName=dos.replace("/","-").slice(0,31);
+    wb.SheetNames.push(sheetName);
+    wb.Sheets[sheetName]=ws;
   });
+
+  downloadXlsx(wb,`Pointage_Chantiers_${monthName}_${year}.xlsx`);
 }
 
 function xlsCell(r,c){
