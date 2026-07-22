@@ -905,8 +905,8 @@ function buildTitle(){
   const collab=(!isNaN(idx)&&sheetCollabs[idx])?sheetCollabs[idx]:null;
   const tag=collabTag(collab);
   const dosInfo=dosById(dos);
-  const commune=(dosInfo?.lieu||"").split(/[\s\/\-]/)[0]||"";
-  return `${dos}_${selectedPrest}${commune?"_"+commune:""}${tag?"_"+tag:""}`;
+  const lieu=(dosInfo?.lieu||"").replace(/\s+/g,"_");
+  return `${dos}_${selectedPrest}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
 }
 function closeModal(){document.getElementById("modal-bg").classList.remove("open");}
 
