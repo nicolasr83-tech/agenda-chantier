@@ -1075,7 +1075,7 @@ async function runExport(){
     if(!de||de<ds)de=ds;
     let nbJ=0,cur=new Date(ds+"T12:00:00"),last=new Date(de+"T12:00:00");
     while(cur<=last){const dow=cur.getDay();if(dow!==0&&dow!==6)nbJ++;cur.setDate(cur.getDate()+1);}
-    const qty=code==="HT"?nbJ*0.5:nbJ;
+    const qty=nbJ;
     if(!byDossier[dos])byDossier[dos]=[];
     byDossier[dos].push({date:ds,dateEnd:de,code,title:ev.summary,nbJ,qty});
   });
