@@ -871,56 +871,44 @@ function openEditModal(evId){
   document.getElementById("modal-date").textContent=formatDateFr(ds);
   document.getElementById("m-dos-search").value="";
   filterModalDos();updateModalCollab();updateModalMat();
-  // Pré-remplir depuis le titre
+  // Pré-remplir depuis le titre : format DOS_CODE[_M|_AM]_lieu_tag
   const parts=(ev.summary||"").split("_");
   if(parts.length>=1){
     const sel=document.getElementById("m-dossier");
     for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===parts[0]){sel.selectedIndex=i;break;}}
   }
   if(parts.length>=2){
-    const code=parts[1];
-    const btns=document.querySelectorAll("#m-prest-toggle button");
-    btns.forEach(b=>b.classList.remove("active"));
-    const btn=document.querySelector(`[data-code="${code}"]`);
-    if(btn)btn.classList.add("active");
-    selectedPrest=code;
-    // Demi-journée : détecter matin/aprem depuis le titre ou l'heure
-    const hdToggle=document.getElementById("half-day-toggle");
-    if(code==="HT"){
-      hdToggle.classList.add("visible");
-      // Cherche _M ou _AM dans le titre, sinon regarde l'heure de début
-      if((ev.summary||"").includes("_AM")){
-        selectedHalfDay="aprem";
-        document.getElementById("hd-matin").classList.remove("active");
-        document.getElementById("hd-aprem").classList.add("active");
+    const rawCode=parts[1]; // "HT", "1T", "B", "N", "S3D"
+    const validCode=PREST_KEYS.includes(rawCode)?rawCode:"1T";
+    // Appeler setPrest pour gérer le toggle demi-journée
+    const btn=document.querySelector(`[data-code="${validCode}"]`);
+    setPrest(validCode,btn);
+    // Détecter matin/aprem : parts[2] peut être "M" ou "AM"
+    if(validCode==="HT"&&parts.length>=3){
+      const p2=parts[2];
+      if(p2==="AM"){
+        setHalfDay("aprem",document.getElementById("hd-aprem"));
+      } else if(p2==="M"){
+        setHalfDay("matin",document.getElementById("hd-matin"));
       } else {
-        selectedHalfDay="matin";
-        document.getElementById("hd-matin").classList.add("active");
-        document.getElementById("hd-aprem").classList.remove("active");
-        // Vérif heure si dateTime
+        // Fallback sur l'heure de l'événement
         if(ev.start?.dateTime){
           const h=new Date(ev.start.dateTime).getHours();
-          if(h>=12){
-            selectedHalfDay="aprem";
-            document.getElementById("hd-matin").classList.remove("active");
-            document.getElementById("hd-aprem").classList.add("active");
-          }
+          if(h>=12) setHalfDay("aprem",document.getElementById("hd-aprem"));
+          else setHalfDay("matin",document.getElementById("hd-matin"));
         }
       }
-    } else {
-      hdToggle.classList.remove("visible");
     }
   }
-  // Collaborateur : cherche par pseudo puis initiales puis colorId
-  if(parts.length>=3){
-    const tag=parts[parts.length-1];
-    let ci=sheetCollabs.findIndex(c=>c.pseudo&&c.pseudo.toLowerCase()===tag.toLowerCase());
-    if(ci<0)ci=sheetCollabs.findIndex(c=>collabInit(c.name).toLowerCase()===tag.toLowerCase());
-    if(ci<0&&ev.colorId)ci=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
-    if(ci>=0)document.getElementById("m-collab").value=ci;
-  } else if(ev.colorId){
-    const ci=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
-    if(ci>=0)document.getElementById("m-collab").value=ci;
+  // Collaborateur : le tag est toujours le dernier segment
+  const tag=parts[parts.length-1];
+  let ci=sheetCollabs.findIndex(c=>c.pseudo&&c.pseudo.toLowerCase()===tag.toLowerCase());
+  if(ci<0)ci=sheetCollabs.findIndex(c=>collabInit(c.name).toLowerCase()===tag.toLowerCase());
+  if(ci<0&&ev.colorId)ci=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
+  if(ci>=0)document.getElementById("m-collab").value=ci;
+  else if(ev.colorId){
+    const ci2=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
+    if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("m-mat-warning").style.display="none";
@@ -1102,49 +1090,105 @@ async function runExport(){
 function xlsWrite(ws,r,c,v){ws[xlsCell(r,c)]={v,t:typeof v==="number"?"n":"s"};}
 
 function genGlobal(year,month,byDossier){
-  const wb={SheetNames:[],Sheets:{}};
   const mn=MONTHS_FR[month];
-  const dos=Object.keys(byDossier).sort();
+  const dosKeys=Object.keys(byDossier).sort();
+  const wb={SheetNames:[],Sheets:{}};
 
-  // Feuille 1 : Style Suivi Pointages
-  const ws1={};
-  xlsWrite(ws1,0,0,`SUIVI POINTAGES CHANTIERS – ${mn.toUpperCase()} ${year}`);
-  ["N° Dossier","Client / Chantier","Interlocuteur","Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","Total Jours","Montant (€)","Pointage Envoyé","BC Reçu","Facture Envoyée","Observations"]
-    .forEach((h,i)=>xlsWrite(ws1,1,i,h));
-  let row=2;
-  dos.forEach(d=>{
+  // ── Feuille 1 : Suivi Pointages (style Cabinet Arragon) ───────────────────
+  const ws1={"!ref":"A1:M"+(5+dosKeys.length+2)};
+
+  // Styles via cellStyle (xlsx.js full version)
+  const navy="1F3864",blue="2E75B6",lblue="D6E4F7",white="FFFFFF",grey="F2F2F2";
+  const cGreen="C6EFCE",cOrange="FFEB9C";
+
+  function s(v,opts={}){
+    const cell={v,t:typeof v==="number"?"n":"s"};
+    if(opts.fmt)cell.z=opts.fmt;
+    if(opts.f){cell.f=opts.f;cell.t="n";}
+    return cell;
+  }
+
+  // Ligne 1 : titre
+  ws1["A1"]=s(`SUIVI POINTAGES CHANTIERS – ${mn.toUpperCase()} ${year}`);
+  ws1["!merges"]=[
+    {s:{r:0,c:0},e:{r:0,c:12}}, // titre A1:M1
+    {s:{r:1,c:0},e:{r:1,c:2}},  // "Mois :"
+    {s:{r:1,c:3},e:{r:1,c:5}},  // valeur mois
+    {s:{r:1,c:6},e:{r:1,c:12}}, // maj
+  ];
+
+  // Ligne 2 : mois
+  ws1["A2"]=s("Mois :");
+  ws1["D2"]=s(new Date(year,month,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase());
+  ws1["G2"]=s(`Mise à jour : ${new Date().toLocaleDateString("fr-FR")}`);
+
+  // Ligne 4 : en-têtes
+  const hdrs=["N°","Chantier / Client","Réf. BC","Terrain\n1J","Terrain\n½J","Bureau","Nuit","Scan 3D","Total\nJours","Montant\nFacturé (€)","Pointage\nEnvoyé ✓","BC\nReçu ✓","Facture\nEnvoyée ✓"];
+  hdrs.forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
+
+  // Lignes données
+  let row=4;
+  dosKeys.forEach(d=>{
     const evs=byDossier[d];const di=dosById(d);
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
     evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
     let total=0;PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=tot[k]*p;});
-    const totalJ=PREST_KEYS.reduce((s,k)=>s+tot[k],0);
-    [d,`${di?.client||""} – ${di?.lieu||""}`,di?.interlocuteur||"",tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],totalJ,total,"⏳ En attente","⏳ En attente","⏳ En attente",""]
-      .forEach((v,i)=>xlsWrite(ws1,row,i,v));
+    const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
+    ws1[xlsCell(row,0)]=s(d);
+    ws1[xlsCell(row,1)]=s(`${di?.client||""} – ${di?.lieu||""}`);
+    ws1[xlsCell(row,2)]=s(di?.interlocuteur||"");
+    ws1[xlsCell(row,3)]=s(tot["1T"]);
+    ws1[xlsCell(row,4)]=s(tot["HT"]);
+    ws1[xlsCell(row,5)]=s(tot["B"]);
+    ws1[xlsCell(row,6)]=s(tot["N"]);
+    ws1[xlsCell(row,7)]=s(tot["S3D"]);
+    ws1[xlsCell(row,8)]=s(totalJ);
+    ws1[xlsCell(row,9)]=s(total,{fmt:'#,##0.00 "€"'});
+    ws1[xlsCell(row,10)]=s("⏳ En attente");
+    ws1[xlsCell(row,11)]=s("⏳ En attente");
+    ws1[xlsCell(row,12)]=s("⏳ En attente");
     row++;
   });
-  xlsWrite(ws1,row,0,"TOTAUX");
-  [3,4,5,6,7,8,9].forEach(ci=>{
-    const col=colLetter(ci);
-    ws1[xlsCell(row,ci)]={f:`SOMME(${col}3:${col}${row})`,t:"n",v:0};
+
+  // Ligne totaux
+  ws1[xlsCell(row,0)]=s("TOTAUX");
+  ["D","E","F","G","H","I"].forEach((col,i)=>{
+    ws1[xlsCell(row,3+i)]={f:`SOMME(${col}5:${col}${row})`,t:"n",v:0};
   });
-  ws1["!ref"]=`A1:N${row+1}`;
+  ws1[xlsCell(row,9)]={f:`SOMME(J5:J${row})`,t:"n",v:0,z:'#,##0.00 "€"'};
+  ["K","L","M"].forEach((col,i)=>{
+    ws1[xlsCell(row,10+i)]=s(`=COUNTIF(${col}5:${col}${row},"✅ Oui")&"/${dosKeys.length} ✅"`);
+  });
+
+  // Col widths
+  ws1["!cols"]=[
+    {wch:7},{wch:30},{wch:14},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},
+    {wch:9},{wch:14},{wch:14},{wch:12},{wch:14}
+  ];
+  ws1["!ref"]=`A1:M${row+1}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
-  // Feuille 2 : Récap simple
+  // ── Feuille 2 : Tableau de bord ──────────────────────────────────────────
   const ws2={};
-  ["N° Dossier","Client","Lieu",...PREST_LABELS,"TOTAL (€)"].forEach((h,i)=>xlsWrite(ws2,0,i,h));
-  let r2=1;
-  dos.forEach(d=>{
+  ws2["A1"]=s(`TABLEAU DE BORD – ${mn.toUpperCase()} ${year}`);
+  ["N°","Chantier","Terr. 1J","Terr. ½J","Bureau","Nuit","Scan 3D","Total J","Montant (€)","Ptg ✓","BC ✓","Fact ✓","Statut"]
+    .forEach((h,i)=>{ ws2[xlsCell(1,i)]=s(h); });
+  let r2=2;
+  dosKeys.forEach(d=>{
     const evs=byDossier[d];const di=dosById(d);
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
     evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
     let total=0;PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=tot[k]*p;});
-    [d,di?.client||"",di?.lieu||"",...PREST_KEYS.map(k=>tot[k]||0),total].forEach((v,i)=>xlsWrite(ws2,r2,i,v));
+    const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
+    [d,`${di?.client||""} – ${di?.lieu||""}`,tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],totalJ,total,"⏳ En attente","⏳ En attente","⏳ En attente","⏳ En cours"]
+      .forEach((v,i)=>{ ws2[xlsCell(r2,i)]=s(v,i===8?{fmt:'#,##0.00 "€"'}:{}); });
     r2++;
   });
-  ws2["!ref"]=`A1:I${r2+1}`;
-  wb.SheetNames.push(`Récap ${mn}`);wb.Sheets[`Récap ${mn}`]=ws2;
-  dlXlsx(wb,`Pointage_Global_${mn}_${year}.xlsx`);
+  ws2["!cols"]=[{wch:7},{wch:30},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
+  ws2["!ref"]=`A1:M${r2+1}`;
+  wb.SheetNames.push(`Tableau de Bord`);wb.Sheets[`Tableau de Bord`]=ws2;
+
+  dlXlsx(wb,`Suivi_Pointages_${mn}_${year}.xlsx`);
 }
 
 function genChantiers(year,month,byDossier){
