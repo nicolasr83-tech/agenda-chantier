@@ -123,7 +123,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .btn-modal-cancel{flex:1;padding:12px;border-radius:8px;font-size:13px;font-weight:500;border:1.5px solid var(--border);background:var(--white);color:var(--text);cursor:pointer}
 .btn-modal-save{flex:2;padding:12px;border-radius:8px;font-size:13px;font-weight:700;background:var(--blue);color:var(--white);border:none;cursor:pointer}
 .btn-modal-del{padding:12px;border-radius:8px;font-size:15px;border:1.5px solid #fecaca;background:#fff5f5;color:var(--red);cursor:pointer}
-.search-modal-wrap{position:relative;margin-bottom:6px}
+.half-day-toggle{display:none;gap:8px;margin-top:8px}
+.half-day-toggle.visible{display:flex}
+.hd-btn{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--white);color:var(--muted);transition:all .15s;text-align:center}
+.hd-btn.active{border-color:var(--blue);background:var(--lblue);color:var(--navy);font-weight:700}
+.hd-btn:active{transform:scale(.97)}
 .search-modal-wrap input{width:100%;padding:9px 9px 9px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white);color:var(--text)}
 .search-modal-wrap input:focus{border-color:var(--blue)}
 .search-modal-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
@@ -305,6 +309,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button data-code="B" onclick="setPrest('B',this)">Bureau</button>
           <button data-code="N" onclick="setPrest('N',this)">Nuit</button>
           <button data-code="S3D" onclick="setPrest('S3D',this)">Scan 3D</button>
+        </div>
+        <div class="half-day-toggle" id="half-day-toggle">
+          <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
+          <button class="hd-btn" id="hd-aprem" onclick="setHalfDay('aprem',this)">🌇 Après-midi<br><span style="font-size:10px;font-weight:400">14h – 17h</span></button>
         </div>
       </div>
       <div class="m-field">
@@ -836,6 +844,10 @@ function openModal(ds){
   document.getElementById("m-notes").value="";
   document.getElementById("m-dos-search").value="";
   setPrest("1T",document.querySelector("[data-code='1T']"));
+  selectedHalfDay="matin";
+  document.getElementById("hd-matin").classList.add("active");
+  document.getElementById("hd-aprem").classList.remove("active");
+  document.getElementById("half-day-toggle").classList.remove("visible");
   filterModalDos();updateModalCollab();updateModalMat();
   document.getElementById("m-mat-warning").style.display="none";
   document.getElementById("modal-bg").classList.add("open");
@@ -868,6 +880,32 @@ function openEditModal(evId){
     const btn=document.querySelector(`[data-code="${code}"]`);
     if(btn)btn.classList.add("active");
     selectedPrest=code;
+    // Demi-journée : détecter matin/aprem depuis le titre ou l'heure
+    const hdToggle=document.getElementById("half-day-toggle");
+    if(code==="HT"){
+      hdToggle.classList.add("visible");
+      // Cherche _M ou _AM dans le titre, sinon regarde l'heure de début
+      if((ev.summary||"").includes("_AM")){
+        selectedHalfDay="aprem";
+        document.getElementById("hd-matin").classList.remove("active");
+        document.getElementById("hd-aprem").classList.add("active");
+      } else {
+        selectedHalfDay="matin";
+        document.getElementById("hd-matin").classList.add("active");
+        document.getElementById("hd-aprem").classList.remove("active");
+        // Vérif heure si dateTime
+        if(ev.start?.dateTime){
+          const h=new Date(ev.start.dateTime).getHours();
+          if(h>=12){
+            selectedHalfDay="aprem";
+            document.getElementById("hd-matin").classList.remove("active");
+            document.getElementById("hd-aprem").classList.add("active");
+          }
+        }
+      }
+    } else {
+      hdToggle.classList.remove("visible");
+    }
   }
   // Collaborateur : cherche par pseudo puis initiales puis colorId
   if(parts.length>=3){
@@ -904,11 +942,22 @@ function updateModalPreview(){
   document.getElementById("cp-info").textContent=c.name+(c.pseudo?" · @"+c.pseudo:"");
   prev.style.display="flex";
 }
+let selectedHalfDay="matin"; // "matin" ou "aprem"
+
 function setPrest(code,el){
   selectedPrest=code;
   document.querySelectorAll("#m-prest-toggle button").forEach(b=>b.classList.remove("active"));
   if(el)el.classList.add("active");
+  // Affiche/masque le toggle matin/aprem
+  const hdToggle=document.getElementById("half-day-toggle");
+  if(code==="HT"){hdToggle.classList.add("visible");}
+  else{hdToggle.classList.remove("visible");}
   checkMatConflict();
+}
+function setHalfDay(period,el){
+  selectedHalfDay=period;
+  document.querySelectorAll(".hd-btn").forEach(b=>b.classList.remove("active"));
+  if(el)el.classList.add("active");
 }
 function checkMatConflict(){
   const mi=parseInt(document.getElementById("m-materiel")?.value);
@@ -926,7 +975,8 @@ function buildTitle(){
   const tag=collabTag(collab);
   const dosInfo=dosById(dos);
   const lieu=(dosInfo?.lieu||"").replace(/\s+/g,"_");
-  return `${dos}_${selectedPrest}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
+  const hdSuffix=selectedPrest==="HT"?(selectedHalfDay==="matin"?"_M":"_AM"):"";
+  return `${dos}_${selectedPrest}${hdSuffix}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
 }
 function closeModal(){document.getElementById("modal-bg").classList.remove("open");}
 
@@ -939,8 +989,14 @@ async function saveEvent(){
   const idx=parseInt(document.getElementById("m-collab")?.value);
   const collab=(!isNaN(idx)&&sheetCollabs[idx])?sheetCollabs[idx]:null;
   const ph=PREST_HOURS[selectedPrest]||{s:8,d:8};
-  const startDt=`${ds}T${String(ph.s).padStart(2,"0")}:00:00`;
-  const endDt=`${de}T${String(ph.s+ph.d).padStart(2,"0")}:00:00`;
+  // Pour les demi-journées, utiliser les horaires matin/aprem
+  let startH=ph.s, endH=ph.s+ph.d;
+  if(selectedPrest==="HT"){
+    if(selectedHalfDay==="matin"){startH=8;endH=12;}
+    else{startH=14;endH=17;}
+  }
+  const startDt=`${ds}T${String(startH).padStart(2,"0")}:00:00`;
+  const endDt=`${de}T${String(endH).padStart(2,"0")}:00:00`;
   const mi=parseInt(document.getElementById("m-materiel")?.value);
   const matName=(!isNaN(mi)&&sheetMat[mi])?sheetMat[mi].name:"";
   const dosInfo=dosById(dos);
