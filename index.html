@@ -802,7 +802,11 @@ function getEventColor(ev){
 }
 function getEventLabel(ev){
   const parts=(ev.summary||"").split("_");
-  if(parts.length>=2)return parts.slice(0,2).join("_")+(parts.length>2?" "+parts[parts.length-1]:"");
+  if(parts.length>=2){
+    // parts[1] peut être "HT" ou "HT" suivi de "_M"/"_AM" — on prend juste dos_code
+    const code=parts[1].replace(/^(HT|1T|B|N|S3D).*/,"$1"); // sécurité
+    return `${parts[0]}_${code}`+(parts.length>2?" "+parts[parts.length-1]:"");
+  }
   return(ev.summary||"").slice(0,14);
 }
 
@@ -1066,7 +1070,11 @@ async function runExport(){
   events.forEach(ev=>{
     const parts=(ev.summary||"").split("_");
     if(parts.length<2)return;
-    const dos=parts[0],code=parts[1];
+    const dos=parts[0];
+    // Le code peut être "HT" seul ou suivi "_M"/"_AM" — normaliser
+    let code=parts[1];
+    if(code==="HT"&&parts.length>=3&&(parts[2]==="M"||parts[2]==="AM"))code="HT";
+    else if(!PREST_KEYS.includes(code))return;
     if(!PREST_KEYS.includes(code))return;
     let ds=ev.start?.date||ev.start?.dateTime?.slice(0,10);
     let de=ev.end?.date||ev.end?.dateTime?.slice(0,10);
@@ -1115,7 +1123,10 @@ function genGlobal(year,month,byDossier){
     row++;
   });
   xlsWrite(ws1,row,0,"TOTAUX");
-  [3,4,5,6,7,8,9].forEach(ci=>{const col=colLetter(ci);ws1[xlsCell(row,ci)]={v:`=SUM(${col}3:${col}${row})`,t:"n"};});
+  [3,4,5,6,7,8,9].forEach(ci=>{
+    const col=colLetter(ci);
+    ws1[xlsCell(row,ci)]={f:`SOMME(${col}3:${col}${row})`,t:"n",v:0};
+  });
   ws1["!ref"]=`A1:N${row+1}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
