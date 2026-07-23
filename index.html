@@ -424,7 +424,16 @@ function setLoading(on){
 
 // ══ AUTH ══════════════════════════════════════════════════════════════════════
 window.addEventListener("load",()=>{
-  const t=sessionStorage.getItem("arr_token");
+  // Vérifie le token en session d'abord, sinon localStorage avec expiry
+  let t=sessionStorage.getItem("arr_token");
+  if(!t){
+    const stored=localStorage.getItem("arr_token");
+    const expiry=parseInt(localStorage.getItem("arr_token_expiry")||"0");
+    if(stored&&Date.now()<expiry){
+      t=stored;
+      sessionStorage.setItem("arr_token",t);
+    }
+  }
   if(t){accessToken=t;currentUser=ls("arr_user");renderUserBar();loadAll();}
   else document.getElementById("login-overlay").classList.add("visible");
   initTokenClient();
@@ -437,6 +446,10 @@ function initTokenClient(){
     callback:(resp)=>{
       if(resp.error){showToast("Connexion annulée",true);return;}
       accessToken=resp.access_token;
+      // Stocker avec expiration (1h)
+      const expiry=Date.now()+3500*1000;
+      localStorage.setItem("arr_token",accessToken);
+      localStorage.setItem("arr_token_expiry",expiry);
       sessionStorage.setItem("arr_token",accessToken);
       fetchUserInfo();
       document.getElementById("login-overlay").classList.remove("visible");
@@ -444,11 +457,18 @@ function initTokenClient(){
     }
   });
 }
-function signIn(){if(!tokenClient){setTimeout(signIn,400);return;}tokenClient.requestAccessToken({prompt:accessToken?"":"consent"});}
+function signIn(){
+  if(!tokenClient){setTimeout(signIn,400);return;}
+  // Ne demande le consentement que si pas de token valide
+  tokenClient.requestAccessToken({prompt:""});
+}
 function signOut(){
   if(accessToken)google.accounts.oauth2.revoke(accessToken);
   accessToken=null;currentUser=null;
-  sessionStorage.removeItem("arr_token");lsSet("arr_user",null);
+  sessionStorage.removeItem("arr_token");
+  localStorage.removeItem("arr_token");
+  localStorage.removeItem("arr_token_expiry");
+  lsSet("arr_user",null);
   calEvents=[];buildCalendar();renderUserBar();
   document.getElementById("login-overlay").classList.add("visible");
 }
