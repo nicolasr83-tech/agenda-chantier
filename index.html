@@ -1100,10 +1100,15 @@ async function saveEvent(){
     dosInfo?.interlocuteur?`Interlocuteur : ${dosInfo.interlocuteur}`:"",
     collab?`Collaborateur : ${collab.name}`:"",notes,
     matName?`Matériel : ${matName}`:"","Créé via Arragon Planning"].filter(Boolean).join("\n");
+  // Adresse = champ location → cliquable dans Google Calendar pour ouvrir Maps
+  const location=dosInfo?.adresse||(dosInfo?.lieu?dosInfo.lieu+", France":"");
+
   const event={summary:buildTitle(),description:desc,
     start:{dateTime:startDt,timeZone:"Europe/Paris"},
     end:{dateTime:endDt,timeZone:"Europe/Paris"},
-    colorId:collab?.colorId||"1"};
+    colorId:collab?.colorId||"1",
+    ...(location&&{location})
+  };
   const isEdit=!!editingEventId;
   const url=isEdit
     ?`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${editingEventId}`
