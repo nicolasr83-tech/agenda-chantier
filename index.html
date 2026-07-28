@@ -198,6 +198,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Client</label><input id="f-dos-client" placeholder="NGE Fondations" autocomplete="off"></div>
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="Marseille Centre" autocomplete="off"></div>
           <div class="s-field"><label>Interlocuteur</label><input id="f-dos-interlocuteur" placeholder="Jean Martin" autocomplete="off"></div>
+          <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
           <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="12 Rue de la Paix, 83000" autocomplete="off"></div>
           <div class="s-grid2">
             <div class="s-field"><label>Prix 1J Terrain</label><input id="f-dos-p1t" type="number" placeholder="620"></div>
@@ -530,13 +531,14 @@ async function loadSheetData(){
   if(!accessToken)return;
   try{
     // Dossiers
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:J1000");
+    const drows=await sheetGet(SHEET_TABS.dos,"A2:K1000");
     const seenNums=new Set();
     sheetDossiers=drows.map((r,i)=>({
       num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
       interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
       prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
       prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
+      email:r[10]?.trim()||"",
       _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
     })).filter(d=>{
       if(!d.num)return false;
@@ -574,7 +576,7 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:J1000");
+    const drows=await sheetGet(SHEET_TABS.dos,"A2:K1000");
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
     const seen=new Set();
     const duplicates=[];
@@ -585,6 +587,7 @@ async function reloadSheetDossiers(){
         interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
         prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
         prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
+      email:r[10]?.trim()||"",
       }))
       .filter(d=>{
         if(seen.has(d.num)){duplicates.push(d.num);return false;}
@@ -674,6 +677,7 @@ function openDosForm(idx){
   document.getElementById("f-dos-client").value=d?.client||"";
   document.getElementById("f-dos-lieu").value=d?.lieu||"";
   document.getElementById("f-dos-interlocuteur").value=d?.interlocuteur||"";
+  document.getElementById("f-dos-email").value=d?.email||"";
   document.getElementById("f-dos-adresse").value=d?.adresse||"";
   document.getElementById("f-dos-p1t").value=d?.prix1T||"";
   document.getElementById("f-dos-pht").value=d?.prixHT||"";
@@ -710,6 +714,7 @@ async function saveDos(){
   const d={num,client:document.getElementById("f-dos-client").value.trim()||"—",
     lieu:document.getElementById("f-dos-lieu").value.trim()||"—",
     interlocuteur:document.getElementById("f-dos-interlocuteur").value.trim(),
+    email:document.getElementById("f-dos-email").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
     prix1T:parseFloat(document.getElementById("f-dos-p1t").value)||0,
     prixHT:parseFloat(document.getElementById("f-dos-pht").value)||0,
@@ -718,7 +723,7 @@ async function saveDos(){
     prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
   };
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
-  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||""];
+  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||""];
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     d._sheetRow=existing._sheetRow;
@@ -1258,49 +1263,61 @@ function genGlobal(year,month,byDossier){
   ws1["G2"]=s(`Mise à jour : ${new Date().toLocaleDateString("fr-FR")}`);
 
   // Ligne 4 : en-têtes
-  const hdrs=["N°","Chantier / Client","Réf. BC","Terrain\n1J","Terrain\n½J","Bureau","Nuit","Scan 3D","Total\nJours","Montant\nFacturé (€)","Pointage\nEnvoyé ✓","BC\nReçu ✓","Facture\nEnvoyée ✓"];
+  const hdrs=["N°","N° Dossier","Client / Chantier","Interlocuteur","Email",
+    "Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","Total Jours",
+    "Montant (€)","Pointage Envoyé","BC Reçu","Facture Envoyée","Observations","📧 Envoyer"];
   hdrs.forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
 
   // Lignes données
   let row=4;
-  dosKeys.forEach(d=>{
+  dosKeys.forEach((d,di_idx)=>{
     const evs=byDossier[d];const di=dosById(d);
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
     evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
     let total=0;PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=tot[k]*p;});
     const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
-    ws1[xlsCell(row,0)]=s(d);
-    ws1[xlsCell(row,1)]=s(`${di?.client||""} – ${di?.lieu||""}`);
-    ws1[xlsCell(row,2)]=s(di?.interlocuteur||"");
-    ws1[xlsCell(row,3)]=s(tot["1T"]);
-    ws1[xlsCell(row,4)]=s(tot["HT"]);
-    ws1[xlsCell(row,5)]=s(tot["B"]);
-    ws1[xlsCell(row,6)]=s(tot["N"]);
-    ws1[xlsCell(row,7)]=s(tot["S3D"]);
-    ws1[xlsCell(row,8)]=s(totalJ);
-    ws1[xlsCell(row,9)]=s(total,{fmt:'#,##0.00 "€"'});
-    ws1[xlsCell(row,10)]=s("⏳ En attente");
-    ws1[xlsCell(row,11)]=s("⏳ En attente");
+    const excelRow=row+1; // ligne Excel réelle (1-based)
+    ws1[xlsCell(row,0)]=s(di_idx+1);
+    ws1[xlsCell(row,1)]=s(d);
+    ws1[xlsCell(row,2)]=s(`${di?.client||""} – ${di?.lieu||""}`);
+    ws1[xlsCell(row,3)]=s(di?.interlocuteur||"");
+    ws1[xlsCell(row,4)]=s(di?.email||"");
+    ws1[xlsCell(row,5)]=s(tot["1T"]);
+    ws1[xlsCell(row,6)]=s(tot["HT"]);
+    ws1[xlsCell(row,7)]=s(tot["B"]);
+    ws1[xlsCell(row,8)]=s(tot["N"]);
+    ws1[xlsCell(row,9)]=s(tot["S3D"]);
+    ws1[xlsCell(row,10)]=s(totalJ);
+    ws1[xlsCell(row,11)]=s(total,{fmt:'#,##0.00 "€"'});
     ws1[xlsCell(row,12)]=s("⏳ En attente");
+    ws1[xlsCell(row,13)]=s("⏳ En attente");
+    ws1[xlsCell(row,14)]=s("⏳ En attente");
+    ws1[xlsCell(row,15)]=s("");
+    // Bouton Envoyer = HYPERLINK mailto
+    ws1[xlsCell(row,16)]={
+      f:`HYPERLINK("mailto:"&E${excelRow}&"?subject=Pointage%20Mensuel%20-%20"&B${excelRow},"📧 Envoyer")`,
+      t:"s",v:"📧 Envoyer"
+    };
     row++;
   });
 
   // Ligne totaux
   ws1[xlsCell(row,0)]=s("TOTAUX");
-  ["D","E","F","G","H","I"].forEach((col,i)=>{
-    ws1[xlsCell(row,3+i)]={f:`SOMME(${col}5:${col}${row})`,t:"n",v:0};
+  ["F","G","H","I","J","K"].forEach((col,i)=>{
+    ws1[xlsCell(row,5+i)]={f:`SUM(${col}5:${col}${row})`,t:"n",v:0};
   });
-  ws1[xlsCell(row,9)]={f:`SOMME(J5:J${row})`,t:"n",v:0,z:'#,##0.00 "€"'};
-  ["K","L","M"].forEach((col,i)=>{
-    ws1[xlsCell(row,10+i)]=s(`=COUNTIF(${col}5:${col}${row},"✅ Oui")&"/${dosKeys.length} ✅"`);
+  ws1[xlsCell(row,11)]={f:`SUM(L5:L${row})`,t:"n",v:0,z:'#,##0.00 "€"'};
+  ["M","N","O"].forEach((col,i)=>{
+    ws1[xlsCell(row,12+i)]=s(`COUNTIF(${col}5:${col}${row},"✅ Oui")&"/${dosKeys.length} ✅"`);
   });
 
   // Col widths
   ws1["!cols"]=[
-    {wch:7},{wch:30},{wch:14},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},
-    {wch:9},{wch:14},{wch:14},{wch:12},{wch:14}
+    {wch:5},{wch:12},{wch:30},{wch:18},{wch:24},
+    {wch:9},{wch:9},{wch:9},{wch:9},{wch:9},
+    {wch:9},{wch:14},{wch:14},{wch:12},{wch:14},{wch:18},{wch:12}
   ];
-  ws1["!ref"]=`A1:M${row+1}`;
+  ws1["!ref"]=`A1:Q${row+1}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
   // ── Feuille 2 : Tableau de bord ──────────────────────────────────────────
