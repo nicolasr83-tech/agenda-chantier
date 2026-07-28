@@ -234,6 +234,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         </div>
         <div class="search-row-s">
           <input type="search" id="s-search-collab" placeholder="Rechercher…" oninput="renderSidebarCollabs()">
+          <button class="btn-add-s" onclick="reloadSheetCollabs()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
           <button class="btn-add-s" onclick="openCollabForm(null)" title="Nouveau collaborateur">＋</button>
         </div>
         <div id="s-collab-list"></div>
@@ -257,6 +258,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         </div>
         <div class="search-row-s">
           <input type="search" id="s-search-mat" placeholder="Rechercher…" oninput="renderSidebarMat()">
+          <button class="btn-add-s" onclick="reloadSheetMat()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
           <button class="btn-add-s" onclick="openMatForm(null)" title="Nouveau matériel">＋</button>
         </div>
         <div id="s-mat-list"></div>
@@ -512,9 +514,9 @@ async function sheetAppend(tab,values){
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
 }
-async function sheetUpdate(tab,rowIdx,values){
-  const row=rowIdx+2;
-  const r=encodeURIComponent(`${tab}!A${row}:Z${row}`);
+async function sheetUpdate(tab,sheetRow,values){
+  // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
+  const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -530,13 +532,17 @@ async function loadSheetData(){
     // Dossiers
     const drows=await sheetGet(SHEET_TABS.dos,"A2:J1000");
     const seenNums=new Set();
-    sheetDossiers=drows.filter(r=>r[0]?.trim()).map(r=>({
+    sheetDossiers=drows.map((r,i)=>({
       num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
       interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
       prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
       prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
-    })).filter(d=>{if(seenNums.has(d.num))return false;seenNums.add(d.num);return true;})
-    .sort((a,b)=>{
+      _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
+    })).filter(d=>{
+      if(!d.num)return false;
+      if(seenNums.has(d.num))return false;
+      seenNums.add(d.num);return true;
+    }).sort((a,b)=>{
       const p=s=>{const m=s.match(/^(\d+)(?:[\/\-](\d+))?/);return m?[parseInt(m[1]),parseInt(m[2]||0)]:[0,0];};
       const[a1,a2]=p(a.num),[b1,b2]=p(b.num);return a1!==b1?a1-b1:a2-b2;
     });
@@ -544,15 +550,17 @@ async function loadSheetData(){
 
     // Collabs
     const crows=await sheetGet(SHEET_TABS.collabs,"A2:C1000");
-    sheetCollabs=crows.filter(r=>r[0]?.trim()).map(r=>({
-      name:r[0]?.trim(),pseudo:r[1]?.trim()||"",colorId:r[2]?.trim()||"7"
+    sheetCollabs=crows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0]?.trim(),pseudo:r[1]?.trim()||"",colorId:r[2]?.trim()||"7",
+      _sheetRow:i+2,
     }));
     renderSidebarCollabs();updateModalCollab();
 
     // Matériel
     const mrows=await sheetGet(SHEET_TABS.mat,"A2:B1000");
-    sheetMat=mrows.filter(r=>r[0]?.trim()).map(r=>({
-      name:r[0]?.trim(),cat:r[1]?.trim()||"Autre"
+    sheetMat=mrows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0]?.trim(),cat:r[1]?.trim()||"Autre",
+      _sheetRow:i+2,
     }));
     renderSidebarMat();updateModalMat();
   }catch(e){console.warn("Sheet load error",e);}
@@ -596,26 +604,30 @@ async function reloadSheetDossiers(){
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
 }
 
-async function reloadSheetDossiers(){
-  const btn=document.getElementById("btn-reload-dos");
+async function reloadSheetCollabs(){
+  const btn=document.querySelector("[onclick='reloadSheetCollabs()']");
   if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
   try{
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:J1000");
-    const raw=drows.filter(r=>r[0]?.trim()).map(r=>({
-      num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
-      interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
-      prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
-      prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
+    const crows=await sheetGet(SHEET_TABS.collabs,"A2:C1000");
+    sheetCollabs=crows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0]?.trim(),pseudo:r[1]?.trim()||"",colorId:r[2]?.trim()||"7",_sheetRow:i+2,
     }));
-    // Dédoublonnage : garder la dernière occurrence de chaque n°
-    const seen={};
-    raw.forEach(d=>{ seen[d.num]=d; });
-    sheetDossiers=Object.values(seen).sort((a,b)=>{
-      const p=s=>{const m=s.match(/^(\d+)(?:[\/\-](\d+))?/);return m?[parseInt(m[1]),parseInt(m[2]||0)]:[0,0];};
-      const[a1,a2]=p(a.num),[b1,b2]=p(b.num);return a1!==b1?a1-b1:a2-b2;
-    });
-    renderSidebarDos();filterModalDos();
-    showToast(`${sheetDossiers.length} dossiers chargés ✓`);
+    renderSidebarCollabs();updateModalCollab();
+    showToast(`${sheetCollabs.length} collaborateurs chargés ✓`);
+  }catch(e){showToast("Erreur rechargement",true);}
+  if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
+}
+
+async function reloadSheetMat(){
+  const btn=document.querySelector("[onclick='reloadSheetMat()']");
+  if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
+  try{
+    const mrows=await sheetGet(SHEET_TABS.mat,"A2:B1000");
+    sheetMat=mrows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0]?.trim(),cat:r[1]?.trim()||"Autre",_sheetRow:i+2,
+    }));
+    renderSidebarMat();updateModalMat();
+    showToast(`${sheetMat.length} matériels chargés ✓`);
   }catch(e){showToast("Erreur rechargement",true);}
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
 }
@@ -707,8 +719,15 @@ async function saveDos(){
   };
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
   const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||""];
-  if(editingDosIdx!=null){sheetDossiers[editingDosIdx]=d;await sheetUpdate(SHEET_TABS.dos,editingDosIdx,[row]);}
-  else{sheetDossiers.push(d);await sheetAppend(SHEET_TABS.dos,[row]);}
+  if(editingDosIdx!=null){
+    const existing=sheetDossiers[editingDosIdx];
+    d._sheetRow=existing._sheetRow;
+    sheetDossiers[editingDosIdx]=d;
+    await sheetUpdate(SHEET_TABS.dos,existing._sheetRow,[row]);
+  }else{
+    sheetDossiers.push(d);
+    await sheetAppend(SHEET_TABS.dos,[row]);
+  }
   btn.textContent="Enregistrer";closeDosForm();renderSidebarDos();filterModalDos();
   showToast("Dossier enregistré ✓");
 }
@@ -749,8 +768,12 @@ async function saveCollab(){
   const c={name,pseudo:document.getElementById("f-collab-pseudo").value.trim(),colorId:selectedCollabColorId};
   const btn=document.getElementById("collab-save-btn");btn.textContent="⏳";
   const row=[c.name,c.pseudo,c.colorId];
-  if(editingCollabIdx!=null){sheetCollabs[editingCollabIdx]=c;await sheetUpdate(SHEET_TABS.collabs,editingCollabIdx,[row]);}
-  else{sheetCollabs.push(c);await sheetAppend(SHEET_TABS.collabs,[row]);}
+  if(editingCollabIdx!=null){
+    const existing=sheetCollabs[editingCollabIdx];
+    c._sheetRow=existing._sheetRow;
+    sheetCollabs[editingCollabIdx]=c;
+    await sheetUpdate(SHEET_TABS.collabs,existing._sheetRow||editingCollabIdx+2,[row]);
+  }else{sheetCollabs.push(c);await sheetAppend(SHEET_TABS.collabs,[row]);}
   btn.textContent="Enregistrer";closeCollabForm();renderSidebarCollabs();updateModalCollab();
   showToast("Collaborateur enregistré ✓");
 }
@@ -791,8 +814,12 @@ async function saveMat(){
   const m={name,cat:document.getElementById("f-mat-cat").value};
   const btn=document.getElementById("mat-save-btn");btn.textContent="⏳";
   const row=[m.name,m.cat];
-  if(editingMatIdx!=null){sheetMat[editingMatIdx]=m;await sheetUpdate(SHEET_TABS.mat,editingMatIdx,[row]);}
-  else{sheetMat.push(m);await sheetAppend(SHEET_TABS.mat,[row]);}
+  if(editingMatIdx!=null){
+    const existing=sheetMat[editingMatIdx];
+    m._sheetRow=existing._sheetRow;
+    sheetMat[editingMatIdx]=m;
+    await sheetUpdate(SHEET_TABS.mat,existing._sheetRow||editingMatIdx+2,[row]);
+  }else{sheetMat.push(m);await sheetAppend(SHEET_TABS.mat,[row]);}
   btn.textContent="Enregistrer";closeMatForm();renderSidebarMat();updateModalMat();
   showToast("Matériel enregistré ✓");
 }
