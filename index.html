@@ -1234,13 +1234,6 @@ function genGlobal(year,month,byDossier){
   const dosKeys=Object.keys(byDossier).sort();
   const wb={SheetNames:[],Sheets:{}};
 
-  // ── Feuille 1 : Suivi Pointages (style Cabinet Arragon) ───────────────────
-  const ws1={"!ref":"A1:M"+(5+dosKeys.length+2)};
-
-  // Styles via cellStyle (xlsx.js full version)
-  const navy="1F3864",blue="2E75B6",lblue="D6E4F7",white="FFFFFF",grey="F2F2F2";
-  const cGreen="C6EFCE",cOrange="FFEB9C";
-
   function s(v,opts={}){
     const cell={v,t:typeof v==="number"?"n":"s"};
     if(opts.fmt)cell.z=opts.fmt;
@@ -1248,99 +1241,83 @@ function genGlobal(year,month,byDossier){
     return cell;
   }
 
+  // ── Feuille unique : même structure que le modèle Excel ──────────────────
+  // Colonnes : A:N°  B:Dossier  C:Client/Chantier  D:Interlocuteur  E:Email
+  //            F:1T  G:HT  H:B  I:N  J:S3D  K:TotalJ  L:Montant
+  //            M:Ptg  N:BC  O:Facture  P:Notes
+  //            Q:Prix1T  R:PrixHT  S:PrixB  T:PrixN  U:PrixS3D (cachées)
+  const ws1={};
+  const dataEndRow = 4 + dosKeys.length;
+
   // Ligne 1 : titre
   ws1["A1"]=s(`SUIVI POINTAGES CHANTIERS – ${mn.toUpperCase()} ${year}`);
-  ws1["!merges"]=[
-    {s:{r:0,c:0},e:{r:0,c:12}}, // titre A1:M1
-    {s:{r:1,c:0},e:{r:1,c:2}},  // "Mois :"
-    {s:{r:1,c:3},e:{r:1,c:5}},  // valeur mois
-    {s:{r:1,c:6},e:{r:1,c:12}}, // maj
-  ];
 
-  // Ligne 2 : mois
+  // Ligne 2 : mois + instruction
   ws1["A2"]=s("Mois :");
-  ws1["D2"]=s(new Date(year,month,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase());
-  ws1["G2"]=s(`Mise à jour : ${new Date().toLocaleDateString("fr-FR")}`);
+  ws1["C2"]=s(new Date(year,month,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase());
+  ws1["F2"]=s("Coller ici (B5:O) → Collage spécial → Valeurs uniquement");
 
-  // Ligne 4 : en-têtes
-  const hdrs=["N°","N° Dossier","Client / Chantier","Interlocuteur","Email",
-    "Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","Total Jours",
-    "Montant (€)","Pointage Envoyé","BC Reçu","Facture Envoyée","Observations","📧 Envoyer"];
-  hdrs.forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
+  // Ligne 4 : en-têtes (identiques au modèle)
+  ["N°","N° Dossier","Client / Chantier","Interlocuteur","Email",
+   "Terr. 1J","Terr. ½J","Bureau","Nuit","Scan 3D",
+   "Total Jours","Montant (€)",
+   "Pointage Envoyé","BC Reçu","Facture Envoyée","Observations",
+   "Prix 1J","Prix ½J","Prix Bureau","Prix Nuit","Prix Scan"
+  ].forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
 
   // Lignes données
   let row=4;
-  dosKeys.forEach((d,di_idx)=>{
-    const evs=byDossier[d];const di=dosById(d);
+  dosKeys.forEach((d,idx)=>{
+    const evs=byDossier[d]; const di=dosById(d);
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
     evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-    let total=0;PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=tot[k]*p;});
     const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
-    const excelRow=row+1; // ligne Excel réelle (1-based)
-    ws1[xlsCell(row,0)]=s(di_idx+1);
-    ws1[xlsCell(row,1)]=s(d);
-    ws1[xlsCell(row,2)]=s(`${di?.client||""} – ${di?.lieu||""}`);
-    ws1[xlsCell(row,3)]=s(di?.interlocuteur||"");
-    ws1[xlsCell(row,4)]=s(di?.email||"");
-    ws1[xlsCell(row,5)]=s(tot["1T"]);
-    ws1[xlsCell(row,6)]=s(tot["HT"]);
-    ws1[xlsCell(row,7)]=s(tot["B"]);
-    ws1[xlsCell(row,8)]=s(tot["N"]);
-    ws1[xlsCell(row,9)]=s(tot["S3D"]);
-    ws1[xlsCell(row,10)]=s(totalJ);
-    ws1[xlsCell(row,11)]=s(total,{fmt:'#,##0.00 "€"'});
-    ws1[xlsCell(row,12)]=s("⏳ En attente");
-    ws1[xlsCell(row,13)]=s("⏳ En attente");
-    ws1[xlsCell(row,14)]=s("⏳ En attente");
-    ws1[xlsCell(row,15)]=s("");
-    // Bouton Envoyer = HYPERLINK mailto
-    ws1[xlsCell(row,16)]={
-      f:`HYPERLINK("mailto:"&E${excelRow}&"?subject=Pointage%20Mensuel%20-%20"&B${excelRow},"📧 Envoyer")`,
-      t:"s",v:"📧 Envoyer"
-    };
+    // Prix depuis le Sheet (ou défaut)
+    const p1T  = di?.prix1T  || PRIX_DEFAULT[0];
+    const pHT  = di?.prixHT  || PRIX_DEFAULT[1];
+    const pB   = di?.prixB   || PRIX_DEFAULT[2];
+    const pN   = di?.prixN   || PRIX_DEFAULT[3];
+    const pS3D = di?.prixS3D || PRIX_DEFAULT[4];
+    const total = tot["1T"]*p1T + tot["HT"]*pHT + tot["B"]*pB + tot["N"]*pN + tot["S3D"]*pS3D;
+
+    // Colonnes A→P (visibles)
+    ws1[xlsCell(row,0)] = s(idx+1);
+    ws1[xlsCell(row,1)] = s(d);
+    ws1[xlsCell(row,2)] = s(`${di?.client||""} – ${di?.lieu||""}`);
+    ws1[xlsCell(row,3)] = s(di?.interlocuteur||"");
+    ws1[xlsCell(row,4)] = s(di?.email||"");
+    ws1[xlsCell(row,5)] = s(tot["1T"]);
+    ws1[xlsCell(row,6)] = s(tot["HT"]);
+    ws1[xlsCell(row,7)] = s(tot["B"]);
+    ws1[xlsCell(row,8)] = s(tot["N"]);
+    ws1[xlsCell(row,9)] = s(tot["S3D"]);
+    ws1[xlsCell(row,10)]= s(totalJ);
+    ws1[xlsCell(row,11)]= s(total,{fmt:'#,##0.00 "€"'});
+    ws1[xlsCell(row,12)]= s("⏳ En attente");
+    ws1[xlsCell(row,13)]= s("⏳ En attente");
+    ws1[xlsCell(row,14)]= s("⏳ En attente");
+    ws1[xlsCell(row,15)]= s("");
+    // Colonnes Q→U : prix (à coller dans les colonnes cachées du modèle)
+    ws1[xlsCell(row,16)]= s(p1T);
+    ws1[xlsCell(row,17)]= s(pHT);
+    ws1[xlsCell(row,18)]= s(pB);
+    ws1[xlsCell(row,19)]= s(pN);
+    ws1[xlsCell(row,20)]= s(pS3D);
     row++;
   });
 
-  // Ligne totaux
-  ws1[xlsCell(row,0)]=s("TOTAUX");
-  ["F","G","H","I","J","K"].forEach((col,i)=>{
-    ws1[xlsCell(row,5+i)]={f:`SUM(${col}5:${col}${row})`,t:"n",v:0};
-  });
-  ws1[xlsCell(row,11)]={f:`SUM(L5:L${row})`,t:"n",v:0,z:'#,##0.00 "€"'};
-  ["M","N","O"].forEach((col,i)=>{
-    ws1[xlsCell(row,12+i)]=s(`COUNTIF(${col}5:${col}${row},"✅ Oui")&"/${dosKeys.length} ✅"`);
-  });
-
-  // Col widths
+  // Largeurs colonnes (Q→U étroites = cachées dans le modèle)
   ws1["!cols"]=[
-    {wch:5},{wch:12},{wch:30},{wch:18},{wch:24},
-    {wch:9},{wch:9},{wch:9},{wch:9},{wch:9},
-    {wch:9},{wch:14},{wch:14},{wch:12},{wch:14},{wch:18},{wch:12}
+    {wch:5},{wch:13},{wch:30},{wch:18},{wch:24},  // A→E
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},        // F→J
+    {wch:9},{wch:14},                                // K→L
+    {wch:13},{wch:12},{wch:13},{wch:20},             // M→P
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},         // Q→U (prix)
   ];
-  ws1["!ref"]=`A1:Q${row+1}`;
+  ws1["!ref"]=`A1:U${row}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
-  // ── Feuille 2 : Tableau de bord ──────────────────────────────────────────
-  const ws2={};
-  ws2["A1"]=s(`TABLEAU DE BORD – ${mn.toUpperCase()} ${year}`);
-  ["N°","Chantier","Terr. 1J","Terr. ½J","Bureau","Nuit","Scan 3D","Total J","Montant (€)","Ptg ✓","BC ✓","Fact ✓","Statut"]
-    .forEach((h,i)=>{ ws2[xlsCell(1,i)]=s(h); });
-  let r2=2;
-  dosKeys.forEach(d=>{
-    const evs=byDossier[d];const di=dosById(d);
-    const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
-    evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-    let total=0;PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];total+=tot[k]*p;});
-    const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
-    [d,`${di?.client||""} – ${di?.lieu||""}`,tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],totalJ,total,"⏳ En attente","⏳ En attente","⏳ En attente","⏳ En cours"]
-      .forEach((v,i)=>{ ws2[xlsCell(r2,i)]=s(v,i===8?{fmt:'#,##0.00 "€"'}:{}); });
-    r2++;
-  });
-  ws2["!cols"]=[{wch:7},{wch:30},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
-  ws2["!ref"]=`A1:M${r2+1}`;
-  wb.SheetNames.push(`Tableau de Bord`);wb.Sheets[`Tableau de Bord`]=ws2;
-
-  dlXlsx(wb,`Suivi_Pointages_${mn}_${year}.xlsx`);
+  dlXlsx(wb,`Export_Pointages_${mn}_${year}.xlsx`);
 }
 
 function genChantiers(year,month,byDossier){
