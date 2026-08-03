@@ -1291,12 +1291,8 @@ function genGlobal(year,month,byDossier){
     ws1[xlsCell(row,7)] = s(tot["B"]);
     ws1[xlsCell(row,8)] = s(tot["N"]);
     ws1[xlsCell(row,9)] = s(tot["S3D"]);
-    ws1[xlsCell(row,10)]= s(totalJ);
-    ws1[xlsCell(row,11)]= s(total,{fmt:'#,##0.00 "€"'});
-    ws1[xlsCell(row,12)]= s("⏳ En attente");
-    ws1[xlsCell(row,13)]= s("⏳ En attente");
-    ws1[xlsCell(row,14)]= s("⏳ En attente");
-    ws1[xlsCell(row,15)]= s("");
+    // K→P : vides (calculés dans le modèle Excel via formules)
+    for(let c=10;c<=15;c++) ws1[xlsCell(row,c)]=s("");
     // Colonnes Q→U : prix (à coller dans les colonnes cachées du modèle)
     ws1[xlsCell(row,16)]= s(p1T);
     ws1[xlsCell(row,17)]= s(pHT);
