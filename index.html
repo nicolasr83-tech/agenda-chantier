@@ -277,6 +277,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="cal-title" id="cal-title"></div>
       <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
       <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
+      <button id="btn-weekend" onclick="toggleWeekend()" title="Afficher/masquer Sam/Dim"
+        style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
     </div>
     <div class="cal-dow" id="cal-dow"></div>
     <div class="cal-grid"><div class="cal-days" id="cal-days"></div></div>
@@ -414,6 +416,7 @@ let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[];
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
 let expType="global";
+let hideWeekend=false;
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -440,7 +443,7 @@ function setLoading(on){
 
 
 window.addEventListener("load",()=>{
-  // Vérifie le token en session d'abord, sinon localStorage avec expiry
+  // Sur iOS PWA, sessionStorage est vidé à chaque fermeture → utiliser localStorage
   let t=sessionStorage.getItem("arr_token");
   if(!t){
     const stored=localStorage.getItem("arr_token");
@@ -448,12 +451,31 @@ window.addEventListener("load",()=>{
     if(stored&&Date.now()<expiry){
       t=stored;
       sessionStorage.setItem("arr_token",t);
+    } else {
+      // Token expiré : nettoyer mais garder l'user pour affichage
+      localStorage.removeItem("arr_token");
+      localStorage.removeItem("arr_token_expiry");
     }
   }
-  if(t){accessToken=t;currentUser=ls("arr_user");renderUserBar();loadAll();}
-  else document.getElementById("login-overlay").classList.add("visible");
+  if(t){
+    accessToken=t;
+    currentUser=ls("arr_user");
+    renderUserBar();
+    // Charger immédiatement sans attendre Google Identity
+    loadAll();
+    document.getElementById("login-overlay").classList.remove("visible");
+  } else {
+    document.getElementById("login-overlay").classList.add("visible");
+  }
   initTokenClient();
-  renderDow();buildCalendar();
+  renderDow();
+  buildCalendar();
+  // Sur mobile PWA : tenter un refresh silencieux du token si expiré
+  if(!t) setTimeout(()=>{
+    if(!accessToken&&tokenClient){
+      tokenClient.requestAccessToken({prompt:""});
+    }
+  }, 1500);
 });
 function initTokenClient(){
   if(!window.google){setTimeout(initTokenClient,300);return;}
@@ -861,10 +883,31 @@ async function loadCalendar(){
 }
 
 
+function toggleWeekend(){
+  hideWeekend=!hideWeekend;
+  const btn=document.getElementById("btn-weekend");
+  if(hideWeekend){
+    btn.style.background="var(--blue)";
+    btn.style.color="var(--white)";
+    btn.style.borderColor="var(--blue)";
+    btn.title="Afficher les weekends";
+  } else {
+    btn.style.background="var(--grey)";
+    btn.style.color="var(--muted)";
+    btn.style.borderColor="var(--border)";
+    btn.title="Masquer les weekends";
+  }
+  renderDow();
+  buildCalendar();
+}
+
 function renderDow(){
   const days=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-  document.getElementById("cal-dow").innerHTML=days.map((d,i)=>
-    `<div class="cal-dow-cell"${i>=5?' style="color:var(--red)"':""}>${d}</div>`).join("");
+  const filtered=hideWeekend?days.slice(0,5):days;
+  document.getElementById("cal-dow").innerHTML=filtered.map((d,i)=>{
+    const isWE=!hideWeekend&&i>=5;
+    return `<div class="cal-dow-cell"${isWE?' style="color:var(--red)"':""}>${d}</div>`;
+  }).join("");
 }
 
 function eventsIndexedByDate(){
@@ -890,25 +933,71 @@ function eventsIndexedByDate(){
 function buildCalendar(){
   document.getElementById("cal-title").textContent=`${MONTHS_FR[curMonth]} ${curYear}`;
   const today=new Date();
+  const cols=hideWeekend?5:7;
+  // En mode 5 jours, on calcule le décalage lundi uniquement
   let startDow=new Date(curYear,curMonth,1).getDay();
-  startDow=startDow===0?6:startDow-1;
+  startDow=startDow===0?6:startDow-1; // lundi=0 ... dim=6
   const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
-  const totalCells=Math.ceil((startDow+daysInMonth)/7)*7;
+
+  // Collecter les jours à afficher
+  const allDays=[];
+  for(let dayOffset=0;dayOffset<daysInMonth;dayOffset++){
+    const dt=new Date(curYear,curMonth,1+dayOffset);
+    const dow=dt.getDay(); // 0=dim, 6=sam
+    if(hideWeekend&&(dow===0||dow===6))continue;
+    allDays.push({dt,dayOffset});
+  }
+
+  // Calculer les jours du mois précédent pour remplir la première semaine
+  const firstDay=allDays[0]?.dt||new Date(curYear,curMonth,1);
+  let firstDow=firstDay.getDay();
+  firstDow=firstDow===0?6:firstDow-1;
+  // En mode sans weekend, le décalage est basé sur les jours ouvrés
+  const leadingEmpty=hideWeekend
+    ? allDays[0]?((allDays[0].dt.getDay()===0?4:allDays[0].dt.getDay()-1)):0
+    : startDow;
+
+  const totalCells=Math.ceil((leadingEmpty+allDays.length)/cols)*cols;
   const byDate=eventsIndexedByDate();
   const maxShow=window.innerWidth<=768?2:6;
+
+  // Mettre à jour la grille CSS
+  document.getElementById("cal-days").style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  document.getElementById("cal-dow").style.gridTemplateColumns=`repeat(${cols},1fr)`;
+
   let html="";
+  let dayIdx=-leadingEmpty;
+
   for(let i=0;i<totalCells;i++){
-    const dt=new Date(curYear,curMonth,1+i-startDow);
+    let dt,inMonth;
+    if(dayIdx<0){
+      // Jours du mois précédent
+      const prevDate=new Date(curYear,curMonth,1+dayIdx);
+      if(hideWeekend&&(prevDate.getDay()===0||prevDate.getDay()===6)){dayIdx++;i--;continue;}
+      dt=prevDate;inMonth=false;
+    } else if(dayIdx<daysInMonth){
+      dt=new Date(curYear,curMonth,1+dayIdx);
+      if(hideWeekend&&(dt.getDay()===0||dt.getDay()===6)){dayIdx++;i--;continue;}
+      inMonth=true;
+    } else {
+      // Jours du mois suivant
+      const nextDate=new Date(curYear,curMonth+1,1+(dayIdx-daysInMonth));
+      if(hideWeekend&&(nextDate.getDay()===0||nextDate.getDay()===6)){dayIdx++;i--;continue;}
+      dt=nextDate;inMonth=false;
+    }
+    dayIdx++;
+
     const y=dt.getFullYear(),m=dt.getMonth(),d=dt.getDate();
     const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const inMonth=m===curMonth;
     const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
     const isWeekend=dt.getDay()===0||dt.getDay()===6;
     const evs=byDate[ds]||[];
+
     let cls="cal-cell";
     if(!inMonth)cls+=" other-month";
     if(isToday)cls+=" today";
-    if(isWeekend)cls+=" weekend";
+    if(isWeekend&&!hideWeekend)cls+=" weekend";
+
     const chips=evs.slice(0,maxShow).map(ev=>{
       const col=getEventColor(ev);const lbl=getEventLabel(ev);
       const icon=ev._spanDays?(ev._isStart?"→":ev._isEnd?"←":"↔"):"";
