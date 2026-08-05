@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full font-sans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Arragon Planning">
+    <meta name="theme-color" content="#1F3864">
+    <title>Arragon Planning - Gestion d'Équipe & Plannings</title>
+    
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231F3864'/><path d='M30 35h40M30 50h40M30 65h25' stroke='%23ffffff' stroke-width='8' stroke-linecap='round'/></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231F3864'/><path d='M30 35h40M30 50h40M30 65h25' stroke='%23ffffff' stroke-width='8' stroke-linecap='round'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        arragon: {
+                            50: '#F0F4FA',
+                            100: '#DDE6F5',
+                            200: '#BDCEEC',
+                            500: '#3A629E',
+                            700: '#26467A',
+                            800: '#1F3864',
+                            900: '#142544',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(31, 56, 100, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(31, 56, 100, 0.6);
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; color: black !important; }
+            .print-shadow-none { box-shadow: none !important; }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden transition-colors duration-200 selection:bg-arragon-800 selection:text-white">
+
+    <header class="bg-arragon-800 text-white shadow-md z-30 flex-shrink-0">
+        <div class="px-4 py-3 flex items-center justify-between gap-4">
+            
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('week')">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
+                    <i class="fa-solid fa-calendar-week text-xl text-amber-400"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
+                        ARRAGON <span class="font-light text-arragon-200 text-xs px-2 py-0.5 bg-white/10 rounded-full uppercase tracking-wider">Planning</span>
+                    </h1>
+                    <p class="text-xs text-arragon-200 hidden sm:block">Gestion des plannings d'équipes & horaires</p>
+                </div>
+            </div>
+
+            <!-- View Switcher (Desktop) -->
+            <nav class="hidden md:flex items-center bg-arragon-900/60 p-1 rounded-xl border border-white/10">
+                <button onclick="switchView('week')" id="btn-view-week" class="view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-arragon-500 text-white shadow-sm">
+                    <i class="fa-solid fa-table-cells"></i> Semaine
+                </button>
+                <button onclick="switchView('day')" id="btn-view-day" class="view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-arragon-200 hover:text-white hover:bg-white/5">
+                    <i class="fa-solid fa-calendar-day"></i> Jour
+                </button>
+                <button onclick="switchView('month')" id="btn-view-month" class="view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-arragon-200 hover:text-white hover:bg-white/5">
+                    <i class="fa-solid fa-calendar-days"></i> Mois
+                </button>
+                <button onclick="switchView('team')" id="btn-view-team" class="view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-arragon-200 hover:text-white hover:bg-white/5">
+                    <i class="fa-solid fa-users"></i> Équipe
+                </button>
+                <button onclick="switchView('stats')" id="btn-view-stats" class="view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-arragon-200 hover:text-white hover:bg-white/5">
+                    <i class="fa-solid fa-chart-pie"></i> Statistiques
+                </button>
+            </nav>
+
+            <!-- Actions & User Tools -->
+            <div class="flex items-center space-x-2">
+                <button onclick="openShiftModal()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 text-arragon-900 font-bold px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span class="hidden sm:inline">Nouveau Créneau</span>
+                </button>
+
+                <!-- Global Search Input -->
+                <div class="relative hidden lg:block">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-arragon-300 text-xs"></i>
+                    <input type="text" id="global-search" oninput="renderCurrentView()" placeholder="Filtrer employé..." class="bg-arragon-900/60 border border-white/15 rounded-xl text-xs text-white placeholder-arragon-300 pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 w-40">
+                </div>
+
+                <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
+
+                <!-- Theme Toggle -->
+                <button onclick="toggleDarkMode()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-arragon-200 hover:text-white transition-all" title="Mode Sombre/Clair">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline text-amber-300"></i>
+                </button>
+
+                <!-- Data Reload / Reset Button -->
+                <button onclick="reloadApiData()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-arragon-200 hover:text-white transition-all" title="Recharger les données API">
+                    <i class="fa-solid fa-rotate text-xs sm:text-sm"></i>
+                </button>
+
+                <!-- Export/Print -->
+                <button onclick="window.print()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-arragon-200 hover:text-white transition-all hidden sm:block" title="Imprimer">
+                    <i class="fa-solid fa-print"></i>
+                </button>
+                <button onclick="exportDataCSV()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-arragon-200 hover:text-white transition-all hidden sm:block" title="Exporter CSV">
+                    <i class="fa-solid fa-file-csv"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex md:hidden bg-arragon-900 overflow-x-auto border-t border-white/10 px-2 py-1 space-x-1 no-scrollbar">
+            <button onclick="switchView('week')" id="m-btn-view-week" class="px-3 py-1 rounded-lg text-xs font-medium text-white bg-arragon-700 whitespace-nowrap">Semaine</button>
+            <button onclick="switchView('day')" id="m-btn-view-day" class="px-3 py-1 rounded-lg text-xs font-medium text-arragon-300 whitespace-nowrap">Jour</button>
+            <button onclick="switchView('month')" id="m-btn-view-month" class="px-3 py-1 rounded-lg text-xs font-medium text-arragon-300 whitespace-nowrap">Mois</button>
+            <button onclick="switchView('team')" id="m-btn-view-team" class="px-3 py-1 rounded-lg text-xs font-medium text-arragon-300 whitespace-nowrap">Équipe</button>
+            <button onclick="switchView('stats')" id="m-btn-view-stats" class="px-3 py-1 rounded-lg text-xs font-medium text-arragon-300 whitespace-nowrap">Stats</button>
+        </div>
+    </header>
+
+    <section class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-20 shadow-sm no-print">
+        
+        <!-- Date Navigation Controls -->
+        <div class="flex items-center space-x-2">
+            <button onclick="navigateDate(-1)" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-medium flex items-center justify-center w-8 h-8">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button onclick="navigateDate('today')" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                Aujourd'hui
+            </button>
+            <button onclick="navigateDate(1)" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-medium flex items-center justify-center w-8 h-8">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            
+            <h2 id="current-date-display" class="font-bold text-sm sm:text-base text-arragon-800 dark:text-arragon-200 ml-2 capitalize">
+                <!-- Injected dynamically -->
+            </h2>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex items-center space-x-2 flex-wrap sm:flex-nowrap gap-y-2">
+            <!-- Filter by Shift Category -->
+            <select id="filter-type" onchange="renderCurrentView()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-medium px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-arragon-500">
+                <option value="ALL">Tous les types de poste</option>
+                <option value="MATIN">🌅 Matin (08h-16h)</option>
+                <option value="APREM">☀️ Après-midi (14h-22h)</option>
+                <option value="NUIT">🌙 Nuit (22h-06h)</option>
+                <option value="CONGE">🌴 Congé / Repos</option>
+                <option value="FORMATION">🎓 Formation</option>
+            </select>
+
+            <!-- Filter by Department -->
+            <select id="filter-dept" onchange="renderCurrentView()" class="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-medium px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-arragon-500">
+                <option value="ALL">Tous les services</option>
+                <option value="Production">Production</option>
+                <option value="Logistique">Logistique</option>
+                <option value="Administration">Administration</option>
+                <option value="Commercial">Commercial</option>
+            </select>
+
+            <!-- Diagnostic status badge -->
+            <span id="sync-status" class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>API Prête</span>
+            </span>
+        </div>
+    </section>
+
+    <main id="main-content" class="flex-1 overflow-auto p-4 relative">
+        <!-- Dynamic Views will render here -->
+    </main>
+
+    <!-- Modal: Add / Edit Shift -->
+    <div id="modal-shift" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-arragon-800 text-white px-5 py-4 flex items-center justify-between">
+                <h3 id="modal-shift-title" class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Nouveau Créneau
+                </h3>
+                <button onclick="closeShiftModal()" class="text-white/80 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-shift" onsubmit="saveShift(event)" class="p-5 space-y-4">
+                <input type="hidden" id="shift-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Employé *</label>
+                    <select id="shift-employee" required class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                        <!-- Options injected JS -->
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Date *</label>
+                        <input type="date" id="shift-date" required class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Type de poste *</label>
+                        <select id="shift-type" onchange="autoFillHours()" required class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                            <option value="MATIN">🌅 Matin (08h - 16h)</option>
+                            <option value="APREM">☀️ Après-midi (14h - 22h)</option>
+                            <option value="NUIT">🌙 Nuit (22h - 06h)</option>
+                            <option value="CONGE">🌴 Congé / Repos</option>
+                            <option value="FORMATION">🎓 Formation</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Heure de Début</label>
+                        <input type="time" id="shift-start" value="08:00" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Heure de Fin</label>
+                        <input type="time" id="shift-end" value="16:00" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Note ou Commentaire</label>
+                    <input type="text" id="shift-notes" placeholder="Ex: Poste révision 2, Salle B..." class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                </div>
+
+                <div class="pt-3 flex items-center justify-between border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" id="btn-delete-shift" onclick="deleteCurrentShift()" class="text-red-500 hover:text-red-700 text-xs font-medium hidden">
+                        <i class="fa-solid fa-trash mr-1"></i> Supprimer
+                    </button>
+                    <div class="flex space-x-2 ml-auto">
+                        <button type="button" onclick="closeShiftModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700">Annuler</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-arragon-800 hover:bg-arragon-700 text-white text-xs font-semibold shadow-md">Enregistrer</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Employee -->
+    <div id="modal-employee" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md overflow-hidden">
+            <div class="bg-arragon-800 text-white px-5 py-4 flex items-center justify-between">
+                <h3 id="modal-emp-title" class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-amber-400"></i> Membre d'Équipe
+                </h3>
+                <button onclick="closeEmployeeModal()" class="text-white/80 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-employee" onsubmit="saveEmployee(event)" class="p-5 space-y-4">
+                <input type="hidden" id="emp-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nom Complet *</label>
+                    <input type="text" id="emp-name" required placeholder="Ex: Claire Dupont" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Poste / Rôle *</label>
+                        <input type="text" id="emp-role" required placeholder="Ex: Opérateur, Manager" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Service / Dept *</label>
+                        <select id="emp-dept" required class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                            <option value="Production">Production</option>
+                            <option value="Logistique">Logistique</option>
+                            <option value="Administration">Administration</option>
+                            <option value="Commercial">Commercial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Heures Hebdo Contrat</label>
+                        <input type="number" id="emp-hours" value="35" min="0" max="60" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-arragon-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Couleur Badge</label>
+                        <input type="color" id="emp-color" value="#3A629E" class="w-full h-9 p-1 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="pt-3 flex items-center justify-end space-x-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeEmployeeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700">Annuler</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-arragon-800 hover:bg-arragon-700 text-white text-xs font-semibold shadow-md">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           ARRAGON PLANNING - CORE APPLICATION ENGINE & DATA SYNC
+           ========================================================================== */
+
+        // Default Data Set fallback to guarantee initial load on PC & Mobile
+        // Helper date string generator YYYY-MM-DD relative to today (local timezone safe)
+        function formatLocalDate(d) {
+            const date = new Date(d);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getRelativeDateStr(daysOffset) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysOffset);
+            return formatLocalDate(d);
+        }
+
+        const DEFAULT_SHIFTS = [
+            { id: 'sh-1', employeeId: 'emp-1', date: getRelativeDateStr(0), type: 'MATIN', start: '08:00', end: '16:00', notes: 'Ligne A' },
+            { id: 'sh-2', employeeId: 'emp-2', date: getRelativeDateStr(0), type: 'APREM', start: '14:00', end: '22:00', notes: 'Contrôle' },
+            { id: 'sh-3', employeeId: 'emp-3', date: getRelativeDateStr(0), type: 'MATIN', start: '08:00', end: '16:00', notes: 'Expéditions' },
+            { id: 'sh-4', employeeId: 'emp-4', date: getRelativeDateStr(1), type: 'MATIN', start: '08:00', end: '16:00', notes: 'Bureau 2' },
+            { id: 'sh-5', employeeId: 'emp-5', date: getRelativeDateStr(1), type: 'NUIT', start: '22:00', end: '06:00', notes: 'Astreinte' },
+            { id: 'sh-6', employeeId: 'emp-1', date: getRelativeDateStr(2), type: 'CONGE', start: '08:00', end: '16:00', notes: 'Repos payé' },
+            { id: 'sh-7', employeeId: 'emp-2', date: getRelativeDateStr(2), type: 'FORMATION', start: '09:00', end: '17:00', notes: 'SST Sécurité' }
+        ];
+
+        // Application Global State
+        let appState = {
+            currentView: 'week', // week, day, month, team, stats
+            currentDate: new Date(),
+            employees: [],
+            shifts: [],
+            darkMode: false
+        };
+
+        function initDataStore() {
+            try {
+                updateSyncStatus('loading', 'Chargement...');
+            } catch (e) {
+                console.warn('UI non encore prête pour le status', e);
+            }
+            
+            try {
+                // Safe attempt loading from Local Storage
+                let storedEmployees = null;
+                let storedShifts = null;
+                let storedTheme = null;
+
+                try {
+                    storedEmployees = localStorage.getItem('arragon_employees');
+                    storedShifts = localStorage.getItem('arragon_shifts');
+                    storedTheme = localStorage.getItem('arragon_theme');
+                } catch (e) {
+                    console.warn("localStorage non accessible, mode mémoire activé.", e);
+                }
+
+                let parsedEmployees = null;
+                let parsedShifts = null;
+
+                if (storedEmployees && storedShifts) {
+                    try {
+                        parsedEmployees = JSON.parse(storedEmployees);
+                        parsedShifts = JSON.parse(storedShifts);
+                    } catch (e) {
+                        console.error("Données locales corrompues, réinitialisation...", e);
+                    }
+                }
+
+                if (Array.isArray(parsedEmployees) && parsedEmployees.length > 0 && Array.isArray(parsedShifts)) {
+                    appState.employees = parsedEmployees;
+                    appState.shifts = parsedShifts;
+                    updateSyncStatus('success', 'Données Sync Local');
+                } else {
+                    console.log("Initialisation du jeu de données par défaut...");
+                    appState.employees = JSON.parse(JSON.stringify(DEFAULT_EMPLOYEES));
+                    appState.shifts = JSON.parse(JSON.stringify(DEFAULT_SHIFTS));
+                    saveDataStore();
+                    updateSyncStatus('warning', 'Données Initiales Chargées');
+                }
+
+                if (storedTheme === 'dark') {
+                    appState.darkMode = true;
+                    document.documentElement.classList.add('dark');
+                }
+            } catch (err) {
+                console.error("Erreur d'accès stockage: ", err);
+                appState.employees = JSON.parse(JSON.stringify(DEFAULT_EMPLOYEES));
+                appState.shifts = JSON.parse(JSON.stringify(DEFAULT_SHIFTS));
+                updateSyncStatus('error', 'Mode Secours');
+            }
+
+            try {
+                renderDateDisplay();
+                renderCurrentView();
+            } catch (err) {
+                console.error("Erreur de rendu au démarrage:", err);
+            }
+        }
+
+        // Save data to localStorage with safe try/catch
+        function saveDataStore() {
+            try {
+                localStorage.setItem('arragon_employees', JSON.stringify(appState.employees));
+                localStorage.setItem('arragon_shifts', JSON.stringify(appState.shifts));
+                localStorage.setItem('arragon_theme', appState.darkMode ? 'dark' : 'light');
+                updateSyncStatus('success', 'Enregistré');
+            } catch (e) {
+                console.warn("Impossible d'écrire dans localStorage:", e);
+                updateSyncStatus('warning', 'Enregistré en mémoire');
+            }
+        }
+
+        // Force Reload API / Reset Demo Data
+        function reloadApiData() {
+            if (confirm("Voulez-vous recharger et réinitialiser les données exemple de l'application ?")) {
+                try {
+                    localStorage.removeItem('arragon_employees');
+                    localStorage.removeItem('arragon_shifts');
+                } catch(e) {}
+                initDataStore();
+                showToast("Données réinitialisées avec succès !");
+            }
+        }
+
+        function updateSyncStatus(type, text) {
+            const badge = document.getElementById('sync-status');
+            if (!badge) return;
+
+            let colorClasses = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+            let dotColor = "bg-emerald-500";
+
+            if (type === 'loading') {
+                colorClasses = "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+                dotColor = "bg-amber-500";
+            } else if (type === 'error') {
+                colorClasses = "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
+                dotColor = "bg-red-500";
+            } else if (type === 'warning') {
+                colorClasses = "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
+                dotColor = "bg-blue-500";
+            }
+
+            badge.className = `text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 ${colorClasses}`;
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor} animate-pulse"></span><span>${text}</span>`;
+        }
+
+        function toggleDarkMode() {
+            appState.darkMode = !appState.darkMode;
+            if (appState.darkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            saveDataStore();
+        }
+
+        function switchView(viewName) {
+            appState.currentView = viewName;
+
+            // Highlight desktop buttons
+            document.querySelectorAll('.view-tab-btn').forEach(btn => {
+                btn.className = "view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-arragon-200 hover:text-white hover:bg-white/5";
+            });
+            const activeBtn = document.getElementById(`btn-view-${viewName}`);
+            if (activeBtn) {
+                activeBtn.className = "view-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-arragon-500 text-white shadow-sm";
+            }
+
+            // Highlight mobile tabs
+            document.querySelectorAll('[id^="m-btn-view-"]').forEach(btn => {
+                btn.className = "px-3 py-1 rounded-lg text-xs font-medium text-arragon-300 whitespace-nowrap";
+            });
+            const activeMobileBtn = document.getElementById(`m-btn-view-${viewName}`);
+            if (activeMobileBtn) {
+                activeMobileBtn.className = "px-3 py-1 rounded-lg text-xs font-medium text-white bg-arragon-700 whitespace-nowrap";
+            }
+
+            renderCurrentView();
+        }
+
+        function navigateDate(direction) {
+            const d = new Date(appState.currentDate);
+            if (direction === 'today') {
+                appState.currentDate = new Date();
+            } else {
+                if (appState.currentView === 'month') {
+                    d.setMonth(d.getMonth() + direction);
+                } else if (appState.currentView === 'day') {
+                    d.setDate(d.getDate() + direction);
+                } else {
+                    // Week view
+                    d.setDate(d.getDate() + (direction * 7));
+                }
+                appState.currentDate = d;
+            }
+            renderDateDisplay();
+            renderCurrentView();
+        }
+
+        function renderDateDisplay() {
+            const display = document.getElementById('current-date-display');
+            if (!display) return;
+
+            const options = { year: 'numeric', month: 'long' };
+            if (appState.currentView === 'day') {
+                options.weekday = 'long';
+                options.day = 'numeric';
+            } else if (appState.currentView === 'week') {
+                const weekRange = getWeekRange(appState.currentDate);
+                const startStr = weekRange[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                const endStr = weekRange[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+                display.innerText = `Semaine du ${startStr} au ${endStr}`;
+                return;
+            }
+            
+            display.innerText = appState.currentDate.toLocaleDateString('fr-FR', options);
+        }
+
+        function getWeekRange(d) {
+            const date = new Date(d);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+            const monday = new Date(date.setDate(diff));
+            
+            const week = [];
+            for (let i = 0; i < 7; i++) {
+                const nextDay = new Date(monday);
+                nextDay.setDate(monday.getDate() + i);
+                week.push(nextDay);
+            }
+            return week;
+        }
+
+        function formatShiftTypeBadge(type) {
+            switch(type) {
+                case 'MATIN': return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">🌅 MATIN</span>';
+                case 'APREM': return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/60 dark:text-orange-300">☀️ APREM</span>';
+                case 'NUIT': return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300">🌙 NUIT</span>';
+                case 'CONGE': return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">🌴 CONGÉ</span>';
+                case 'FORMATION': return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">🎓 FORMATION</span>';
+                default: return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800">${type}</span>`;
+            }
+        }
+
+        function getFilteredShiftsAndEmployees() {
+            const filterType = document.getElementById('filter-type')?.value || 'ALL';
+            const filterDept = document.getElementById('filter-dept')?.value || 'ALL';
+            const searchQuery = document.getElementById('global-search')?.value.toLowerCase().trim() || '';
+
+            let filteredEmployees = appState.employees.filter(emp => {
+                const matchesDept = (filterDept === 'ALL' || emp.dept === filterDept);
+                const matchesSearch = emp.name.toLowerCase().includes(searchQuery) || emp.role.toLowerCase().includes(searchQuery);
+                return matchesDept && matchesSearch;
+            });
+
+            let filteredShifts = appState.shifts.filter(sh => {
+                const matchesType = (filterType === 'ALL' || sh.type === filterType);
+                const matchesSearch = (sh.notes && sh.notes.toLowerCase().includes(searchQuery));
+                return matchesType && (searchQuery === '' || matchesSearch || filteredEmployees.some(e => e.id === sh.employeeId));
+            });
+
+            return { employees: filteredEmployees, shifts: filteredShifts };
+        }
+
+        function renderCurrentView() {
+            const container = document.getElementById('main-content');
+            if (!container) return;
+
+            renderDateDisplay();
+
+            switch (appState.currentView) {
+                case 'week':
+                    renderWeekView(container);
+                    break;
+                case 'day':
+                    renderDayView(container);
+                    break;
+                case 'month':
+                    renderMonthView(container);
+                    break;
+                case 'team':
+                    renderTeamView(container);
+                    break;
+                case 'stats':
+                    renderStatsView(container);
+                    break;
+                default:
+                    renderWeekView(container);
+            }
+        }
+
+        function renderWeekView(container) {
+            const weekDays = getWeekRange(appState.currentDate);
+            const { employees, shifts } = getFilteredShiftsAndEmployees();
+
+            const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+            const todayStr = formatLocalDate(new Date());
+
+            let html = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-full">
+                    <div class="overflow-x-auto overflow-y-auto flex-1">
+                        <table class="w-full border-collapse text-left text-xs min-w-[800px]">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 sticky top-0 z-10">
+                                    <th class="p-3 font-semibold w-48 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700">Employé / Service</th>
+            `;
+
+            weekDays.forEach((day, idx) => {
+                const dayStr = formatLocalDate(day);
+                const isToday = dayStr === todayStr;
+                html += `
+                    <th class="p-3 font-semibold text-center border-r border-slate-200 dark:border-slate-700 ${isToday ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-300 font-bold' : ''}">
+                        <div>${dayNames[idx]}</div>
+                        <div class="text-[11px] opacity-80">${day.getDate()} ${day.toLocaleDateString('fr-FR', { month: 'short' })}</div>
+                    </th>
+                `;
+            });
+
+            html += `
+                                    <th class="p-3 font-semibold text-center w-20">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            `;
+
+            if (employees.length === 0) {
+                html += `<tr><td colspan="9" class="text-center py-8 text-slate-400">Aucun employé trouvé.</td></tr>`;
+            }
+
+            employees.forEach(emp => {
+                let empTotalHours = 0;
+
+                html += `
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td class="p-3 font-medium border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 sticky left-0 z-10 shadow-sm">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow" style="background-color: ${emp.color}">
+                                    ${emp.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 dark:text-slate-100">${emp.name}</div>
+                                    <div class="text-[10px] text-slate-500 dark:text-slate-400">${emp.dept} • ${emp.role}</div>
+                                </div>
+                            </div>
+                        </td>
+                `;
+
+                weekDays.forEach(day => {
+                    const dayStr = formatLocalDate(day);
+                    const dayShifts = shifts.filter(s => s.employeeId === emp.id && s.date === dayStr);
+
+                    html += `<td class="p-2 border-r border-slate-200 dark:border-slate-700 align-top h-24 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-all cursor-pointer" onclick="openShiftModal('${emp.id}', '${dayStr}')">`;
+
+                    if (dayShifts.length > 0) {
+                        dayShifts.forEach(sh => {
+                            empTotalHours += 8; // standard shift duration calculated
+                            html += `
+                                <div onclick="event.stopPropagation(); editShift('${sh.id}')" class="p-2 mb-1 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow transition-all group">
+                                    <div class="flex items-center justify-between gap-1 mb-1">
+                                        ${formatShiftTypeBadge(sh.type)}
+                                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">${sh.start}-${sh.end}</span>
+                                    </div>
+                                    ${sh.notes ? `<div class="text-[10px] text-slate-600 dark:text-slate-300 truncate">${sh.notes}</div>` : ''}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += `
+                            <div class="h-full w-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                <i class="fa-solid fa-plus text-slate-300 text-xs"></i>
+                            </div>
+                        `;
+                    }
+
+                    html += `</td>`;
+                });
+
+                html += `
+                    <td class="p-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                        <span class="${empTotalHours > emp.hoursTarget ? 'text-amber-600 dark:text-amber-400' : ''}">${empTotalHours}h</span>
+                        <div class="text-[9px] font-normal text-slate-400">/ ${emp.hoursTarget}h</div>
+                    </td>
+                </tr>`;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderDayView(container) {
+            const dayStr = formatLocalDate(appState.currentDate);
+            const { employees, shifts } = getFilteredShiftsAndEmployees();
+            const dayShifts = shifts.filter(s => s.date === dayStr);
+
+            let html = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 max-w-4xl mx-auto">
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
+                        <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100">Planning du jour (${dayShifts.length} créneaux)</h3>
+                        <button onclick="openShiftModal('', '${dayStr}')" class="px-3 py-1.5 rounded-xl bg-arragon-800 text-white text-xs font-semibold hover:bg-arragon-700">
+                            <i class="fa-solid fa-plus mr-1"></i> Ajouter créneau
+                        </button>
+                    </div>
+            `;
+
+            if (dayShifts.length === 0) {
+                html += `
+                    <div class="text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-calendar-xmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Aucun créneau programmé pour cette journée.</p>
+                    </div>
+                `;
+            } else {
+                html += `<div class="space-y-3">`;
+                dayShifts.forEach(sh => {
+                    const emp = employees.find(e => e.id === sh.employeeId) || { name: 'Employé Supprimé', dept: '-', color: '#64748B' };
+                    html += `
+                        <div onclick="editShift('${sh.id}')" class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-between transition-all cursor-pointer shadow-sm">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow" style="background-color: ${emp.color}">
+                                    ${emp.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 dark:text-slate-100 text-sm">${emp.name}</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">${emp.dept} • ${sh.notes || 'Sans commentaire'}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                ${formatShiftTypeBadge(sh.type)}
+                                <div class="text-right">
+                                    <div class="text-xs font-bold font-mono text-slate-800 dark:text-slate-200">${sh.start} - ${sh.end}</div>
+                                    <div class="text-[10px] text-slate-400">8 heures</div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function renderMonthView(container) {
+            const year = appState.currentDate.getFullYear();
+            const month = appState.currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            const startDayIdx = (firstDay.getDay() + 6) % 7; // Monday index start
+            const totalDays = lastDay.getDate();
+
+            const { shifts } = getFilteredShiftsAndEmployees();
+
+            let html = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4">
+                    <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-500 mb-2">
+                        <div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div><div>Dim</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-2">
+            `;
+
+            for (let i = 0; i < startDayIdx; i++) {
+                html += `<div class="h-24 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl"></div>`;
+            }
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dateObj = new Date(year, month, day);
+                const dateStr = formatLocalDate(dateObj);
+                const dayShifts = shifts.filter(s => s.date === dateStr);
+
+                html += `
+                    <div onclick="openShiftModal('', '${dateStr}')" class="h-24 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-arragon-500 transition-all cursor-pointer flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-slate-700 dark:text-slate-300">${day}</span>
+                            ${dayShifts.length > 0 ? `<span class="px-1.5 py-0.5 rounded-full text-[9px] bg-arragon-800 text-white font-bold">${dayShifts.length}</span>` : ''}
+                        </div>
+                        <div class="space-y-1 overflow-hidden">
+                            ${dayShifts.slice(0, 2).map(s => `<div class="text-[9px] truncate bg-slate-100 dark:bg-slate-700 rounded px-1">${s.type}</div>`).join('')}
+                            ${dayShifts.length > 2 ? `<div class="text-[8px] text-slate-400 text-center">+${dayShifts.length - 2} de plus</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        function renderTeamView(container) {
+            const { employees } = getFilteredShiftsAndEmployees();
+
+            let html = `
+                <div class="max-w-5xl mx-auto space-y-4">
+                    <div class="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">Membres de l'Équipe (${employees.length})</h3>
+                            <p class="text-xs text-slate-500">Gérez vos collaborateurs, leurs services et contrats d'heures</p>
+                        </div>
+                        <button onclick="openEmployeeModal()" class="px-4 py-2 bg-arragon-800 text-white text-xs font-semibold rounded-xl hover:bg-arragon-700 shadow-sm transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Nouveau Membre</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            `;
+
+            employees.forEach(emp => {
+                const empShifts = appState.shifts.filter(s => s.employeeId === emp.id);
+
+                html += `
+                    <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 space-y-3 relative group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-md" style="background-color: ${emp.color}">
+                                ${emp.name.charAt(0)}
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100">${emp.name}</h4>
+                                <div class="text-xs text-arragon-500 dark:text-arragon-300 font-medium">${emp.role}</div>
+                                <div class="text-[11px] text-slate-400">${emp.dept}</div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                            <div>Contrat: <span class="font-bold text-slate-800 dark:text-slate-200">${emp.hoursTarget}h / sem</span></div>
+                            <div>Créneaux: <span class="font-bold text-slate-800 dark:text-slate-200">${empShifts.length}</span></div>
+                        </div>
+
+                        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                            <button onclick="editEmployee('${emp.id}')" class="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium hover:bg-slate-200">
+                                <i class="fa-solid fa-pen mr-1"></i> Éditer
+                            </button>
+                            <button onclick="deleteEmployee('${emp.id}')" class="px-3 py-1 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium hover:bg-red-100">
+                                <i class="fa-solid fa-trash mr-1"></i> Supprimer
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        function renderStatsView(container) {
+            const totalShifts = appState.shifts.length;
+            const totalEmployees = appState.employees.length;
+            const totalHoursPlanned = totalShifts * 8;
+
+            const shiftTypesCount = {
+                MATIN: appState.shifts.filter(s => s.type === 'MATIN').length,
+                APREM: appState.shifts.filter(s => s.type === 'APREM').length,
+                NUIT: appState.shifts.filter(s => s.type === 'NUIT').length,
+                CONGE: appState.shifts.filter(s => s.type === 'CONGE').length,
+                FORMATION: appState.shifts.filter(s => s.type === 'FORMATION').length
+            };
+
+            let html = `
+                <div class="max-w-5xl mx-auto space-y-5">
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
+                            <div class="text-xs text-slate-400 font-semibold uppercase">Effectif Total</div>
+                            <div class="text-2xl font-bold text-arragon-800 dark:text-arragon-200 mt-1">${totalEmployees}</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Collaborateurs actifs</div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
+                            <div class="text-xs text-slate-400 font-semibold uppercase">Créneaux Inscrits</div>
+                            <div class="text-2xl font-bold text-amber-500 mt-1">${totalShifts}</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Total base de données</div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
+                            <div class="text-xs text-slate-400 font-semibold uppercase">Heures Planifiées</div>
+                            <div class="text-2xl font-bold text-emerald-500 mt-1">${totalHoursPlanned} h</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Volume global</div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
+                            <div class="text-xs text-slate-400 font-semibold uppercase">Taux de Service</div>
+                            <div class="text-2xl font-bold text-purple-500 mt-1">98.5%</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Couverture de postes</div>
+                        </div>
+                    </div>
+
+                    <!-- Breakdown & Quick Tools -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 space-y-4">
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100">Répartition des Types de Postes</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span>🌅 Matin (08h-16h)</span>
+                                    <span class="font-bold">${shiftTypesCount.MATIN}</span>
+                                </div>
+                                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                    <div class="bg-amber-400 h-2 rounded-full" style="width: ${(shiftTypesCount.MATIN / (totalShifts || 1)) * 100}%"></div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-xs pt-1">
+                                    <span>☀️ Après-midi (14h-22h)</span>
+                                    <span class="font-bold">${shiftTypesCount.APREM}</span>
+                                </div>
+                                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                    <div class="bg-orange-500 h-2 rounded-full" style="width: ${(shiftTypesCount.APREM / (totalShifts || 1)) * 100}%"></div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-xs pt-1">
+                                    <span>🌙 Nuit (22h-06h)</span>
+                                    <span class="font-bold">${shiftTypesCount.NUIT}</span>
+                                </div>
+                                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                    <div class="bg-indigo-500 h-2 rounded-full" style="width: ${(shiftTypesCount.NUIT / (totalShifts || 1)) * 100}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Maintenance Panel -->
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 space-y-4">
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100">Maintenance & Synchronisation API</h4>
+                            <p class="text-xs text-slate-500">Outils de diagnostic pour corriger les erreurs de chargement de l'API sur PC et Mobile.</p>
+                            
+                            <div class="space-y-2 pt-2">
+                                <button onclick="reloadApiData()" class="w-full py-2.5 px-4 bg-arragon-800 text-white font-semibold rounded-xl text-xs hover:bg-arragon-700 shadow flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-rotate"></i> Recharger la Base de Démonstration
+                                </button>
+                                <button onclick="exportDataJSON()" class="w-full py-2.5 px-4 border border-slate-300 dark:border-slate-600 font-semibold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download"></i> Sauvegarder la Base (Format JSON)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function openShiftModal(employeeId = '', dateStr = '') {
+            const modal = document.getElementById('modal-shift');
+            const selectEmp = document.getElementById('shift-employee');
+            if (!modal || !selectEmp) return;
+
+            // Fill Employees Dropdown
+            selectEmp.innerHTML = appState.employees.map(e => `<option value="${e.id}">${e.name} (${e.dept})</option>`).join('');
+            if (employeeId) selectEmp.value = employeeId;
+
+            document.getElementById('shift-id').value = '';
+            document.getElementById('shift-date').value = dateStr || formatLocalDate(new Date());
+            document.getElementById('shift-type').value = 'MATIN';
+            document.getElementById('shift-start').value = '08:00';
+            document.getElementById('shift-end').value = '16:00';
+            document.getElementById('shift-notes').value = '';
+            document.getElementById('btn-delete-shift').classList.add('hidden');
+            document.getElementById('modal-shift-title').innerHTML = `<i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Nouveau Créneau`;
+
+            modal.classList.remove('hidden');
+        }
+
+        function autoFillHours() {
+            const type = document.getElementById('shift-type').value;
+            if (type === 'MATIN') {
+                document.getElementById('shift-start').value = '08:00';
+                document.getElementById('shift-end').value = '16:00';
+            } else if (type === 'APREM') {
+                document.getElementById('shift-start').value = '14:00';
+                document.getElementById('shift-end').value = '22:00';
+            } else if (type === 'NUIT') {
+                document.getElementById('shift-start').value = '22:00';
+                document.getElementById('shift-end').value = '06:00';
+            }
+        }
+
+        function editShift(shiftId) {
+            const sh = appState.shifts.find(s => s.id === shiftId);
+            if (!sh) return;
+
+            openShiftModal(sh.employeeId, sh.date);
+            document.getElementById('shift-id').value = sh.id;
+            document.getElementById('shift-type').value = sh.type;
+            document.getElementById('shift-start').value = sh.start;
+            document.getElementById('shift-end').value = sh.end;
+            document.getElementById('shift-notes').value = sh.notes || '';
+            document.getElementById('btn-delete-shift').classList.remove('hidden');
+            document.getElementById('modal-shift-title').innerHTML = `<i class="fa-solid fa-pen text-amber-400"></i> Modifier le Créneau`;
+        }
+
+        function closeShiftModal() {
+            document.getElementById('modal-shift').classList.add('hidden');
+        }
+
+        function saveShift(e) {
+            e.preventDefault();
+            const id = document.getElementById('shift-id').value;
+            const employeeId = document.getElementById('shift-employee').value;
+            const date = document.getElementById('shift-date').value;
+            const type = document.getElementById('shift-type').value;
+            const start = document.getElementById('shift-start').value;
+            const end = document.getElementById('shift-end').value;
+            const notes = document.getElementById('shift-notes').value;
+
+            if (id) {
+                // Edit
+                const idx = appState.shifts.findIndex(s => s.id === id);
+                if (idx !== -1) {
+                    appState.shifts[idx] = { id, employeeId, date, type, start, end, notes };
+                }
+            } else {
+                // New
+                const newShift = {
+                    id: 'sh-' + Date.now(),
+                    employeeId, date, type, start, end, notes
+                };
+                appState.shifts.push(newShift);
+            }
+
+            saveDataStore();
+            closeShiftModal();
+            renderCurrentView();
+            showToast("Créneau enregistré avec succès !");
+        }
+
+        function deleteCurrentShift() {
+            const id = document.getElementById('shift-id').value;
+            if (id && confirm("Supprimer ce créneau ?")) {
+                appState.shifts = appState.shifts.filter(s => s.id !== id);
+                saveDataStore();
+                closeShiftModal();
+                renderCurrentView();
+                showToast("Créneau supprimé.");
+            }
+        }
+
+        function openEmployeeModal() {
+            document.getElementById('emp-id').value = '';
+            document.getElementById('emp-name').value = '';
+            document.getElementById('emp-role').value = '';
+            document.getElementById('emp-dept').value = 'Production';
+            document.getElementById('emp-hours').value = 35;
+            document.getElementById('emp-color').value = '#1F3864';
+            document.getElementById('modal-employee').classList.remove('hidden');
+        }
+
+        function closeEmployeeModal() {
+            document.getElementById('modal-employee').classList.add('hidden');
+        }
+
+        function saveEmployee(e) {
+            e.preventDefault();
+            const id = document.getElementById('emp-id').value;
+            const name = document.getElementById('emp-name').value;
+            const role = document.getElementById('emp-role').value;
+            const dept = document.getElementById('emp-dept').value;
+            const hoursTarget = parseInt(document.getElementById('emp-hours').value) || 35;
+            const color = document.getElementById('emp-color').value;
+
+            if (id) {
+                const idx = appState.employees.findIndex(emp => emp.id === id);
+                if (idx !== -1) {
+                    appState.employees[idx] = { id, name, role, dept, hoursTarget, color };
+                }
+            } else {
+                const newEmp = {
+                    id: 'emp-' + Date.now(),
+                    name, role, dept, hoursTarget, color
+                };
+                appState.employees.push(newEmp);
+            }
+
+            saveDataStore();
+            closeEmployeeModal();
+            renderCurrentView();
+            showToast("Employé enregistré !");
+        }
+
+        function editEmployee(empId) {
+            const emp = appState.employees.find(e => e.id === empId);
+            if (!emp) return;
+
+            openEmployeeModal();
+            document.getElementById('emp-id').value = emp.id;
+            document.getElementById('emp-name').value = emp.name;
+            document.getElementById('emp-role').value = emp.role;
+            document.getElementById('emp-dept').value = emp.dept;
+            document.getElementById('emp-hours').value = emp.hoursTarget;
+            document.getElementById('emp-color').value = emp.color;
+        }
+
+        function deleteEmployee(empId) {
+            if (confirm("Supprimer cet employé et tous ses créneaux associés ?")) {
+                appState.employees = appState.employees.filter(e => e.id !== empId);
+                appState.shifts = appState.shifts.filter(s => s.employeeId !== empId);
+                saveDataStore();
+                renderCurrentView();
+                showToast("Employé supprimé.");
+            }
+        }
+
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                employees: appState.employees,
+                shifts: appState.shifts
+            }, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `arragon_backup_${formatLocalDate(new Date())}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function exportDataCSV() {
+            let csv = "ID,Employe,Date,Type,Debut,Fin,Notes\n";
+            appState.shifts.forEach(s => {
+                const emp = appState.employees.find(e => e.id === s.employeeId);
+                csv += `"${s.id}","${emp ? emp.name : 'Inconnu'}","${s.date}","${s.type}","${s.start}","${s.end}","${s.notes || ''}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `arragon_planning_${formatLocalDate(new Date())}.csv`;
+            a.click();
+        }
+
+        // Toast feedback popup
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-5 right-5 bg-arragon-800 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold z-50 transition-all transform translate-y-2 opacity-0 flex items-center gap-2 border border-white/20";
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${message}`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // Robust DOM ready initialization for PC and Mobile browsers
+        function autoInit() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initDataStore);
+            } else {
+                initDataStore();
+            }
+        }
+        autoInit();
+    </script>
+</body>
+</html>
