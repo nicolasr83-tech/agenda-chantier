@@ -442,8 +442,23 @@ function setLoading(on){
 }
 
 
-window.addEventListener("load",()=>{
-  // Sur iOS PWA, sessionStorage est vidé à chaque fermeture → utiliser localStorage
+async function waitForGoogle(){
+  while(!window.google||!google.accounts){
+    await new Promise(r=>setTimeout(r,100));
+  }
+}
+
+async function loadAll(){
+  await loadSheetData();
+  await loadCalendar();
+}
+
+window.addEventListener("load", async ()=>{
+  renderDow();
+  buildCalendar();
+  initTokenClient();
+
+  // Restauration du token
   let t=sessionStorage.getItem("arr_token");
   if(!t){
     const stored=localStorage.getItem("arr_token");
@@ -452,30 +467,25 @@ window.addEventListener("load",()=>{
       t=stored;
       sessionStorage.setItem("arr_token",t);
     } else {
-      // Token expiré : nettoyer mais garder l'user pour affichage
       localStorage.removeItem("arr_token");
       localStorage.removeItem("arr_token_expiry");
     }
   }
+
   if(t){
     accessToken=t;
     currentUser=ls("arr_user");
     renderUserBar();
-    // Charger immédiatement sans attendre Google Identity
-    loadAll();
     document.getElementById("login-overlay").classList.remove("visible");
+    // Attendre que Google soit prêt avant les fetch
+    await waitForGoogle();
+    // Laisser le navigateur finir le rendu
+    await new Promise(r=>setTimeout(r,300));
+    await loadAll();
+    buildCalendar();
   } else {
     document.getElementById("login-overlay").classList.add("visible");
   }
-  initTokenClient();
-  renderDow();
-  buildCalendar();
-  // Sur mobile PWA : tenter un refresh silencieux du token si expiré
-  if(!t) setTimeout(()=>{
-    if(!accessToken&&tokenClient){
-      tokenClient.requestAccessToken({prompt:""});
-    }
-  }, 1500);
 });
 function initTokenClient(){
   if(!window.google){setTimeout(initTokenClient,300);return;}
@@ -491,7 +501,7 @@ function initTokenClient(){
       sessionStorage.setItem("arr_token",accessToken);
       fetchUserInfo();
       document.getElementById("login-overlay").classList.remove("visible");
-      loadAll();
+      waitForGoogle().then(()=>loadAll().then(buildCalendar));
     }
   });
 }
@@ -877,7 +887,7 @@ async function loadCalendar(){
     const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
     if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}setLoading(false);return;}
     calEvents=(await resp.json()).items||[];
-    buildCalendar();
+    requestAnimationFrame(buildCalendar);
   }catch(e){showToast("Erreur chargement",true);}
   setLoading(false);
 }
