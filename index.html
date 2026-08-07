@@ -164,29 +164,44 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 }
 
 /* Récap Chantier (page) */
+.btn-pill{background:rgba(255,255,255,.12);border:none;color:var(--white);border-radius:20px;height:32px;padding:0 12px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap}
+.btn-pill:hover{background:rgba(255,255,255,.22)}
 .recap-page{display:none;position:fixed;inset:0;top:56px;background:var(--grey);z-index:250;flex-direction:column}
 .recap-page.open{display:flex}
 .recap-toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;flex-wrap:wrap;gap:9px;align-items:center;flex-shrink:0}
 .recap-title{font-size:14px;font-weight:700;color:var(--navy);white-space:nowrap}
 .recap-toolbar label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;white-space:nowrap}
-.recap-month-strip{display:flex;gap:6px;overflow-x:auto;padding:9px 14px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.recap-month-chip{flex-shrink:0;padding:7px 14px;border-radius:20px;background:var(--grey);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
-.recap-month-chip.active{background:var(--blue);color:var(--white);border-color:var(--blue)}
+.rc-back{background:var(--lblue);color:var(--navy);border:none;border-radius:20px;height:32px;padding:0 12px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.rc-back:hover{background:#c3d9f2}
+.rc-month-select{border:1.5px solid var(--border);border-radius:8px;padding:7px 9px;font-size:12px;background:var(--white);color:var(--text);font-weight:600;outline:none}
+.rc-month-select:focus{border-color:var(--blue)}
 .recap-folder-badge{font-size:11px;color:var(--muted);background:var(--grey);border-radius:6px;padding:6px 10px;white-space:nowrap}
-.recap-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px}
-.recap-row{display:flex;align-items:center;gap:11px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px}
-.recap-row.global{background:var(--lblue);border-color:var(--blue)}
-.recap-row .rc-check{width:17px;height:17px;flex-shrink:0;cursor:pointer}
-.recap-row .rc-info{flex:1;min-width:0}
-.recap-row .rc-num{font-family:monospace;font-weight:700;color:var(--blue);font-size:12px}
-.recap-row .rc-name{font-size:13px;font-weight:500}
-.recap-row .rc-days{font-size:11px;color:var(--muted);margin-top:2px}
-.recap-row .rc-actions{display:flex;gap:6px;flex-shrink:0;align-items:center}
-.rc-btn{border:1px solid var(--border);background:var(--white);border-radius:7px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--text);white-space:nowrap;font-weight:500}
+.rc-btn{border:1px solid var(--border);background:var(--white);border-radius:7px;padding:7px 11px;font-size:11px;cursor:pointer;color:var(--text);white-space:nowrap;font-weight:600}
 .rc-btn:hover{background:var(--grey)}
-.rc-btn.done{border-color:var(--green);color:var(--green);background:var(--green-bg);cursor:default;font-weight:600}
-.rc-btn:disabled{opacity:.4;cursor:not-allowed}
-.rc-btn:disabled:hover{background:var(--white)}
+.recap-content{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px}
+.rc-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.rc-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:900px}
+.rc-table thead th{background:var(--navy);color:var(--white);font-weight:700;font-size:10.5px;padding:8px 6px;text-align:center;position:sticky;top:0;z-index:2;white-space:nowrap}
+.rc-table thead th.rc-th-prest{background:var(--blue)}
+.rc-table tbody td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
+.rc-table tbody tr.global-row{background:var(--lblue)}
+.rc-table tbody tr:nth-child(even):not(.global-row){background:#F7F8FA}
+.rc-table tbody tr.price-open{background:#FFF8E1}
+.rc-table td.rc-name-cell{text-align:left;font-weight:500}
+.rc-table td.rc-num-cell{font-family:monospace;font-weight:700;color:var(--blue)}
+.rc-table td.rc-total-cell{font-weight:700;color:var(--navy);background:var(--lblue)}
+.rc-table td.rc-montant-cell{font-weight:700;color:var(--navy);background:#EEF3FC}
+.rc-table td.rc-zero{color:#C6CAD1}
+.rc-table td.rc-nonzero{color:var(--green);font-weight:700}
+.rc-icon-btn{border:1px solid var(--border);background:var(--white);border-radius:6px;width:26px;height:26px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.rc-icon-btn:hover{background:var(--grey)}
+.rc-icon-btn:disabled{opacity:.35;cursor:not-allowed}
+.rc-icon-btn.done{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.rc-price-row td{background:#FFF8E1;text-align:left;padding:10px 14px}
+.rc-price-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.rc-price-field{display:flex;flex-direction:column;gap:3px}
+.rc-price-field label{font-size:10px;color:var(--muted);font-weight:600}
+.rc-price-field input{width:80px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px}
 </style>
 </head>
 <body>
@@ -204,7 +219,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 <div class="header">
   <button class="btn-icon" onclick="toggleSidebar()" title="Panneau">☰</button>
   <h1>Arragon Planning</h1>
-  <button class="btn-icon" onclick="openRecapPage()" title="Récap chantier">📊</button>
+  <button class="btn-pill" onclick="openRecapPage()" title="Récap pointage par chantier">📊 Pointage</button>
   <button class="btn-icon" onclick="openExportModal()" title="Exporter">📥</button>
   <div id="user-bar"><button class="btn-signin-h" onclick="signIn()">Se connecter</button></div>
 </div>
@@ -412,7 +427,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 <!-- Page Récap Chantier -->
 <div class="recap-page" id="recap-page">
   <div class="recap-toolbar">
-    <button class="btn-icon" style="background:var(--lblue);color:var(--navy)" onclick="closeRecapPage()" title="Retour au planning">←</button>
+    <button class="rc-back" onclick="closeRecapPage()" title="Retour au planning">← Calendrier</button>
     <span class="recap-title">📊 Récap pointage par chantier</span>
     <span style="flex:1"></span>
     <label><input type="checkbox" id="rc-fmt-pdf" checked onchange="recapFormats.pdf=this.checked"> PDF</label>
@@ -420,13 +435,16 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <button class="rc-btn" onclick="pickRecapFolder()" id="rc-folder-btn">📁 Dossier d'enregistrement</button>
     <span class="recap-folder-badge" id="rc-folder-badge">Téléchargements (par défaut)</span>
   </div>
-  <div class="recap-month-strip" id="recap-month-strip"></div>
   <div class="recap-toolbar">
+    <label style="font-weight:700;color:var(--muted);text-transform:uppercase;font-size:10px">Mois</label>
+    <select class="rc-month-select" id="rc-month-select" onchange="onRecapMonthChange()"></select>
+    <select class="rc-month-select" id="rc-year-select" onchange="onRecapMonthChange()"></select>
+    <span style="flex:1"></span>
     <button class="rc-btn" onclick="toggleAllRecap(true)">☑ Tout cocher</button>
     <button class="rc-btn" onclick="toggleAllRecap(false)">☐ Tout décocher</button>
-    <span style="flex:1"></span>
     <span id="rc-status" style="font-size:11px;color:var(--muted)"></span>
-    <button class="btn-modal-save" style="flex:none;padding:9px 20px" onclick="runRecapGenerate()" id="rc-generate-btn">⚙️ Générer</button>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="runRecapGenerate()" id="rc-generate-btn">⚙️ Générer sélection</button>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px;background:var(--green)" onclick="runRecapGenerateAll()" id="rc-generate-all-btn">📦 Tout générer</button>
   </div>
   <div class="recap-content" id="recap-content"></div>
 </div>
@@ -1536,36 +1554,44 @@ let recapSelected=new Set();  // clés sélectionnées : "GLOBAL" + numéros de 
 let recapFormats={pdf:true, xlsx:true};
 let recapDirHandle=null;      // File System Access API (Chrome/Edge desktop)
 let recapGenerated={};        // {clé:true} une fois le(s) fichier(s) généré(s)
+let recapPriceEditKey=null;   // dossier dont l'éditeur de prix est ouvert
+
+// Format un nombre en "1 234" avec un VRAI espace (les polices standard des
+// PDF n'ont pas le glyphe de l'espace fine insécable que fr-FR utilise par
+// défaut, ce qui provoquait l'affichage d'un caractère "/" à la place).
+function fmtNum(n){
+  return Math.round(n||0).toLocaleString("fr-FR").replace(/[\u202F\u00A0]/g," ");
+}
+function fmtEUR(n){return fmtNum(n)+" €";}
 
 function openRecapPage(){
   if(!accessToken){signIn();return;}
-  recapSelected=new Set();recapGenerated={};
+  recapSelected=new Set();recapGenerated={};recapPriceEditKey=null;
   document.getElementById("rc-fmt-pdf").checked=recapFormats.pdf=true;
   document.getElementById("rc-fmt-xlsx").checked=recapFormats.xlsx=true;
-  buildRecapMonthStrip();
+  buildRecapMonthSelectors();
   loadRecapData();
   document.getElementById("recap-page").classList.add("open");
 }
 function closeRecapPage(){document.getElementById("recap-page").classList.remove("open");}
 
-function buildRecapMonthStrip(){
-  const el=document.getElementById("recap-month-strip");
-  const now=new Date();const chips=[];
-  for(let i=-18;i<=3;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
-    chips.push({y:d.getFullYear(),m:d.getMonth()});
-  }
-  el.innerHTML=chips.map(c=>{
-    const active=c.y===recapYear&&c.m===recapMonth;
-    return `<div class="recap-month-chip${active?" active":""}" onclick="selectRecapMonth(${c.y},${c.m})">${MONTHS_FR[c.m].slice(0,3)} ${c.y}</div>`;
-  }).join("");
-  const activeEl=el.querySelector(".active");
-  if(activeEl)activeEl.scrollIntoView({inline:"center",block:"nearest"});
+function buildRecapMonthSelectors(){
+  const ms=document.getElementById("rc-month-select");
+  ms.innerHTML=MONTHS_FR.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
+  ms.value=recapMonth;
+  const ys=document.getElementById("rc-year-select");
+  const nowY=new Date().getFullYear();
+  const years=[];for(let y=nowY-2;y<=nowY+1;y++)years.push(y);
+  if(!years.includes(recapYear))years.push(recapYear);
+  years.sort((a,b)=>a-b);
+  ys.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join("");
+  ys.value=recapYear;
 }
-
-function selectRecapMonth(y,m){
-  recapYear=y;recapMonth=m;recapSelected=new Set();recapGenerated={};
-  buildRecapMonthStrip();loadRecapData();
+function onRecapMonthChange(){
+  recapMonth=parseInt(document.getElementById("rc-month-select").value);
+  recapYear=parseInt(document.getElementById("rc-year-select").value);
+  recapSelected=new Set();recapGenerated={};recapPriceEditKey=null;
+  loadRecapData();
 }
 
 async function loadRecapData(){
@@ -1582,6 +1608,7 @@ async function loadRecapData(){
   }
 }
 
+// ── Tableau récap façon "Suivi Mensuel" (mêmes colonnes que le modèle Excel) ─
 function renderRecapList(){
   const el=document.getElementById("recap-content");
   const dosKeys=Object.keys(recapByDossier).sort();
@@ -1589,28 +1616,79 @@ function renderRecapList(){
     el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Aucun chantier actif sur ${MONTHS_FR[recapMonth]} ${recapYear}</div>`;
     return;
   }
-  const totJGlobal=dosKeys.reduce((a,d)=>a+recapByDossier[d].reduce((s,e)=>s+e.qty,0),0);
-  let html=`<div class="recap-row global">
-    <input type="checkbox" class="rc-check" ${recapSelected.has("GLOBAL")?"checked":""} onchange="toggleRecapSel('GLOBAL',this.checked)">
-    <div class="rc-info"><div class="rc-name">🌐 Global — tous les chantiers du mois</div><div class="rc-days">${dosKeys.length} chantier(s) · ${totJGlobal} j au total</div></div>
-    <div class="rc-actions">${recapGenerated["GLOBAL"]?'<span class="rc-btn done">✓ généré</span>':""}</div>
-  </div>`;
+  const computeTot=(d)=>{
+    const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
+    (recapByDossier[d]||[]).forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
+    return tot;
+  };
+  const montantOf=(d,tot)=>{
+    const di=dosById(d);
+    const prix=PREST_KEYS.map((k,i)=>di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i]);
+    return PREST_KEYS.reduce((a,k,i)=>a+tot[k]*prix[i],0);
+  };
+  let totGlobalJ=0,totGlobalM=0;
+  const cellQty=v=>`<td class="${v?"rc-nonzero":"rc-zero"}">${v||0}</td>`;
+
+  let rowsHtml="";
   dosKeys.forEach(d=>{
-    const di=dosById(d);const evs=recapByDossier[d];
-    const totJ=evs.reduce((s,e)=>s+e.qty,0);
+    const di=dosById(d);
+    const tot=computeTot(d);
+    const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
+    const montant=montantOf(d,tot);
+    totGlobalJ+=totalJ;totGlobalM+=montant;
     const hasEmail=!!(di?.email);
-    html+=`<div class="recap-row">
-      <input type="checkbox" class="rc-check" ${recapSelected.has(d)?"checked":""} onchange="toggleRecapSel('${d}',this.checked)">
-      <div class="rc-info">
-        <div><span class="rc-num">${d}</span> <span class="rc-name">${di?di.client+" – "+di.lieu:"(dossier inconnu du Sheet)"}</span></div>
-        <div class="rc-days">${totJ} j ce mois${hasEmail?" · ✉ "+di.email:" · pas d'email renseigné"}</div>
-      </div>
-      <div class="rc-actions">
-        ${recapGenerated[d]?'<span class="rc-btn done">✓ généré</span>':""}
-        <button class="rc-btn" ${hasEmail?"":"disabled"} onclick="prepareRecapEmail('${d}')" title="${hasEmail?"Préparer l'email":"Aucun email renseigné pour ce dossier"}">✉️ Email</button>
-      </div>
-    </div>`;
+    const checked=recapSelected.has(d)?"checked":"";
+    const priceOpen=recapPriceEditKey===d;
+    rowsHtml+=`<tr class="${priceOpen?"price-open":""}">
+      <td><input type="checkbox" class="rc-check" ${checked} onchange="toggleRecapSel('${d}',this.checked)"></td>
+      <td class="rc-num-cell">${d}</td>
+      <td class="rc-name-cell">${di?di.client+" – "+di.lieu:"(inconnu du Sheet)"}${di?.interlocuteur?`<br><span style="font-size:10px;color:var(--muted)">${di.interlocuteur}</span>`:""}</td>
+      ${cellQty(tot["1T"])}${cellQty(tot["HT"])}${cellQty(tot["B"])}${cellQty(tot["N"])}${cellQty(tot["S3D"])}
+      <td class="rc-total-cell">${totalJ}</td>
+      <td class="rc-montant-cell">${fmtEUR(montant)}</td>
+      <td>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <button class="rc-icon-btn" onclick="toggleRecapPriceEdit('${d}')" title="Modifier les prix (enregistré dans le Sheet)">✏️</button>
+          <button class="rc-icon-btn" ${hasEmail?"":"disabled"} onclick="prepareRecapEmail('${d}')" title="${hasEmail?"Préparer l'email":"Aucun email renseigné"}">✉️</button>
+          <button class="rc-icon-btn${recapGenerated[d]?" done":""}" ${recapGenerated[d]?"":"disabled"} title="${recapGenerated[d]?"Fichier(s) généré(s)":"Pas encore généré"}">✓</button>
+        </div>
+      </td>
+    </tr>`;
+    if(priceOpen){
+      const p1T=di?.prix1T||PRIX_DEFAULT[0],pHT=di?.prixHT||PRIX_DEFAULT[1],pB=di?.prixB||PRIX_DEFAULT[2],pN=di?.prixN||PRIX_DEFAULT[3],pS3D=di?.prixS3D||PRIX_DEFAULT[4];
+      rowsHtml+=`<tr class="rc-price-row"><td colspan="10">
+        <div class="rc-price-grid">
+          <div class="rc-price-field"><label>Prix Terrain 1J</label><input type="number" id="rcp-1T" value="${p1T}"></div>
+          <div class="rc-price-field"><label>Prix Terrain ½J</label><input type="number" id="rcp-HT" value="${pHT}"></div>
+          <div class="rc-price-field"><label>Prix Bureau</label><input type="number" id="rcp-B" value="${pB}"></div>
+          <div class="rc-price-field"><label>Prix Nuit</label><input type="number" id="rcp-N" value="${pN}"></div>
+          <div class="rc-price-field"><label>Prix Scan 3D</label><input type="number" id="rcp-S3D" value="${pS3D}"></div>
+          <button class="btn-modal-save" style="flex:none;padding:8px 14px" onclick="saveRecapPrice('${d}')">Enregistrer dans le Sheet</button>
+          <button class="rc-btn" onclick="toggleRecapPriceEdit('${d}')">Annuler</button>
+        </div>
+      </td></tr>`;
+    }
   });
+
+  const globalChecked=recapSelected.has("GLOBAL")?"checked":"";
+  const html=`<div class="rc-table-wrap"><table class="rc-table">
+    <thead><tr>
+      <th></th><th>N° Dossier</th><th>Client / Chantier</th>
+      <th class="rc-th-prest">Terr.<br>1J</th><th class="rc-th-prest">Terr.<br>½J</th><th class="rc-th-prest">Bureau</th><th class="rc-th-prest">Nuit</th><th class="rc-th-prest">Scan<br>3D</th>
+      <th>Total<br>Jours</th><th>Montant<br>(€)</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+      <tr class="global-row">
+        <td><input type="checkbox" class="rc-check" ${globalChecked} onchange="toggleRecapSel('GLOBAL',this.checked)"></td>
+        <td colspan="2" class="rc-name-cell">🌐 GLOBAL — ${dosKeys.length} chantier(s) du mois</td>
+        <td colspan="5"></td>
+        <td class="rc-total-cell">${totGlobalJ}</td>
+        <td class="rc-montant-cell">${fmtEUR(totGlobalM)}</td>
+        <td>${recapGenerated["GLOBAL"]?'<span class="rc-icon-btn done" style="width:auto;padding:0 8px">✓ généré</span>':""}</td>
+      </tr>
+      ${rowsHtml}
+    </tbody>
+  </table></div>`;
   el.innerHTML=html;
 }
 
@@ -1620,6 +1698,30 @@ function toggleRecapSel(key,checked){
 function toggleAllRecap(state){
   const dosKeys=Object.keys(recapByDossier);
   recapSelected=state?new Set(["GLOBAL",...dosKeys]):new Set();
+  renderRecapList();
+}
+
+// ── Édition des prix (enregistrement direct dans le Google Sheet Dossiers) ──
+function toggleRecapPriceEdit(dos){
+  recapPriceEditKey=recapPriceEditKey===dos?null:dos;
+  renderRecapList();
+}
+async function saveRecapPrice(dos){
+  const idx=sheetDossiers.findIndex(d=>d.num===dos);
+  if(idx<0)return;
+  const d={...sheetDossiers[idx]};
+  d.prix1T =parseFloat(document.getElementById("rcp-1T").value) ||0;
+  d.prixHT =parseFloat(document.getElementById("rcp-HT").value) ||0;
+  d.prixB  =parseFloat(document.getElementById("rcp-B").value)  ||0;
+  d.prixN  =parseFloat(document.getElementById("rcp-N").value)  ||0;
+  d.prixS3D=parseFloat(document.getElementById("rcp-S3D").value)||0;
+  sheetDossiers[idx]=d;
+  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||""];
+  try{
+    await sheetUpdate(SHEET_TABS.dos,d._sheetRow,[row]);
+    showToast("Prix enregistrés dans le Sheet ✓");
+  }catch(e){showToast("Erreur d'enregistrement des prix",true);}
+  recapPriceEditKey=null;
   renderRecapList();
 }
 
@@ -1658,7 +1760,7 @@ function buildGlobalPDF(year,month,byDossier){
   doc.text(`SUIVI POINTAGES CHANTIERS — ${mn.toUpperCase()} ${year}`,10,10.5);
   doc.setTextColor(0,0,0);
   const dosKeys=Object.keys(byDossier).sort();
-  let montantTotal=0;
+  let montantTotal=0,totalJGlobal=0;
   const rows=dosKeys.map((d,idx)=>{
     const di=dosById(d);const evs=byDossier[d];
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
@@ -1666,18 +1768,18 @@ function buildGlobalPDF(year,month,byDossier){
     const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
     const p1T=di?.prix1T||PRIX_DEFAULT[0],pHT=di?.prixHT||PRIX_DEFAULT[1],pB=di?.prixB||PRIX_DEFAULT[2],pN=di?.prixN||PRIX_DEFAULT[3],pS3D=di?.prixS3D||PRIX_DEFAULT[4];
     const montant=tot["1T"]*p1T+tot["HT"]*pHT+tot["B"]*pB+tot["N"]*pN+tot["S3D"]*pS3D;
-    montantTotal+=montant;
-    return [idx+1,d,`${di?.client||""} – ${di?.lieu||""}`,di?.interlocuteur||"",tot["1T"]||"",tot["HT"]||"",tot["B"]||"",tot["N"]||"",tot["S3D"]||"",totalJ,montant.toLocaleString("fr-FR")+" €"];
+    montantTotal+=montant;totalJGlobal+=totalJ;
+    return [idx+1,d,`${di?.client||""} – ${di?.lieu||""}`,di?.interlocuteur||"",tot["1T"]||"",tot["HT"]||"",tot["B"]||"",tot["N"]||"",tot["S3D"]||"",totalJ,fmtEUR(montant)];
   });
   doc.autoTable({
     startY:20,
     head:[["N°","Dossier","Client / Chantier","Interlocuteur","1J","½J","Bureau","Nuit","Scan3D","Total J","Montant"]],
     body:rows,
-    foot:[["","","","","","","","","Total",dosKeys.reduce((a,d)=>a+byDossier[d].reduce((s,e)=>s+e.qty,0),0),montantTotal.toLocaleString("fr-FR")+" €"]],
-    styles:{fontSize:8,cellPadding:2.2},
+    foot:[["","","","","","","","","Total",totalJGlobal,fmtEUR(montantTotal)]],
+    styles:{fontSize:8,cellPadding:2.2,font:"helvetica"},
     headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold"},
     footStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontStyle:"bold"},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:22}},
+    columnStyles:{0:{cellWidth:8},1:{cellWidth:22},10:{halign:"right"}},
   });
   const finalY=doc.lastAutoTable.finalY||20;
   doc.setFontSize(8);doc.setTextColor(140);
@@ -1698,7 +1800,7 @@ function buildDossierPDF(dos,year,month,byDossier){
   let y=26;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Cabinet Arragon — Géomètre-Topographe",14,y);y+=6;
   doc.autoTable({
-    startY:y,theme:"grid",styles:{fontSize:9,cellPadding:2.5},
+    startY:y,theme:"grid",styles:{fontSize:9,cellPadding:2.5,font:"helvetica"},
     body:[
       ["Client",di?.client||""],
       ["N° Dossier",dos],
@@ -1709,32 +1811,35 @@ function buildDossierPDF(dos,year,month,byDossier){
     columnStyles:{0:{fontStyle:"bold",cellWidth:40,fillColor:[244,245,247]}},
   });
   y=doc.lastAutoTable.finalY+6;
+
+  // Quantité / Prix jour / Montant dans UNE SEULE table pour garantir
+  // l'alignement des colonnes avec les prestations (Terrain 1J, ½J, etc.)
   const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
   evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-  doc.autoTable({
-    startY:y,
-    head:[["","Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","Total"]],
-    body:[["Quantité (j)",tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],PREST_KEYS.reduce((a,k)=>a+tot[k],0)]],
-    headStyles:{fillColor:[31,56,100],textColor:255,fontSize:8},
-    styles:{fontSize:9,halign:"center",cellPadding:2.5},
-    columnStyles:{0:{halign:"left",fontStyle:"bold"}},
-  });
-  y=doc.lastAutoTable.finalY+2;
   const prix=PREST_KEYS.map((k,i)=>di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i]);
   const montants=PREST_KEYS.map((k,i)=>tot[k]*prix[i]);
+  const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
   const totalGeneral=montants.reduce((a,b)=>a+b,0);
   doc.autoTable({
     startY:y,
-    head:[["Prix jour (€)",...prix.map(p=>p.toLocaleString("fr-FR"))]],
-    body:[["Montant (€)",...montants.map(m=>m.toLocaleString("fr-FR"))]],
-    headStyles:{fillColor:[46,117,182],textColor:255,fontSize:8},
-    styles:{fontSize:9,halign:"center",cellPadding:2.5},
+    head:[["","Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","TOTAL"]],
+    body:[
+      ["Quantité (j)",tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],totalJ],
+      ["Prix jour (€)",...prix.map(p=>fmtNum(p))],
+      ["Montant (€)",...montants.map(m=>fmtNum(m))],
+    ],
+    headStyles:{fillColor:[31,56,100],textColor:255,fontSize:8},
+    styles:{fontSize:9,halign:"center",cellPadding:2.5,font:"helvetica"},
     columnStyles:{0:{halign:"left",fontStyle:"bold"}},
+    didParseCell:(data)=>{
+      if(data.section==="body"&&data.row.index===2){data.cell.styles.fontStyle="bold";data.cell.styles.textColor=[31,56,100];}
+      if(data.section==="body"&&data.column.index===6){data.cell.styles.fillColor=[214,228,247];data.cell.styles.fontStyle="bold";}
+    },
   });
-  y=doc.lastAutoTable.finalY+5;
+  y=doc.lastAutoTable.finalY+6;
   doc.setFillColor(31,56,100);doc.rect(140,y,56,10,"F");
   doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(11);
-  doc.text(`TOTAL : ${totalGeneral.toLocaleString("fr-FR")} €`,168,y+6.5,{align:"center"});
+  doc.text(`TOTAL : ${fmtEUR(totalGeneral)}`,168,y+6.5,{align:"center"});
   doc.setTextColor(0,0,0);
   y+=17;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Détail des interventions",14,y);y+=4;
@@ -1745,7 +1850,7 @@ function buildDossierPDF(dos,year,month,byDossier){
       formatDateShort(ev.date), ev.dateEnd&&ev.dateEnd!==ev.date?formatDateShort(ev.dateEnd):"",
       PREST_LABELS[PREST_KEYS.indexOf(ev.code)]||ev.code, ev.qty
     ]),
-    styles:{fontSize:8,cellPadding:2},
+    styles:{fontSize:8,cellPadding:2,font:"helvetica"},
     headStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontSize:8},
   });
   doc.setFontSize(7);doc.setTextColor(150);
@@ -1757,7 +1862,8 @@ function buildDossierPDF(dos,year,month,byDossier){
 async function runRecapGenerate(){
   if(recapSelected.size===0){showToast("Sélectionne au moins un chantier",true);return;}
   if(!recapFormats.pdf&&!recapFormats.xlsx){showToast("Choisis au moins un format (PDF et/ou Excel)",true);return;}
-  const btn=document.getElementById("rc-generate-btn");btn.disabled=true;btn.textContent="⏳ Génération…";
+  const btn=document.getElementById("rc-generate-btn");const btnAll=document.getElementById("rc-generate-all-btn");
+  btn.disabled=true;btnAll.disabled=true;btn.textContent="⏳ Génération…";
   const statusEl=document.getElementById("rc-status");
   const mn=MONTHS_FR[recapMonth];
   const keys=[...recapSelected];
@@ -1789,9 +1895,13 @@ async function runRecapGenerate(){
     }catch(e){console.warn("Erreur génération",key,e);showToast("Erreur pour "+key,true);}
     done++;
   }
-  btn.disabled=false;btn.textContent="⚙️ Générer";
+  btn.disabled=false;btnAll.disabled=false;btn.textContent="⚙️ Générer sélection";
   statusEl.textContent=`✅ ${done} chantier(s) traité(s)`;
   renderRecapList();
+}
+async function runRecapGenerateAll(){
+  toggleAllRecap(true);
+  await runRecapGenerate();
 }
 
 // ── Préparation d'email (mailto — jamais envoyé automatiquement) ────────────
