@@ -239,10 +239,21 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         <div class="s-form" id="dos-form">
           <div class="s-form-title" id="dos-form-title">Nouveau dossier</div>
           <div class="s-field"><label>N° dossier *</label><input id="f-dos-num" placeholder="41521/040" autocomplete="off"></div>
-          <div class="s-field"><label>Client</label><input id="f-dos-client" placeholder="NGE Fondations" autocomplete="off"></div>
+          <div class="s-field"><label>Client</label>
+            <div style="display:flex;gap:6px">
+              <select id="f-dos-client-select" onchange="onDosClientSelectChange()" style="flex:1"></select>
+              <button type="button" class="btn-add-s" onclick="addNewClient()" title="Nouveau client" style="flex:none;width:34px">＋</button>
+            </div>
+          </div>
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="Marseille Centre" autocomplete="off"></div>
-          <div class="s-field"><label>Interlocuteur</label><input id="f-dos-interlocuteur" placeholder="Jean Martin" autocomplete="off"></div>
+          <div class="s-field"><label>Interlocuteur</label>
+            <div style="display:flex;gap:6px">
+              <select id="f-dos-interloc-select" onchange="onDosInterlocSelectChange()" style="flex:1"></select>
+              <button type="button" class="btn-add-s" onclick="addNewInterlocuteur()" title="Nouvel interlocuteur" style="flex:none;width:34px">＋</button>
+            </div>
+          </div>
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
+          <div class="s-field"><label>Téléphone interlocuteur</label><input id="f-dos-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="off"></div>
           <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="12 Rue de la Paix, 83000" autocomplete="off"></div>
           <div class="s-grid2">
             <div class="s-field"><label>Prix 1J Terrain</label><input id="f-dos-p1t" type="number" placeholder="620"></div>
@@ -320,6 +331,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
       <button id="btn-weekend" onclick="toggleWeekend()" title="Afficher/masquer Sam/Dim"
         style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
+      <select id="cal-filter-collab" onchange="onCalFilterCollabChange()" title="Filtrer par collaborateur"
+        style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);flex-shrink:0">
+        <option value="">👥 Tous</option>
+      </select>
     </div>
     <div class="cal-dow" id="cal-dow"></div>
     <div class="cal-grid"><div class="cal-days" id="cal-days"></div></div>
@@ -475,13 +490,15 @@ const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau Étude","Nuit","Scan 3D"
 const PRIX_KEYS   = ["prix1T","prixHT","prixB","prixN","prixS3D"];
 const PRIX_DEFAULT= [620,480,520,1060,1200];
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel"};
+const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs"};
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[];
+let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
+let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
 let expType="global";
@@ -624,18 +641,41 @@ async function sheetUpdate(tab,sheetRow,values){
      body:JSON.stringify({values})});
 }
 
+let _refTabsChecked=false;
+async function ensureRefTabs(){
+  // Crée les onglets "Clients" et "Interlocuteurs" s'ils n'existent pas encore
+  if(_refTabsChecked)return;
+  try{
+    const meta=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`,
+      {headers:{Authorization:"Bearer "+accessToken}}).then(r=>r.json());
+    const existing=(meta.sheets||[]).map(s=>s.properties.title);
+    const requests=[];
+    if(!existing.includes(SHEET_TABS.clients))requests.push({addSheet:{properties:{title:SHEET_TABS.clients}}});
+    if(!existing.includes(SHEET_TABS.interlocuteurs))requests.push({addSheet:{properties:{title:SHEET_TABS.interlocuteurs}}});
+    if(requests.length){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+        {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+         body:JSON.stringify({requests})});
+      if(!existing.includes(SHEET_TABS.clients))await sheetAppend(SHEET_TABS.clients,[["Nom du client"]]);
+      if(!existing.includes(SHEET_TABS.interlocuteurs))await sheetAppend(SHEET_TABS.interlocuteurs,[["Nom","Client","Email","Téléphone"]]);
+    }
+    _refTabsChecked=true;
+  }catch(e){console.warn("Création onglets Clients/Interlocuteurs impossible",e);}
+}
+
 async function loadSheetData(){
   if(!accessToken)return;
+  await ensureRefTabs();
   try{
     // Dossiers
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:K1000");
+    const drows=await sheetGet(SHEET_TABS.dos,"A2:L1000");
     const seenNums=new Set();
     sheetDossiers=drows.map((r,i)=>({
       num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
       interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
       prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
       prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
-      email:r[10]?.trim()||"",
+      email:r[10]?.trim()||"",tel:r[11]?.trim()||"",
       _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
     })).filter(d=>{
       if(!d.num)return false;
@@ -663,6 +703,19 @@ async function loadSheetData(){
     }));
     renderSidebarMat();updateModalMat();
   }catch(e){console.warn("Sheet load error",e);}
+
+  // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
+  // empêcher le chargement des dossiers/collaborateurs/matériel ci-dessus)
+  try{
+    const clrows=await sheetGet(SHEET_TABS.clients,"A2:A1000");
+    sheetClients=[...new Set(clrows.filter(r=>r[0]?.trim()).map(r=>r[0].trim()))].sort((a,b)=>a.localeCompare(b,"fr"));
+  }catch(e){sheetClients=[];console.warn("Chargement Clients impossible",e);}
+  try{
+    const irows=await sheetGet(SHEET_TABS.interlocuteurs,"A2:D1000");
+    sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0].trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2,
+    }));
+  }catch(e){sheetInterlocuteurs=[];console.warn("Chargement Interlocuteurs impossible",e);}
 }
 
 
@@ -673,7 +726,7 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:K1000");
+    const drows=await sheetGet(SHEET_TABS.dos,"A2:L1000");
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
     const seen=new Set();
     const duplicates=[];
@@ -684,7 +737,7 @@ async function reloadSheetDossiers(){
         interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
         prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
         prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
-      email:r[10]?.trim()||"",
+      email:r[10]?.trim()||"",tel:r[11]?.trim()||"",
       }))
       .filter(d=>{
         if(seen.has(d.num)){duplicates.push(d.num);return false;}
@@ -771,10 +824,11 @@ function openDosForm(idx){
   document.getElementById("dos-form-title").textContent=idx!=null?"Modifier le dossier":"Nouveau dossier";
   const d=idx!=null?sheetDossiers[idx]:null;
   document.getElementById("f-dos-num").value=d?.num||"";
-  document.getElementById("f-dos-client").value=d?.client||"";
+  populateDosClientSelect(d?.client||"");
   document.getElementById("f-dos-lieu").value=d?.lieu||"";
-  document.getElementById("f-dos-interlocuteur").value=d?.interlocuteur||"";
+  populateDosInterlocSelect(d?.client||"",d?.interlocuteur||"");
   document.getElementById("f-dos-email").value=d?.email||"";
+  document.getElementById("f-dos-tel").value=d?.tel||"";
   document.getElementById("f-dos-adresse").value=d?.adresse||"";
   document.getElementById("f-dos-p1t").value=d?.prix1T||"";
   document.getElementById("f-dos-pht").value=d?.prixHT||"";
@@ -808,10 +862,11 @@ async function saveDos(){
       return;
     }
   }
-  const d={num,client:document.getElementById("f-dos-client").value.trim()||"—",
+  const d={num,client:document.getElementById("f-dos-client-select").value.trim()||"—",
     lieu:document.getElementById("f-dos-lieu").value.trim()||"—",
-    interlocuteur:document.getElementById("f-dos-interlocuteur").value.trim(),
+    interlocuteur:document.getElementById("f-dos-interloc-select").value.trim(),
     email:document.getElementById("f-dos-email").value.trim(),
+    tel:document.getElementById("f-dos-tel").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
     prix1T:parseFloat(document.getElementById("f-dos-p1t").value)||0,
     prixHT:parseFloat(document.getElementById("f-dos-pht").value)||0,
@@ -820,7 +875,7 @@ async function saveDos(){
     prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
   };
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
-  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||""];
+  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||"",d.tel||""];
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     d._sheetRow=existing._sheetRow;
@@ -832,6 +887,64 @@ async function saveDos(){
   }
   btn.textContent="Enregistrer";closeDosForm();renderSidebarDos();filterModalDos();
   showToast("Dossier enregistré ✓");
+}
+
+// ── Listes déroulantes Client / Interlocuteur (référentiels réutilisables) ──
+function populateDosClientSelect(selected){
+  const sel=document.getElementById("f-dos-client-select");if(!sel)return;
+  let opts=sheetClients.slice();
+  if(selected&&selected!=="—"&&!opts.includes(selected))opts.push(selected);
+  opts.sort((a,b)=>a.localeCompare(b,"fr"));
+  sel.innerHTML=`<option value="">— Choisir un client —</option>`+opts.map(c=>`<option value="${c}">${c}</option>`).join("");
+  sel.value=selected&&selected!=="—"?selected:"";
+}
+function populateDosInterlocSelect(client,selected){
+  const sel=document.getElementById("f-dos-interloc-select");if(!sel)return;
+  let list=sheetInterlocuteurs.filter(i=>i.client===client);
+  if(selected&&!list.some(i=>i.name===selected))list=[...list,{name:selected,client,email:"",tel:""}];
+  sel.innerHTML=`<option value="">— Choisir un interlocuteur —</option>`+list.map(i=>`<option value="${i.name}">${i.name}</option>`).join("");
+  sel.value=selected||"";
+}
+function onDosClientSelectChange(){
+  const client=document.getElementById("f-dos-client-select").value;
+  populateDosInterlocSelect(client,null);
+  document.getElementById("f-dos-email").value="";
+  document.getElementById("f-dos-tel").value="";
+}
+function onDosInterlocSelectChange(){
+  const client=document.getElementById("f-dos-client-select").value;
+  const name=document.getElementById("f-dos-interloc-select").value;
+  const rec=sheetInterlocuteurs.find(i=>i.client===client&&i.name===name);
+  if(rec){
+    document.getElementById("f-dos-email").value=rec.email||"";
+    document.getElementById("f-dos-tel").value=rec.tel||"";
+  }
+}
+async function addNewClient(){
+  const name=prompt("Nom du nouveau client :");
+  if(!name||!name.trim())return;
+  const n=name.trim();
+  if(!sheetClients.includes(n)){
+    sheetClients.push(n);sheetClients.sort((a,b)=>a.localeCompare(b,"fr"));
+    try{await sheetAppend(SHEET_TABS.clients,[[n]]);showToast("Client enregistré ✓");}
+    catch(e){showToast("Erreur d'enregistrement du client",true);}
+  }
+  populateDosClientSelect(n);
+  onDosClientSelectChange();
+}
+async function addNewInterlocuteur(){
+  const client=document.getElementById("f-dos-client-select").value;
+  if(!client){showToast("Choisis d'abord un client",true);return;}
+  const name=prompt("Nom de l'interlocuteur :");
+  if(!name||!name.trim())return;
+  const email=(prompt("Email (optionnel) :")||"").trim();
+  const tel=(prompt("Téléphone (optionnel) :")||"").trim();
+  const rec={name:name.trim(),client,email,tel};
+  sheetInterlocuteurs.push(rec);
+  try{await sheetAppend(SHEET_TABS.interlocuteurs,[[rec.name,rec.client,rec.email,rec.tel]]);showToast("Interlocuteur enregistré ✓");}
+  catch(e){showToast("Erreur d'enregistrement de l'interlocuteur",true);}
+  populateDosInterlocSelect(client,rec.name);
+  onDosInterlocSelectChange();
 }
 
 
@@ -853,6 +966,17 @@ function renderSidebarCollabs(){
       <button class="s-edit" onclick="openCollabForm(${i})">✏️</button>
     </div>`;
   }).join("");
+  renderCalFilterCollab();
+}
+function renderCalFilterCollab(){
+  const sel=document.getElementById("cal-filter-collab");if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML=`<option value="">👥 Tous</option>`+sheetCollabs.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+  if(cur&&sheetCollabs.some(c=>c.name===cur))sel.value=cur;else calFilterCollab=null;
+}
+function onCalFilterCollabChange(){
+  calFilterCollab=document.getElementById("cal-filter-collab").value||null;
+  buildCalendar();
 }
 function openCollabForm(idx){
   editingCollabIdx=idx;
@@ -991,7 +1115,8 @@ function renderDow(){
 
 function eventsIndexedByDate(){
   const byDate={};
-  calEvents.forEach(ev=>{
+  const src=calFilterCollab?calEvents.filter(ev=>eventCollab(ev)?.name===calFilterCollab):calEvents;
+  src.forEach(ev=>{
     let ds=ev.start?.date||ev.start?.dateTime?.slice(0,10);
     let de=ev.end?.date||ev.end?.dateTime?.slice(0,10);
     if(!ds)return;
@@ -1089,14 +1214,23 @@ function buildCalendar(){
   document.getElementById("cal-days").innerHTML=html;
 }
 
-function getEventColor(ev){
-  if(ev.colorId){const c=GCAL_COLORS.find(x=>x.id===ev.colorId);if(c)return c.hex;}
+function eventCollab(ev){
+  if(ev.colorId){
+    const c=sheetCollabs.find(x=>x.colorId===ev.colorId);
+    if(c)return c;
+  }
   const m=(ev.summary||"").split("_");
   if(m.length>=3){
     const tag=m[m.length-1];
     const c=sheetCollabs.find(x=>x.pseudo?.toLowerCase()===tag.toLowerCase()||collabInit(x.name).toLowerCase()===tag.toLowerCase());
-    if(c)return collabColor(c);
+    if(c)return c;
   }
+  return null;
+}
+function getEventColor(ev){
+  if(ev.colorId){const c=GCAL_COLORS.find(x=>x.id===ev.colorId);if(c)return c.hex;}
+  const c=eventCollab(ev);
+  if(c)return collabColor(c);
   return "#2E75B6";
 }
 function getEventLabel(ev){
