@@ -262,6 +262,9 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <div class="s-field"><label>Prix Nuit</label><input id="f-dos-pn" type="number" placeholder="1060"></div>
             <div class="s-field"><label>Prix Scan 3D</label><input id="f-dos-ps3d" type="number" placeholder="1200"></div>
           </div>
+          <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:4px">
+            <input type="checkbox" id="f-dos-archive" style="width:15px;height:15px"> Dossier archivé (masqué de la liste et des nouveaux pointages)
+          </label>
           <div class="s-form-btns">
             <button class="s-btn-cancel" onclick="closeDosForm()">Annuler</button>
             <button class="s-btn-save" id="dos-save-btn" onclick="saveDos()">Enregistrer</button>
@@ -272,6 +275,9 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="btn-add-s" id="btn-reload-dos" onclick="reloadSheetDossiers()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
           <button class="btn-add-s" onclick="openDosForm(null)" title="Nouveau dossier">＋</button>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;margin-bottom:7px">
+          <input type="checkbox" id="s-show-archived-dos" onchange="renderSidebarDos()" style="width:13px;height:13px"> Afficher les dossiers archivés
+        </label>
         <div id="s-dos-warn" style="display:none;border-radius:7px;padding:7px 10px;font-size:11px;margin-bottom:7px"></div>
         <div id="s-dos-list"></div>
       </div>
@@ -380,6 +386,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
           <button class="hd-btn" id="hd-aprem" onclick="setHalfDay('aprem',this)">🌇 Après-midi<br><span style="font-size:10px;font-weight:400">14h – 17h</span></button>
         </div>
+      </div>
+      <div class="m-row">
+        <div class="m-field"><label>Heure début</label><input type="time" class="m-input" id="m-time-start"></div>
+        <div class="m-field"><label>Heure fin</label><input type="time" class="m-input" id="m-time-end"></div>
       </div>
       <div class="m-field">
         <label>Matériel (optionnel)</label>
@@ -537,6 +547,7 @@ async function waitForGoogle(){
 async function loadAll(){
   await loadSheetData();
   await loadCalendar();
+  startCalendarAutoRefresh();
 }
 
 window.addEventListener("load", async ()=>{
@@ -641,6 +652,96 @@ async function sheetUpdate(tab,sheetRow,values){
      body:JSON.stringify({values})});
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// LECTURE / ÉCRITURE PAR EN-TÊTE (colonne trouvée par son nom, pas sa position)
+// → l'ordre des colonnes dans le Sheet peut être changé librement.
+// ═════════════════════════════════════════════════════════════════════════
+function normHeader(s){
+  return (s||"").toString().trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // enlève les accents
+    .replace(/\s+/g," ");
+}
+function sheetColLetter(n){ // n = nombre de colonnes (1-indexé) → "A", "B", ... "AA"...
+  let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s||"A";
+}
+function parseBool(v){
+  const n=normHeader(v);
+  return n==="oui"||n==="true"||n==="vrai"||n==="x"||n==="1";
+}
+// Charge une table en associant chaque clé logique (headerMap) à l'index de colonne
+// trouvé via le NOM de l'en-tête en ligne 1 — plus par position fixe.
+// fallbackMap = position historique utilisée UNIQUEMENT si l'en-tête n'est pas trouvé
+// par son nom (garantit zéro casse si les en-têtes du Sheet ne correspondent pas encore).
+async function sheetGetTable(tab,headerMap,fallbackMap){
+  const headerRow=(await sheetGet(tab,"A1:ZZ1"))[0]||[];
+  const norm2idx={};
+  headerRow.forEach((h,i)=>{const n=normHeader(h);if(n&&norm2idx[n]===undefined)norm2idx[n]=i;});
+  const colIndex={};
+  Object.entries(headerMap).forEach(([key,label])=>{
+    let i=norm2idx[normHeader(label)];
+    if(i===undefined&&fallbackMap&&fallbackMap[key]!==undefined)i=fallbackMap[key];
+    if(i!==undefined)colIndex[key]=i;
+  });
+  const headerCount=Math.max(headerRow.length,Object.values(colIndex).reduce((m,i)=>Math.max(m,i+1),0));
+  const lastCol=sheetColLetter(Math.max(headerCount,1));
+  const rows=headerCount>0?await sheetGet(tab,`A2:${lastCol}1000`):[];
+  return {colIndex,headerCount,rows};
+}
+function cellOf(row,colIndex,key){
+  const i=colIndex[key];
+  return i===undefined?"":(row[i]??"");
+}
+// Construit une ligne complète à partir des valeurs {clé:valeur}, en respectant
+// les positions de colonnes trouvées (colIndex) et la largeur totale du tableau.
+function buildRowFromMap(colIndex,headerCount,values){
+  const row=new Array(headerCount).fill("");
+  Object.entries(values).forEach(([key,val])=>{
+    const i=colIndex[key];
+    if(i!==undefined)row[i]=val??"";
+  });
+  return row;
+}
+// Met à jour une ligne existante en ne touchant QUE les colonnes connues,
+// pour ne jamais écraser une colonne perso ajoutée par l'utilisateur.
+async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values){
+  let current=[];
+  try{
+    const lastCol=sheetColLetter(Math.max(headerCount,1));
+    current=(await sheetGet(tab,`A${sheetRow}:${lastCol}${sheetRow}`))[0]||[];
+  }catch(e){current=[];}
+  const row=current.slice();
+  while(row.length<headerCount)row.push("");
+  Object.entries(values).forEach(([key,val])=>{
+    const i=colIndex[key];
+    if(i!==undefined)row[i]=val??"";
+  });
+  await sheetUpdate(tab,sheetRow,[row]);
+}
+
+// Correspondance clé logique → intitulé attendu en ligne 1 de chaque onglet
+// (la casse / les accents n'ont pas d'importance, seul le texte compte)
+const DOS_HEADERS = {
+  num:"N° Dossier", client:"Client", lieu:"Lieu", interlocuteur:"Interlocuteur",
+  adresse:"Adresse", prix1T:"Prix Terrain 1J", prixHT:"Prix Terrain 1/2J", prixB:"Prix Bureau",
+  prixN:"Prix Nuit", prixS3D:"Prix Scan 3D", email:"Email", tel:"Telephone", archive:"Archive",
+};
+const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur"};
+const MAT_HEADERS = {name:"Nom", cat:"Categorie"};
+const CLIENT_HEADERS = {nom:"Nom du client"};
+const INTERLOC_HEADERS = {name:"Nom", client:"Client", email:"Email", tel:"Telephone"};
+
+// Positions historiques (avant le passage en lecture par en-tête) — utilisées
+// en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
+const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11};
+const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2};
+const MAT_FALLBACK = {name:0,cat:1};
+const CLIENT_FALLBACK = {nom:0};
+const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
+
+// colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
+// (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
+let dosCI={},dosHC=0, collabCI={},collabHC=0, matCI={},matHC=0, clientCI={},clientHC=0, interlocCI={},interlocHC=0;
+
 let _refTabsChecked=false;
 async function ensureRefTabs(){
   // Crée les onglets "Clients" et "Interlocuteurs" s'ils n'existent pas encore
@@ -668,14 +769,23 @@ async function loadSheetData(){
   await ensureRefTabs();
   try{
     // Dossiers
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:L1000");
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    dosCI=colIndex;dosHC=headerCount;
     const seenNums=new Set();
     sheetDossiers=drows.map((r,i)=>({
-      num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
-      interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
-      prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
-      prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
-      email:r[10]?.trim()||"",tel:r[11]?.trim()||"",
+      num:cellOf(r,dosCI,"num")?.trim(),
+      client:cellOf(r,dosCI,"client")?.trim()||"—",
+      lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
+      interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
+      adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
+      prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
+      prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
+      prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
+      prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
+      prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
+      email:cellOf(r,dosCI,"email")?.trim()||"",
+      tel:cellOf(r,dosCI,"tel")?.trim()||"",
+      archive:parseBool(cellOf(r,dosCI,"archive")),
       _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
     })).filter(d=>{
       if(!d.num)return false;
@@ -688,17 +798,22 @@ async function loadSheetData(){
     renderSidebarDos();filterModalDos();
 
     // Collabs
-    const crows=await sheetGet(SHEET_TABS.collabs,"A2:C1000");
-    sheetCollabs=crows.filter(r=>r[0]?.trim()).map((r,i)=>({
-      name:r[0]?.trim(),pseudo:r[1]?.trim()||"",colorId:r[2]?.trim()||"7",
+    const ct=await sheetGetTable(SHEET_TABS.collabs,COLLAB_HEADERS,COLLAB_FALLBACK);
+    collabCI=ct.colIndex;collabHC=ct.headerCount;
+    sheetCollabs=ct.rows.filter(r=>cellOf(r,collabCI,"name")?.trim()).map((r,i)=>({
+      name:cellOf(r,collabCI,"name")?.trim(),
+      pseudo:cellOf(r,collabCI,"pseudo")?.trim()||"",
+      colorId:cellOf(r,collabCI,"colorId")?.trim()||"7",
       _sheetRow:i+2,
     }));
     renderSidebarCollabs();updateModalCollab();
 
     // Matériel
-    const mrows=await sheetGet(SHEET_TABS.mat,"A2:B1000");
-    sheetMat=mrows.filter(r=>r[0]?.trim()).map((r,i)=>({
-      name:r[0]?.trim(),cat:r[1]?.trim()||"Autre",
+    const mt=await sheetGetTable(SHEET_TABS.mat,MAT_HEADERS,MAT_FALLBACK);
+    matCI=mt.colIndex;matHC=mt.headerCount;
+    sheetMat=mt.rows.filter(r=>cellOf(r,matCI,"name")?.trim()).map((r,i)=>({
+      name:cellOf(r,matCI,"name")?.trim(),
+      cat:cellOf(r,matCI,"cat")?.trim()||"Autre",
       _sheetRow:i+2,
     }));
     renderSidebarMat();updateModalMat();
@@ -707,13 +822,19 @@ async function loadSheetData(){
   // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
   // empêcher le chargement des dossiers/collaborateurs/matériel ci-dessus)
   try{
-    const clrows=await sheetGet(SHEET_TABS.clients,"A2:A1000");
-    sheetClients=[...new Set(clrows.filter(r=>r[0]?.trim()).map(r=>r[0].trim()))].sort((a,b)=>a.localeCompare(b,"fr"));
+    const clt=await sheetGetTable(SHEET_TABS.clients,CLIENT_HEADERS,CLIENT_FALLBACK);
+    clientCI=clt.colIndex;clientHC=clt.headerCount;
+    sheetClients=[...new Set(clt.rows.filter(r=>cellOf(r,clientCI,"nom")?.trim()).map(r=>cellOf(r,clientCI,"nom").trim()))].sort((a,b)=>a.localeCompare(b,"fr"));
   }catch(e){sheetClients=[];console.warn("Chargement Clients impossible",e);}
   try{
-    const irows=await sheetGet(SHEET_TABS.interlocuteurs,"A2:D1000");
-    sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
-      name:r[0].trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2,
+    const it=await sheetGetTable(SHEET_TABS.interlocuteurs,INTERLOC_HEADERS,INTERLOC_FALLBACK);
+    interlocCI=it.colIndex;interlocHC=it.headerCount;
+    sheetInterlocuteurs=it.rows.filter(r=>cellOf(r,interlocCI,"name")?.trim()).map((r,i)=>({
+      name:cellOf(r,interlocCI,"name").trim(),
+      client:cellOf(r,interlocCI,"client")?.trim()||"",
+      email:cellOf(r,interlocCI,"email")?.trim()||"",
+      tel:cellOf(r,interlocCI,"tel")?.trim()||"",
+      _sheetRow:i+2,
     }));
   }catch(e){sheetInterlocuteurs=[];console.warn("Chargement Interlocuteurs impossible",e);}
 }
@@ -726,18 +847,28 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    const drows=await sheetGet(SHEET_TABS.dos,"A2:L1000");
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    dosCI=colIndex;dosHC=headerCount;
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
     const seen=new Set();
     const duplicates=[];
     sheetDossiers=drows
-      .filter(r=>r[0]?.trim())
-      .map(r=>({
-        num:r[0]?.trim(),client:r[1]?.trim()||"—",lieu:r[2]?.trim()||"—",
-        interlocuteur:r[3]?.trim()||"",adresse:r[4]?.trim()||"",
-        prix1T:parseFloat(r[5])||0,prixHT:parseFloat(r[6])||0,
-        prixB:parseFloat(r[7])||0,prixN:parseFloat(r[8])||0,prixS3D:parseFloat(r[9])||0,
-      email:r[10]?.trim()||"",tel:r[11]?.trim()||"",
+      .filter(r=>cellOf(r,dosCI,"num")?.trim())
+      .map((r,i)=>({
+        num:cellOf(r,dosCI,"num")?.trim(),
+        client:cellOf(r,dosCI,"client")?.trim()||"—",
+        lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
+        interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
+        adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
+        prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
+        prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
+        prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
+        prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
+        prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
+        email:cellOf(r,dosCI,"email")?.trim()||"",
+        tel:cellOf(r,dosCI,"tel")?.trim()||"",
+        archive:parseBool(cellOf(r,dosCI,"archive")),
+        _sheetRow:i+2,
       }))
       .filter(d=>{
         if(seen.has(d.num)){duplicates.push(d.num);return false;}
@@ -803,7 +934,8 @@ function checkDuplicates(){
 function renderSidebarDos(){
   checkDuplicates();
   const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
-  const list=sheetDossiers.filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q));
+  const showArchived=document.getElementById("s-show-archived-dos")?.checked;
+  const list=sheetDossiers.filter(d=>(showArchived||!d.archive)&&(!q||(d.num+d.client+d.lieu).toLowerCase().includes(q)));
   const el=document.getElementById("s-dos-list");if(!el)return;
   if(!list.length&&sheetDossiers.length===0){
     el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">⏳ Chargement…</div>`;return;
@@ -811,8 +943,8 @@ function renderSidebarDos(){
   el.innerHTML=list.map(d=>{
     const i=sheetDossiers.indexOf(d);
     const interlocDiv=d.interlocuteur?'<div style="font-size:10px;color:var(--muted)">👤 '+d.interlocuteur+'</div>':"";
-    return `<div class="s-item"><div style="flex:1;min-width:0">
-      <div style="font-size:11px;font-weight:700;color:var(--blue);font-family:monospace">${d.num}</div>
+    return `<div class="s-item" style="${d.archive?"opacity:.55":""}"><div style="flex:1;min-width:0">
+      <div style="font-size:11px;font-weight:700;color:var(--blue);font-family:monospace">${d.archive?"🗄️ ":""}${d.num}</div>
       <div style="font-size:11px;color:var(--muted)">${d.client} – ${d.lieu}</div>
       ${interlocDiv}
     </div><button class="s-edit" onclick="openDosForm(${i})">✏️</button></div>`;
@@ -835,6 +967,7 @@ function openDosForm(idx){
   document.getElementById("f-dos-pb").value=d?.prixB||"";
   document.getElementById("f-dos-pn").value=d?.prixN||"";
   document.getElementById("f-dos-ps3d").value=d?.prixS3D||"";
+  document.getElementById("f-dos-archive").checked=d?.archive||false;
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
 function closeDosForm(){document.getElementById("dos-form").classList.remove("visible");editingDosIdx=null;}
@@ -873,17 +1006,20 @@ async function saveDos(){
     prixB:parseFloat(document.getElementById("f-dos-pb").value)||0,
     prixN:parseFloat(document.getElementById("f-dos-pn").value)||0,
     prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
+    archive:document.getElementById("f-dos-archive")?.checked||false,
   };
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
-  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||"",d.tel||""];
+  const values={num:d.num,client:d.client,lieu:d.lieu,interlocuteur:d.interlocuteur,adresse:d.adresse,
+    prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
+    email:d.email||"",tel:d.tel||"",archive:d.archive?"OUI":""};
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     d._sheetRow=existing._sheetRow;
     sheetDossiers[editingDosIdx]=d;
-    await sheetUpdate(SHEET_TABS.dos,existing._sheetRow,[row]);
+    await sheetUpdateMerged(SHEET_TABS.dos,existing._sheetRow,dosCI,dosHC,values);
   }else{
     sheetDossiers.push(d);
-    await sheetAppend(SHEET_TABS.dos,[row]);
+    await sheetAppend(SHEET_TABS.dos,[buildRowFromMap(dosCI,dosHC,values)]);
   }
   btn.textContent="Enregistrer";closeDosForm();renderSidebarDos();filterModalDos();
   showToast("Dossier enregistré ✓");
@@ -926,7 +1062,7 @@ async function addNewClient(){
   const n=name.trim();
   if(!sheetClients.includes(n)){
     sheetClients.push(n);sheetClients.sort((a,b)=>a.localeCompare(b,"fr"));
-    try{await sheetAppend(SHEET_TABS.clients,[[n]]);showToast("Client enregistré ✓");}
+    try{await sheetAppend(SHEET_TABS.clients,[buildRowFromMap(clientCI,clientHC,{nom:n})]);showToast("Client enregistré ✓");}
     catch(e){showToast("Erreur d'enregistrement du client",true);}
   }
   populateDosClientSelect(n);
@@ -941,8 +1077,10 @@ async function addNewInterlocuteur(){
   const tel=(prompt("Téléphone (optionnel) :")||"").trim();
   const rec={name:name.trim(),client,email,tel};
   sheetInterlocuteurs.push(rec);
-  try{await sheetAppend(SHEET_TABS.interlocuteurs,[[rec.name,rec.client,rec.email,rec.tel]]);showToast("Interlocuteur enregistré ✓");}
-  catch(e){showToast("Erreur d'enregistrement de l'interlocuteur",true);}
+  try{
+    await sheetAppend(SHEET_TABS.interlocuteurs,[buildRowFromMap(interlocCI,interlocHC,rec)]);
+    showToast("Interlocuteur enregistré ✓");
+  }catch(e){showToast("Erreur d'enregistrement de l'interlocuteur",true);}
   populateDosInterlocSelect(client,rec.name);
   onDosInterlocSelectChange();
 }
@@ -993,13 +1131,15 @@ async function saveCollab(){
   if(!name){document.getElementById("f-collab-name").focus();return;}
   const c={name,pseudo:document.getElementById("f-collab-pseudo").value.trim(),colorId:selectedCollabColorId};
   const btn=document.getElementById("collab-save-btn");btn.textContent="⏳";
-  const row=[c.name,c.pseudo,c.colorId];
   if(editingCollabIdx!=null){
     const existing=sheetCollabs[editingCollabIdx];
     c._sheetRow=existing._sheetRow;
     sheetCollabs[editingCollabIdx]=c;
-    await sheetUpdate(SHEET_TABS.collabs,existing._sheetRow||editingCollabIdx+2,[row]);
-  }else{sheetCollabs.push(c);await sheetAppend(SHEET_TABS.collabs,[row]);}
+    await sheetUpdateMerged(SHEET_TABS.collabs,existing._sheetRow||editingCollabIdx+2,collabCI,collabHC,c);
+  }else{
+    sheetCollabs.push(c);
+    await sheetAppend(SHEET_TABS.collabs,[buildRowFromMap(collabCI,collabHC,c)]);
+  }
   btn.textContent="Enregistrer";closeCollabForm();renderSidebarCollabs();updateModalCollab();
   showToast("Collaborateur enregistré ✓");
 }
@@ -1039,13 +1179,15 @@ async function saveMat(){
   if(!name){document.getElementById("f-mat-name").focus();return;}
   const m={name,cat:document.getElementById("f-mat-cat").value};
   const btn=document.getElementById("mat-save-btn");btn.textContent="⏳";
-  const row=[m.name,m.cat];
   if(editingMatIdx!=null){
     const existing=sheetMat[editingMatIdx];
     m._sheetRow=existing._sheetRow;
     sheetMat[editingMatIdx]=m;
-    await sheetUpdate(SHEET_TABS.mat,existing._sheetRow||editingMatIdx+2,[row]);
-  }else{sheetMat.push(m);await sheetAppend(SHEET_TABS.mat,[row]);}
+    await sheetUpdateMerged(SHEET_TABS.mat,existing._sheetRow||editingMatIdx+2,matCI,matHC,m);
+  }else{
+    sheetMat.push(m);
+    await sheetAppend(SHEET_TABS.mat,[buildRowFromMap(matCI,matHC,m)]);
+  }
   btn.textContent="Enregistrer";closeMatForm();renderSidebarMat();updateModalMat();
   showToast("Matériel enregistré ✓");
 }
@@ -1070,19 +1212,37 @@ function switchSTab(tab){
 }
 
 
-async function loadCalendar(){
+async function loadCalendar(silent){
   if(!accessToken)return;
   const first=new Date(curYear,curMonth,1).toISOString();
   const last=new Date(curYear,curMonth+1,0,23,59,59).toISOString();
-  setLoading(true);
+  if(!silent)setLoading(true);
   try{
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(first)}&timeMax=${encodeURIComponent(last)}&singleEvents=true&orderBy=startTime&maxResults=500`;
     const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
-    if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}setLoading(false);return;}
-    calEvents=(await resp.json()).items||[];
-    requestAnimationFrame(buildCalendar);
-  }catch(e){showToast("Erreur chargement",true);}
-  setLoading(false);
+    if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}if(!silent)setLoading(false);return;}
+    const newEvents=(await resp.json()).items||[];
+    // En arrière-plan (silent), on ne redessine que si quelque chose a réellement changé
+    const sig=ev=>ev.map(e=>e.id+"|"+(e.updated||"")).sort().join(",");
+    if(!silent||sig(newEvents)!==sig(calEvents)){
+      calEvents=newEvents;
+      requestAnimationFrame(buildCalendar);
+    }
+  }catch(e){if(!silent)showToast("Erreur chargement",true);}
+  if(!silent)setLoading(false);
+}
+
+// ── Rafraîchissement automatique (détecte les modifs faites depuis Google Agenda) ─
+let calendarPollInterval=null;
+function startCalendarAutoRefresh(){
+  if(calendarPollInterval)clearInterval(calendarPollInterval);
+  calendarPollInterval=setInterval(()=>{
+    if(document.visibilityState==="visible"&&accessToken)loadCalendar(true);
+  },90000); // vérifie toutes les 90 secondes si l'onglet est actif
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible"&&accessToken)loadCalendar(true);
+  });
+  window.addEventListener("focus",()=>{if(accessToken)loadCalendar(true);});
 }
 
 
@@ -1313,25 +1473,18 @@ function openEditModal(evId){
   if(parts.length>=2){
     const rawCode=parts[1]; // "HT", "1T", "B", "N", "S3D"
     const validCode=PREST_KEYS.includes(rawCode)?rawCode:"1T";
-    // Appeler setPrest pour gérer le toggle demi-journée
+    // Appeler setPrest pour les horaires par défaut + gérer l'affichage ½ journée
     const btn=document.querySelector(`[data-code="${validCode}"]`);
     setPrest(validCode,btn);
-    // Détecter matin/aprem : parts[2] peut être "M" ou "AM"
-    if(validCode==="HT"&&parts.length>=3){
-      const p2=parts[2];
-      if(p2==="AM"){
-        setHalfDay("aprem",document.getElementById("hd-aprem"));
-      } else if(p2==="M"){
-        setHalfDay("matin",document.getElementById("hd-matin"));
-      } else {
-        // Fallback sur l'heure de l'événement
-        if(ev.start?.dateTime){
-          const h=new Date(ev.start.dateTime).getHours();
-          if(h>=12) setHalfDay("aprem",document.getElementById("hd-aprem"));
-          else setHalfDay("matin",document.getElementById("hd-matin"));
-        }
-      }
+    // Horaires réels de l'événement (prioritaires sur les valeurs par défaut)
+    if(validCode==="HT"&&ev.start?.dateTime){
+      const h=new Date(ev.start.dateTime).getHours();
+      // Juste l'état visuel du bouton matin/aprem — applyTimes=false pour ne pas écraser les horaires réels
+      if(h>=12)setHalfDay("aprem",document.getElementById("hd-aprem"),false);
+      else setHalfDay("matin",document.getElementById("hd-matin"),false);
     }
+    if(ev.start?.dateTime)document.getElementById("m-time-start").value=ev.start.dateTime.slice(11,16);
+    if(ev.end?.dateTime)document.getElementById("m-time-end").value=ev.end.dateTime.slice(11,16);
   }
   // Collaborateur : le tag est toujours le dernier segment
   const tag=parts[parts.length-1];
@@ -1351,9 +1504,10 @@ function openEditModal(evId){
 
 function filterModalDos(){
   const q=(document.getElementById("m-dos-search")?.value||"").toLowerCase();
-  const list=sheetDossiers.filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q));
+  const list=sheetDossiers.filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q))
+    .slice().sort((a,b)=>(a.archive===b.archive)?0:(a.archive?1:-1)); // actifs d'abord, archivés en bas
   const sel=document.getElementById("m-dossier");const cur=sel.value;
-  sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
+  sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
   if(cur)for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===cur){sel.selectedIndex=i;break;}}
   updateModalPreview();
 }
@@ -1373,16 +1527,24 @@ function setPrest(code,el){
   selectedPrest=code;
   document.querySelectorAll("#m-prest-toggle button").forEach(b=>b.classList.remove("active"));
   if(el)el.classList.add("active");
-  // Affiche/masque le toggle matin/aprem
+  // Affiche/masque les boutons de préréglage matin/aprem (½ journée uniquement)
   const hdToggle=document.getElementById("half-day-toggle");
   if(code==="HT"){hdToggle.classList.add("visible");}
   else{hdToggle.classList.remove("visible");}
+  // Pré-remplit les horaires par défaut du type de prestation — reste modifiable ensuite
+  const ph=PREST_HOURS[code]||{s:8,d:8};
+  document.getElementById("m-time-start").value=String(ph.s).padStart(2,"0")+":00";
+  document.getElementById("m-time-end").value=String(ph.s+ph.d).padStart(2,"0")+":00";
   checkMatConflict();
 }
-function setHalfDay(period,el){
+function setHalfDay(period,el,applyTimes){
   selectedHalfDay=period;
   document.querySelectorAll(".hd-btn").forEach(b=>b.classList.remove("active"));
   if(el)el.classList.add("active");
+  // applyTimes=false : utilisé uniquement pour l'état visuel (pré-remplissage à l'édition), sans écraser les horaires réels
+  if(applyTimes===false)return;
+  if(period==="matin"){document.getElementById("m-time-start").value="08:00";document.getElementById("m-time-end").value="12:00";}
+  else{document.getElementById("m-time-start").value="14:00";document.getElementById("m-time-end").value="17:00";}
 }
 function checkMatConflict(){
   const mi=parseInt(document.getElementById("m-materiel")?.value);
@@ -1400,8 +1562,7 @@ function buildTitle(){
   const tag=collabTag(collab);
   const dosInfo=dosById(dos);
   const lieu=(dosInfo?.lieu||"").replace(/\s+/g,"_");
-  const hdSuffix=selectedPrest==="HT"?(selectedHalfDay==="matin"?"_M":"_AM"):"";
-  return `${dos}_${selectedPrest}${hdSuffix}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
+  return `${dos}_${selectedPrest}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
 }
 function closeModal(){document.getElementById("modal-bg").classList.remove("open");}
 
@@ -1413,15 +1574,11 @@ async function saveEvent(){
   if(!dos||!ds){showToast("Remplis les champs obligatoires",true);return;}
   const idx=parseInt(document.getElementById("m-collab")?.value);
   const collab=(!isNaN(idx)&&sheetCollabs[idx])?sheetCollabs[idx]:null;
-  const ph=PREST_HOURS[selectedPrest]||{s:8,d:8};
-  // Pour les demi-journées, utiliser les horaires matin/aprem
-  let startH=ph.s, endH=ph.s+ph.d;
-  if(selectedPrest==="HT"){
-    if(selectedHalfDay==="matin"){startH=8;endH=12;}
-    else{startH=14;endH=17;}
-  }
-  const startDt=`${ds}T${String(startH).padStart(2,"0")}:00:00`;
-  const endDt=`${de}T${String(endH).padStart(2,"0")}:00:00`;
+  const tStart=document.getElementById("m-time-start")?.value||"08:00";
+  const tEnd=document.getElementById("m-time-end")?.value||"17:00";
+  if(tEnd<=tStart&&ds===de){showToast("L'heure de fin doit être après l'heure de début",true);return;}
+  const startDt=`${ds}T${tStart}:00`;
+  const endDt=`${de}T${tEnd}:00`;
   const mi=parseInt(document.getElementById("m-materiel")?.value);
   const matName=(!isNaN(mi)&&sheetMat[mi])?sheetMat[mi].name:"";
   const dosInfo=dosById(dos);
@@ -1850,9 +2007,10 @@ async function saveRecapPrice(dos){
   d.prixN  =parseFloat(document.getElementById("rcp-N").value)  ||0;
   d.prixS3D=parseFloat(document.getElementById("rcp-S3D").value)||0;
   sheetDossiers[idx]=d;
-  const row=[d.num,d.client,d.lieu,d.interlocuteur,d.adresse,d.prix1T||"",d.prixHT||"",d.prixB||"",d.prixN||"",d.prixS3D||"",d.email||""];
   try{
-    await sheetUpdate(SHEET_TABS.dos,d._sheetRow,[row]);
+    await sheetUpdateMerged(SHEET_TABS.dos,d._sheetRow,dosCI,dosHC,{
+      prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
+    });
     showToast("Prix enregistrés dans le Sheet ✓");
   }catch(e){showToast("Erreur d'enregistrement des prix",true);}
   recapPriceEditKey=null;
