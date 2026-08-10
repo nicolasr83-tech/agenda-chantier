@@ -179,8 +179,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .rc-btn{border:1px solid var(--border);background:var(--white);border-radius:7px;padding:7px 11px;font-size:11px;cursor:pointer;color:var(--text);white-space:nowrap;font-weight:600}
 .rc-btn:hover{background:var(--grey)}
 .recap-content{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px}
-.rc-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.rc-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:900px}
+.rc-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow-x:auto}
+.rc-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:1200px}
 .rc-table thead th{background:var(--navy);color:var(--white);font-weight:700;font-size:10.5px;padding:8px 6px;text-align:center;position:sticky;top:0;z-index:2;white-space:nowrap}
 .rc-table thead th.rc-th-prest{background:var(--blue)}
 .rc-table tbody td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -192,6 +192,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .rc-table td.rc-total-cell{font-weight:700;color:var(--navy);background:var(--lblue)}
 .rc-table td.rc-montant-cell{font-weight:700;color:var(--navy);background:#EEF3FC}
 .rc-table td.rc-zero{color:#C6CAD1}
+.rc-table td.rc-inactive{color:#D8DADF;font-style:italic;background:repeating-linear-gradient(45deg,#FAFAFB,#FAFAFB 4px,#F3F3F5 4px,#F3F3F5 8px)}
 .rc-table td.rc-nonzero{color:var(--green);font-weight:700}
 .rc-icon-btn{border:1px solid var(--border);background:var(--white);border-radius:6px;width:26px;height:26px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .rc-icon-btn:hover{background:var(--grey)}
@@ -261,6 +262,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <div class="s-field"><label>Prix Bureau</label><input id="f-dos-pb" type="number" placeholder="520"></div>
             <div class="s-field"><label>Prix Nuit</label><input id="f-dos-pn" type="number" placeholder="1060"></div>
             <div class="s-field"><label>Prix Scan 3D</label><input id="f-dos-ps3d" type="number" placeholder="1200"></div>
+            <div class="s-field"><label>Prix Préparation</label><input id="f-dos-pprep" type="number" placeholder="300"></div>
+            <div class="s-field"><label>Prix Rapport</label><input id="f-dos-prap" type="number" placeholder="300"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin:-2px 0 8px;padding:6px 9px;background:var(--grey);border-radius:7px">
+            ℹ️ Le prix "½ Bureau" n'a pas de champ dédié : il est toujours calculé automatiquement comme la moitié du prix Bureau ci-dessus.
           </div>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:4px">
             <input type="checkbox" id="f-dos-archive" style="width:15px;height:15px"> Dossier archivé (masqué de la liste et des nouveaux pointages)
@@ -379,8 +385,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="active" data-code="1T" onclick="setPrest('1T',this)">1J Terrain</button>
           <button data-code="HT" onclick="setPrest('HT',this)">½J Terrain</button>
           <button data-code="B" onclick="setPrest('B',this)">Bureau</button>
+          <button data-code="B2" onclick="setPrest('B2',this)">½ Bureau</button>
           <button data-code="N" onclick="setPrest('N',this)">Nuit</button>
           <button data-code="S3D" onclick="setPrest('S3D',this)">Scan 3D</button>
+          <button data-code="PREP" onclick="setPrest('PREP',this)">Préparation</button>
+          <button data-code="RAP" onclick="setPrest('RAP',this)">Rapport</button>
         </div>
         <div class="half-day-toggle" id="half-day-toggle">
           <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
@@ -494,11 +503,37 @@ const GCAL_COLORS = [
   {id:"7",hex:"#039BE5"},{id:"8",hex:"#616161"},{id:"9",hex:"#3F51B5"},
   {id:"10",hex:"#0B8043"},{id:"11",hex:"#D50000"},
 ];
-const PREST_HOURS = {"1T":{s:8,d:8},"HT":{s:8,d:4},"B":{s:8,d:8},"N":{s:21,d:8},"S3D":{s:7,d:10}};
-const PREST_KEYS  = ["1T","HT","B","N","S3D"];
-const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau Étude","Nuit","Scan 3D"];
-const PRIX_KEYS   = ["prix1T","prixHT","prixB","prixN","prixS3D"];
-const PRIX_DEFAULT= [620,480,520,1060,1200];
+const PREST_HOURS = {"1T":{s:8,d:8},"HT":{s:8,d:4},"B":{s:8,d:8},"B2":{s:8,d:4},"N":{s:21,d:8},"S3D":{s:7,d:10},"PREP":{s:8,d:2},"RAP":{s:8,d:2}};
+const PREST_KEYS  = ["1T","HT","B","B2","N","S3D","PREP","RAP"];
+const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau","½ Bureau","Nuit","Scan 3D","Préparation","Rapport"];
+// PRIX_KEYS/PRIX_DEFAULT restent alignés sur PREST_KEYS par index. "B2" (½ Bureau)
+// n'a PAS de champ prix propre : son prix est toujours calculé comme Bureau ÷ 2
+// (voir prestPrice ci-dessous) — pas de colonne Sheet à créer, ni de saisie séparée.
+const PRIX_KEYS   = ["prix1T","prixHT","prixB",null,"prixN","prixS3D","prixPrep","prixRap"];
+const PRIX_DEFAULT= [620,480,520,260,1060,1200,300,300];
+// Retourne le prix jour applicable pour un dossier (di) et un code de prestation.
+function prestPrice(di,code){
+  if(code==="B2"){
+    const idxB=PREST_KEYS.indexOf("B");
+    const bPrice=(di&&di.prixB)||PRIX_DEFAULT[idxB];
+    return bPrice/2; // toujours la moitié du prix Bureau courant, jamais stocké séparément
+  }
+  const idx=PREST_KEYS.indexOf(code);
+  if(idx<0)return 0;
+  const field=PRIX_KEYS[idx];
+  return (field&&di&&di[field])||PRIX_DEFAULT[idx]||0;
+}
+// Un type de prestation est "actif" pour un dossier seulement si son prix est
+// réellement renseigné dans le Sheet (>0). Sert à masquer, dans les exports et
+// le récap, les prestations qui ne font pas partie du bordereau de prix du
+// client (chaque client peut avoir un bordereau différent).
+function prestActive(di,code){
+  if(!di)return true; // dossier inconnu → comportement par défaut (tout affiché)
+  if(code==="B2")return !!di.prixB;
+  const idx=PREST_KEYS.indexOf(code);
+  const field=PRIX_KEYS[idx];
+  return !!(field&&di[field]);
+}
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs"};
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
@@ -724,6 +759,7 @@ const DOS_HEADERS = {
   num:"N° Dossier", client:"Client", lieu:"Lieu", interlocuteur:"Interlocuteur",
   adresse:"Adresse", prix1T:"Prix Terrain 1J", prixHT:"Prix Terrain 1/2J", prixB:"Prix Bureau",
   prixN:"Prix Nuit", prixS3D:"Prix Scan 3D", email:"Email", tel:"Telephone", archive:"Archive",
+  prixPrep:"Prix Preparation", prixRap:"Prix Rapport",
 };
 const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur"};
 const MAT_HEADERS = {name:"Nom", cat:"Categorie"};
@@ -732,7 +768,7 @@ const INTERLOC_HEADERS = {name:"Nom", client:"Client", email:"Email", tel:"Telep
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
-const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11};
+const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11,archive:12,prixPrep:13,prixRap:14};
 const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
@@ -786,6 +822,8 @@ async function loadSheetData(){
       email:cellOf(r,dosCI,"email")?.trim()||"",
       tel:cellOf(r,dosCI,"tel")?.trim()||"",
       archive:parseBool(cellOf(r,dosCI,"archive")),
+      prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
+      prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
       _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
     })).filter(d=>{
       if(!d.num)return false;
@@ -868,6 +906,8 @@ async function reloadSheetDossiers(){
         email:cellOf(r,dosCI,"email")?.trim()||"",
         tel:cellOf(r,dosCI,"tel")?.trim()||"",
         archive:parseBool(cellOf(r,dosCI,"archive")),
+        prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
+        prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
         _sheetRow:i+2,
       }))
       .filter(d=>{
@@ -967,6 +1007,8 @@ function openDosForm(idx){
   document.getElementById("f-dos-pb").value=d?.prixB||"";
   document.getElementById("f-dos-pn").value=d?.prixN||"";
   document.getElementById("f-dos-ps3d").value=d?.prixS3D||"";
+  document.getElementById("f-dos-pprep").value=d?.prixPrep||"";
+  document.getElementById("f-dos-prap").value=d?.prixRap||"";
   document.getElementById("f-dos-archive").checked=d?.archive||false;
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
@@ -1006,12 +1048,15 @@ async function saveDos(){
     prixB:parseFloat(document.getElementById("f-dos-pb").value)||0,
     prixN:parseFloat(document.getElementById("f-dos-pn").value)||0,
     prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
+    prixPrep:parseFloat(document.getElementById("f-dos-pprep").value)||0,
+    prixRap:parseFloat(document.getElementById("f-dos-prap").value)||0,
     archive:document.getElementById("f-dos-archive")?.checked||false,
   };
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
   const values={num:d.num,client:d.client,lieu:d.lieu,interlocuteur:d.interlocuteur,adresse:d.adresse,
     prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
-    email:d.email||"",tel:d.tel||"",archive:d.archive?"OUI":""};
+    email:d.email||"",tel:d.tel||"",archive:d.archive?"OUI":"",
+    prixPrep:d.prixPrep||"",prixRap:d.prixRap||""};
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     d._sheetRow=existing._sheetRow;
@@ -1477,7 +1522,7 @@ function openEditModal(evId){
     const btn=document.querySelector(`[data-code="${validCode}"]`);
     setPrest(validCode,btn);
     // Horaires réels de l'événement (prioritaires sur les valeurs par défaut)
-    if(validCode==="HT"&&ev.start?.dateTime){
+    if((validCode==="HT"||validCode==="B2")&&ev.start?.dateTime){
       const h=new Date(ev.start.dateTime).getHours();
       // Juste l'état visuel du bouton matin/aprem — applyTimes=false pour ne pas écraser les horaires réels
       if(h>=12)setHalfDay("aprem",document.getElementById("hd-aprem"),false);
@@ -1529,7 +1574,7 @@ function setPrest(code,el){
   if(el)el.classList.add("active");
   // Affiche/masque les boutons de préréglage matin/aprem (½ journée uniquement)
   const hdToggle=document.getElementById("half-day-toggle");
-  if(code==="HT"){hdToggle.classList.add("visible");}
+  if(code==="HT"||code==="B2"){hdToggle.classList.add("visible");}
   else{hdToggle.classList.remove("visible");}
   // Pré-remplit les horaires par défaut du type de prestation — reste modifiable ensuite
   const ph=PREST_HOURS[code]||{s:8,d:8};
@@ -1738,13 +1783,15 @@ function buildGlobalWorkbook(year,month,byDossier){
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
     evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
     const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
-    // Prix depuis le Sheet (ou défaut)
-    const p1T  = di?.prix1T  || PRIX_DEFAULT[0];
-    const pHT  = di?.prixHT  || PRIX_DEFAULT[1];
-    const pB   = di?.prixB   || PRIX_DEFAULT[2];
-    const pN   = di?.prixN   || PRIX_DEFAULT[3];
-    const pS3D = di?.prixS3D || PRIX_DEFAULT[4];
-    const total = tot["1T"]*p1T + tot["HT"]*pHT + tot["B"]*pB + tot["N"]*pN + tot["S3D"]*pS3D;
+    // Prix depuis le Sheet (ou défaut) — via prestPrice() pour rester juste
+    // même si l'ordre interne des types de prestations évolue.
+    const p1T=prestPrice(di,"1T"), pHT=prestPrice(di,"HT"), pB=prestPrice(di,"B"),
+          pN=prestPrice(di,"N"), pS3D=prestPrice(di,"S3D");
+    // Le total, lui, inclut TOUTES les prestations (y compris ½ Bureau /
+    // Préparation / Rapport) même si cette feuille, pour rester compatible
+    // "coller ici" avec ton modèle Excel historique, ne détaille que les 5
+    // colonnes Terrain/Bureau/Nuit/Scan3D ci-dessous.
+    const total = PREST_KEYS.reduce((sum,k)=>sum+tot[k]*prestPrice(di,k),0);
 
     // Colonnes A→P (visibles)
     ws1[xlsCell(row,0)] = s(idx+1);
@@ -1795,22 +1842,27 @@ function buildDossierWorkbook(dos,year,month,byDossier){
     ["Client :",di?.client||""],["N° Dossier :",dos],["Société :","Cabinet Arragon"],
     ["Poste occupé :","Géomètre - Topographe"],["Interlocuteur :",di?.interlocuteur||""],["Adresse :",di?.adresse||""],[""]];
   let r=0;meta.forEach(row=>{row.forEach((v,c)=>xlsWrite(ws,r,c,v));r++;});
-  ["Ouvrage","","Terrain 1J","Terrain ½J","Bureau Étude","Nuit","Scan 3D"].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
   const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
   evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-  [`${dos} – ${di?.lieu||""}`,"",...PREST_KEYS.map(k=>tot[k])].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
-  ["TOTAL","",...PREST_KEYS.map(k=>tot[k])].forEach((v,c)=>xlsWrite(ws,r,c,v));r+=2;
+  // Ne garder que les prestations au bordereau de ce client (prix renseigné),
+  // ou déjà utilisées ce mois-ci même sans prix (par sécurité, un pointage réel n'est jamais masqué).
+  const keys=PREST_KEYS.filter(k=>prestActive(di,k)||tot[k]>0);
+  const labels=keys.map(k=>PREST_LABELS[PREST_KEYS.indexOf(k)]);
+  ["Ouvrage","",...labels].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
+  [`${dos} – ${di?.lieu||""}`,"",...keys.map(k=>tot[k])].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
+  ["TOTAL","",...keys.map(k=>tot[k])].forEach((v,c)=>xlsWrite(ws,r,c,v));r+=2;
+  const totalCol=2+keys.length;
   xlsWrite(ws,r,0,"Prix jour");
-  PREST_KEYS.forEach((k,i)=>xlsWrite(ws,r,i+2,di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i]));r++;
+  keys.forEach((k,i)=>xlsWrite(ws,r,i+2,prestPrice(di,k)));r++;
   let gt=0;xlsWrite(ws,r,0,"TOTAL");
-  PREST_KEYS.forEach((k,i)=>{const p=di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i];const m2=tot[k]*p;gt+=m2;xlsWrite(ws,r,i+2,m2);});
-  xlsWrite(ws,r,7,gt);r+=2;
+  keys.forEach((k,i)=>{const p=prestPrice(di,k);const m2=tot[k]*p;gt+=m2;xlsWrite(ws,r,i+2,m2);});
+  xlsWrite(ws,r,totalCol,gt);r+=2;
   xlsWrite(ws,r,0,"Détail des interventions :");r++;
   ["Date","Date fin","Prestation","Nb jours"].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
   evs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(ev=>{
     [ev.date,ev.dateEnd||ev.date,PREST_LABELS[PREST_KEYS.indexOf(ev.code)]||ev.code,ev.qty].forEach((v,c)=>xlsWrite(ws,r,c,v));r++;
   });
-  ws["!ref"]=`A1:H${r+2}`;
+  ws["!ref"]=`A1:${sheetColLetter(Math.max(totalCol+1,8))}${r+2}`;
   wb.SheetNames.push("Pointage");wb.Sheets["Pointage"]=ws;
   return wb;
 }
@@ -1914,16 +1966,23 @@ function renderRecapList(){
   };
   const montantOf=(d,tot)=>{
     const di=dosById(d);
-    const prix=PREST_KEYS.map((k,i)=>di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i]);
-    return PREST_KEYS.reduce((a,k,i)=>a+tot[k]*prix[i],0);
+    return PREST_KEYS.reduce((a,k)=>a+tot[k]*prestPrice(di,k),0);
   };
+  // Colonnes affichées = uniquement les prestations réellement au bordereau d'AU MOINS
+  // un des chantiers du mois (prix renseigné) — ou déjà utilisées (par sécurité, on
+  // n'occulte jamais un pointage réel même si son prix n'a pas été saisi).
+  const totByDos={};dosKeys.forEach(d=>totByDos[d]=computeTot(d));
+  const activeCols=PREST_KEYS.filter(k=>dosKeys.some(d=>prestActive(dosById(d),k)||totByDos[d][k]>0));
+  const cols=activeCols.length?activeCols:PREST_KEYS;
+
   let totGlobalJ=0,totGlobalM=0;
-  const cellQty=v=>`<td class="${v?"rc-nonzero":"rc-zero"}">${v||0}</td>`;
+  const cellQty=(v,active)=>active?`<td class="${v?"rc-nonzero":"rc-zero"}">${v||0}</td>`:`<td class="rc-inactive" title="Prestation non prévue au bordereau de ce client">${v||"—"}</td>`;
+  const nPrest=cols.length;
 
   let rowsHtml="";
   dosKeys.forEach(d=>{
     const di=dosById(d);
-    const tot=computeTot(d);
+    const tot=totByDos[d];
     const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
     const montant=montantOf(d,tot);
     totGlobalJ+=totalJ;totGlobalM+=montant;
@@ -1934,7 +1993,7 @@ function renderRecapList(){
       <td><input type="checkbox" class="rc-check" ${checked} onchange="toggleRecapSel('${d}',this.checked)"></td>
       <td class="rc-num-cell">${d}</td>
       <td class="rc-name-cell">${di?di.client+" – "+di.lieu:"(inconnu du Sheet)"}${di?.interlocuteur?`<br><span style="font-size:10px;color:var(--muted)">${di.interlocuteur}</span>`:""}</td>
-      ${cellQty(tot["1T"])}${cellQty(tot["HT"])}${cellQty(tot["B"])}${cellQty(tot["N"])}${cellQty(tot["S3D"])}
+      ${cols.map(k=>cellQty(tot[k],prestActive(di,k)||tot[k]>0)).join("")}
       <td class="rc-total-cell">${totalJ}</td>
       <td class="rc-montant-cell">${fmtEUR(montant)}</td>
       <td>
@@ -1946,33 +2005,38 @@ function renderRecapList(){
       </td>
     </tr>`;
     if(priceOpen){
-      const p1T=di?.prix1T||PRIX_DEFAULT[0],pHT=di?.prixHT||PRIX_DEFAULT[1],pB=di?.prixB||PRIX_DEFAULT[2],pN=di?.prixN||PRIX_DEFAULT[3],pS3D=di?.prixS3D||PRIX_DEFAULT[4];
-      rowsHtml+=`<tr class="rc-price-row"><td colspan="10">
+      // ½ Bureau (B2) n'a pas de champ dédié : toujours = Bureau ÷ 2, non éditable ici
+      const priceFields=PREST_KEYS.filter(k=>k!=="B2").map(k=>{
+        const label=PREST_LABELS[PREST_KEYS.indexOf(k)];
+        return `<div class="rc-price-field"><label>Prix ${label}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
+      }).join("");
+      rowsHtml+=`<tr class="rc-price-row"><td colspan="${5+nPrest}">
         <div class="rc-price-grid">
-          <div class="rc-price-field"><label>Prix Terrain 1J</label><input type="number" id="rcp-1T" value="${p1T}"></div>
-          <div class="rc-price-field"><label>Prix Terrain ½J</label><input type="number" id="rcp-HT" value="${pHT}"></div>
-          <div class="rc-price-field"><label>Prix Bureau</label><input type="number" id="rcp-B" value="${pB}"></div>
-          <div class="rc-price-field"><label>Prix Nuit</label><input type="number" id="rcp-N" value="${pN}"></div>
-          <div class="rc-price-field"><label>Prix Scan 3D</label><input type="number" id="rcp-S3D" value="${pS3D}"></div>
+          ${priceFields}
           <button class="btn-modal-save" style="flex:none;padding:8px 14px" onclick="saveRecapPrice('${d}')">Enregistrer dans le Sheet</button>
           <button class="rc-btn" onclick="toggleRecapPriceEdit('${d}')">Annuler</button>
         </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">ℹ️ ½ Bureau n'a pas de prix propre : toujours = Bureau ÷ 2. Un prix à 0 masque la prestation du récap pour ce dossier.</div>
       </td></tr>`;
     }
   });
 
   const globalChecked=recapSelected.has("GLOBAL")?"checked":"";
+  const prestHeaders=cols.map(k=>{
+    const label=PREST_LABELS[PREST_KEYS.indexOf(k)].replace(/ /g,"<br>");
+    return `<th class="rc-th-prest">${label}</th>`;
+  }).join("");
   const html=`<div class="rc-table-wrap"><table class="rc-table">
     <thead><tr>
       <th></th><th>N° Dossier</th><th>Client / Chantier</th>
-      <th class="rc-th-prest">Terr.<br>1J</th><th class="rc-th-prest">Terr.<br>½J</th><th class="rc-th-prest">Bureau</th><th class="rc-th-prest">Nuit</th><th class="rc-th-prest">Scan<br>3D</th>
+      ${prestHeaders}
       <th>Total<br>Jours</th><th>Montant<br>(€)</th><th>Actions</th>
     </tr></thead>
     <tbody>
       <tr class="global-row">
         <td><input type="checkbox" class="rc-check" ${globalChecked} onchange="toggleRecapSel('GLOBAL',this.checked)"></td>
         <td colspan="2" class="rc-name-cell">🌐 GLOBAL — ${dosKeys.length} chantier(s) du mois</td>
-        <td colspan="5"></td>
+        <td colspan="${nPrest}"></td>
         <td class="rc-total-cell">${totGlobalJ}</td>
         <td class="rc-montant-cell">${fmtEUR(totGlobalM)}</td>
         <td>${recapGenerated["GLOBAL"]?'<span class="rc-icon-btn done" style="width:auto;padding:0 8px">✓ généré</span>':""}</td>
@@ -2001,16 +2065,19 @@ async function saveRecapPrice(dos){
   const idx=sheetDossiers.findIndex(d=>d.num===dos);
   if(idx<0)return;
   const d={...sheetDossiers[idx]};
-  d.prix1T =parseFloat(document.getElementById("rcp-1T").value) ||0;
-  d.prixHT =parseFloat(document.getElementById("rcp-HT").value) ||0;
-  d.prixB  =parseFloat(document.getElementById("rcp-B").value)  ||0;
-  d.prixN  =parseFloat(document.getElementById("rcp-N").value)  ||0;
-  d.prixS3D=parseFloat(document.getElementById("rcp-S3D").value)||0;
+  const values={};
+  PREST_KEYS.forEach(k=>{
+    if(k==="B2")return; // pas de champ propre : toujours Bureau ÷ 2
+    const field=PRIX_KEYS[PREST_KEYS.indexOf(k)];
+    const input=document.getElementById(`rcp-${k}`);
+    if(!field||!input)return;
+    const val=parseFloat(input.value)||0;
+    d[field]=val;
+    values[field]=val||"";
+  });
   sheetDossiers[idx]=d;
   try{
-    await sheetUpdateMerged(SHEET_TABS.dos,d._sheetRow,dosCI,dosHC,{
-      prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
-    });
+    await sheetUpdateMerged(SHEET_TABS.dos,d._sheetRow,dosCI,dosHC,values);
     showToast("Prix enregistrés dans le Sheet ✓");
   }catch(e){showToast("Erreur d'enregistrement des prix",true);}
   recapPriceEditKey=null;
@@ -2052,26 +2119,36 @@ function buildGlobalPDF(year,month,byDossier){
   doc.text(`SUIVI POINTAGES CHANTIERS — ${mn.toUpperCase()} ${year}`,10,10.5);
   doc.setTextColor(0,0,0);
   const dosKeys=Object.keys(byDossier).sort();
-  let montantTotal=0,totalJGlobal=0;
-  const rows=dosKeys.map((d,idx)=>{
-    const di=dosById(d);const evs=byDossier[d];
+  const totByDos={};dosKeys.forEach(d=>{
     const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
-    evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-    const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
-    const p1T=di?.prix1T||PRIX_DEFAULT[0],pHT=di?.prixHT||PRIX_DEFAULT[1],pB=di?.prixB||PRIX_DEFAULT[2],pN=di?.prixN||PRIX_DEFAULT[3],pS3D=di?.prixS3D||PRIX_DEFAULT[4];
-    const montant=tot["1T"]*p1T+tot["HT"]*pHT+tot["B"]*pB+tot["N"]*pN+tot["S3D"]*pS3D;
-    montantTotal+=montant;totalJGlobal+=totalJ;
-    return [idx+1,d,`${di?.client||""} – ${di?.lieu||""}`,di?.interlocuteur||"",tot["1T"]||"",tot["HT"]||"",tot["B"]||"",tot["N"]||"",tot["S3D"]||"",totalJ,fmtEUR(montant)];
+    (byDossier[d]||[]).forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
+    totByDos[d]=tot;
   });
+  // Colonnes affichées = uniquement les prestations au bordereau d'au moins un
+  // chantier du mois (ou réellement utilisées, même sans prix, par sécurité).
+  const keys=PREST_KEYS.filter(k=>dosKeys.some(d=>prestActive(dosById(d),k)||totByDos[d][k]>0));
+  const cols=keys.length?keys:PREST_KEYS;
+  let montantTotal=0,totalJGlobal=0;
+  const prestTotals=cols.map(()=>0);
+  const rows=dosKeys.map((d,idx)=>{
+    const di=dosById(d);const tot=totByDos[d];
+    const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
+    const montant=PREST_KEYS.reduce((sum,k)=>sum+tot[k]*prestPrice(di,k),0);
+    montantTotal+=montant;totalJGlobal+=totalJ;
+    cols.forEach((k,i)=>prestTotals[i]+=tot[k]);
+    return [idx+1,d,`${di?.client||""} – ${di?.lieu||""}`,di?.interlocuteur||"",
+      ...cols.map(k=>tot[k]||""),totalJ,fmtEUR(montant)];
+  });
+  const prestHead=cols.map(k=>PREST_LABELS[PREST_KEYS.indexOf(k)].replace("Terrain","Terr.").replace("½","½ ").replace("Bureau","Bur."));
   doc.autoTable({
     startY:20,
-    head:[["N°","Dossier","Client / Chantier","Interlocuteur","1J","½J","Bureau","Nuit","Scan3D","Total J","Montant"]],
+    head:[["N°","Dossier","Client / Chantier","Interlocuteur",...prestHead,"Total J","Montant"]],
     body:rows,
-    foot:[["","","","","","","","","Total",totalJGlobal,fmtEUR(montantTotal)]],
-    styles:{fontSize:8,cellPadding:2.2,font:"helvetica"},
-    headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold"},
+    foot:[["","","","",...prestTotals.map(t=>t||""),totalJGlobal,fmtEUR(montantTotal)]],
+    styles:{fontSize:7.5,cellPadding:2,font:"helvetica"},
+    headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold",fontSize:7},
     footStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontStyle:"bold"},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:22},10:{halign:"right"}},
+    columnStyles:{0:{cellWidth:7},1:{cellWidth:20}},
   });
   const finalY=doc.lastAutoTable.finalY||20;
   doc.setFontSize(8);doc.setTextColor(140);
@@ -2108,24 +2185,29 @@ function buildDossierPDF(dos,year,month,byDossier){
   // l'alignement des colonnes avec les prestations (Terrain 1J, ½J, etc.)
   const tot={};PREST_KEYS.forEach(k=>tot[k]=0);
   evs.forEach(ev=>{if(tot[ev.code]!==undefined)tot[ev.code]+=ev.qty;});
-  const prix=PREST_KEYS.map((k,i)=>di?di[PRIX_KEYS[i]]||PRIX_DEFAULT[i]:PRIX_DEFAULT[i]);
-  const montants=PREST_KEYS.map((k,i)=>tot[k]*prix[i]);
-  const totalJ=PREST_KEYS.reduce((a,k)=>a+tot[k],0);
+  // Ne garder que les prestations au bordereau de ce client (prix renseigné),
+  // ou déjà utilisées ce mois-ci même sans prix (sécurité : jamais de pointage masqué).
+  const keys=PREST_KEYS.filter(k=>prestActive(di,k)||tot[k]>0);
+  const labels=keys.map(k=>PREST_LABELS[PREST_KEYS.indexOf(k)]);
+  const prix=keys.map(k=>prestPrice(di,k));
+  const montants=keys.map((k,i)=>tot[k]*prix[i]);
+  const totalJ=keys.reduce((a,k)=>a+tot[k],0);
   const totalGeneral=montants.reduce((a,b)=>a+b,0);
+  const totalColIdx=keys.length+1; // index de la colonne TOTAL dans la table ci-dessous
   doc.autoTable({
     startY:y,
-    head:[["","Terrain 1J","Terrain ½J","Bureau","Nuit","Scan 3D","TOTAL"]],
+    head:[["",...labels,"TOTAL"]],
     body:[
-      ["Quantité (j)",tot["1T"],tot["HT"],tot["B"],tot["N"],tot["S3D"],totalJ],
-      ["Prix jour (€)",...prix.map(p=>fmtNum(p))],
-      ["Montant (€)",...montants.map(m=>fmtNum(m))],
+      ["Quantité (j)",...keys.map(k=>tot[k]),totalJ],
+      ["Prix jour (€)",...prix.map(p=>fmtNum(p)),""],
+      ["Montant (€)",...montants.map(m=>fmtNum(m)),fmtNum(totalGeneral)],
     ],
-    headStyles:{fillColor:[31,56,100],textColor:255,fontSize:8},
-    styles:{fontSize:9,halign:"center",cellPadding:2.5,font:"helvetica"},
+    headStyles:{fillColor:[31,56,100],textColor:255,fontSize:7.5},
+    styles:{fontSize:8.5,halign:"center",cellPadding:2.2,font:"helvetica"},
     columnStyles:{0:{halign:"left",fontStyle:"bold"}},
     didParseCell:(data)=>{
       if(data.section==="body"&&data.row.index===2){data.cell.styles.fontStyle="bold";data.cell.styles.textColor=[31,56,100];}
-      if(data.section==="body"&&data.column.index===6){data.cell.styles.fillColor=[214,228,247];data.cell.styles.fontStyle="bold";}
+      if(data.section==="body"&&data.column.index===totalColIdx){data.cell.styles.fillColor=[214,228,247];data.cell.styles.fontStyle="bold";}
     },
   });
   y=doc.lastAutoTable.finalY+6;
