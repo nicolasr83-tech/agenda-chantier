@@ -104,6 +104,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
 .modal{background:var(--white);border-radius:14px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal.large-modal{max-width:900px}
 .modal-header{padding:16px 16px 0;display:flex;align-items:flex-start;justify-content:space-between}
 .modal-title{font-size:16px;font-weight:700;color:var(--navy)}
 .modal-date{font-size:12px;color:var(--muted);margin-top:2px}
@@ -111,7 +112,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .modal-body{padding:14px 16px}
 .m-field{margin-bottom:12px}
 .m-field label{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-.m-select{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none}
+.m-select{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .m-select:focus{border-color:var(--blue)}
 .m-input{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
 .m-input:focus{border-color:var(--blue)}
@@ -1497,6 +1498,9 @@ function openModal(ds){
   document.getElementById("half-day-toggle").classList.remove("visible");
   filterModalDos();updateModalCollab();updateModalMat();
   document.getElementById("m-mat-warning").style.display="none";
+  // enlarge modal and dossier list for event creation
+  const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
+  const sel=document.getElementById('m-dossier'); if(sel)sel.size=8;
   document.getElementById("modal-bg").classList.add("open");
 }
 
@@ -1514,6 +1518,9 @@ function openEditModal(evId){
   document.getElementById("modal-date").textContent=formatDateFr(ds);
   document.getElementById("m-dos-search").value="";
   filterModalDos();updateModalCollab();updateModalMat();
+  // enlarge modal and dossier list for event edit
+  const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
+  const sel=document.getElementById('m-dossier'); if(sel)sel.size=8;
   // Pré-remplir depuis le titre : format DOS_CODE[_M|_AM]_lieu_tag
   const parts=(ev.summary||"").split("_");
   if(parts.length>=1){
@@ -1554,7 +1561,8 @@ function openEditModal(evId){
 
 function filterModalDos(){
   const q=normalizeText(document.getElementById("m-dos-search")?.value||"");
-  const list=sheetDossiers.filter(d=>!q||normalizeText(d.num+d.client+d.lieu).includes(q))
+  const showArchived=document.getElementById("s-show-archived-dos")?.checked;
+  const list=sheetDossiers.filter(d => (showArchived||!d.archive) && (!q||normalizeText(d.num+d.client+d.lieu).includes(q)))
     .slice().sort((a,b)=>(a.archive===b.archive)?0:(a.archive?1:-1)); // actifs d'abord, archivés en bas
   const sel=document.getElementById("m-dossier");const cur=sel.value;
   sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
@@ -1614,7 +1622,11 @@ function buildTitle(){
   const lieu=(dosInfo?.lieu||"").replace(/\s+/g,"_");
   return `${dos}_${selectedPrest}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
 }
-function closeModal(){document.getElementById("modal-bg").classList.remove("open");}
+function closeModal(){
+  document.getElementById("modal-bg").classList.remove("open");
+  const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.remove('large-modal');
+  const sel=document.getElementById('m-dossier'); if(sel)sel.size=4;
+}
 
 async function saveEvent(){
   if(!accessToken){signIn();return;}
