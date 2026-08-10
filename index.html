@@ -971,11 +971,16 @@ function checkDuplicates(){
   }
 }
 
+function normalizeText(s){
+  // remove accents/diacritics and lowercase for accent-insensitive searches
+  return (s||"").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function renderSidebarDos(){
   checkDuplicates();
-  const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
+  const q=normalizeText(document.getElementById("s-search-dos")?.value||"");
   const showArchived=document.getElementById("s-show-archived-dos")?.checked;
-  const list=sheetDossiers.filter(d=>(showArchived||!d.archive)&&(!q||(d.num+d.client+d.lieu).toLowerCase().includes(q)));
+  const list=sheetDossiers.filter(d=>(showArchived||!d.archive)&&(!q||normalizeText(d.num+d.client+d.lieu).includes(q)));
   const el=document.getElementById("s-dos-list");if(!el)return;
   if(!list.length&&sheetDossiers.length===0){
     el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">⏳ Chargement…</div>`;return;
@@ -1139,8 +1144,8 @@ function buildCollabColorPicker(selId){
 function pickColor(id){selectedCollabColorId=id;buildCollabColorPicker(id);}
 
 function renderSidebarCollabs(){
-  const q=(document.getElementById("s-search-collab")?.value||"").toLowerCase();
-  const list=sheetCollabs.filter(c=>!q||c.name.toLowerCase().includes(q));
+  const q=normalizeText(document.getElementById("s-search-collab")?.value||"");
+  const list=sheetCollabs.filter(c=>!q||normalizeText(c.name).includes(q));
   document.getElementById("s-collab-list").innerHTML=list.map(c=>{
     const i=sheetCollabs.indexOf(c);const hex=collabColor(c);
     return `<div class="s-item">
@@ -1198,8 +1203,8 @@ function updateModalCollab(){
 
 
 function renderSidebarMat(){
-  const q=(document.getElementById("s-search-mat")?.value||"").toLowerCase();
-  const list=sheetMat.filter(m=>!q||(m.name+m.cat).toLowerCase().includes(q));
+  const q=normalizeText(document.getElementById("s-search-mat")?.value||"");
+  const list=sheetMat.filter(m=>!q||normalizeText(m.name+m.cat).includes(q));
   const icons={"Instrument topo":"📡","Drone":"✈️","Scanner 3D":"📷","Véhicule":"🚗","Autre":"🔧"};
   document.getElementById("s-mat-list").innerHTML=list.map(m=>{
     const i=sheetMat.indexOf(m);
@@ -1548,8 +1553,8 @@ function openEditModal(evId){
 }
 
 function filterModalDos(){
-  const q=(document.getElementById("m-dos-search")?.value||"").toLowerCase();
-  const list=sheetDossiers.filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q))
+  const q=normalizeText(document.getElementById("m-dos-search")?.value||"");
+  const list=sheetDossiers.filter(d=>!q||normalizeText(d.num+d.client+d.lieu).includes(q))
     .slice().sort((a,b)=>(a.archive===b.archive)?0:(a.archive?1:-1)); // actifs d'abord, archivés en bas
   const sel=document.getElementById("m-dossier");const cur=sel.value;
   sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
