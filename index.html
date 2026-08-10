@@ -510,7 +510,7 @@ const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau","½ Bureau","Nuit","Sca
 // n'a PAS de champ prix propre : son prix est toujours calculé comme Bureau ÷ 2
 // (voir prestPrice ci-dessous) — pas de colonne Sheet à créer, ni de saisie séparée.
 const PRIX_KEYS   = ["prix1T","prixHT","prixB",null,"prixN","prixS3D","prixPrep","prixRap"];
-const PRIX_DEFAULT= [620,480,520,260,1060,1200,300,300];
+const PRIX_DEFAULT= [0,0,0,0,0,0,0,0];
 // Retourne le prix jour applicable pour un dossier (di) et un code de prestation.
 function prestPrice(di,code){
   if(code==="B2"){
