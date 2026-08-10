@@ -692,7 +692,11 @@ async function sheetUpdate(tab,sheetRow,values){
 // → l'ordre des colonnes dans le Sheet peut être changé librement.
 // ═════════════════════════════════════════════════════════════════════════
 function normHeader(s){
-  return (s||"").toString().trim().toLowerCase()
+  <script>
+function stripAccents(s){
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+</script>return (s||"").toString().trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // enlève les accents
     .replace(/\s+/g," ");
 }
