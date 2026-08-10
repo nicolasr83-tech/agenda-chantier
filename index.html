@@ -1560,11 +1560,19 @@ function openEditModal(evId){
 
 function filterModalDos(){
   const q=(document.getElementById("m-dos-search")?.value||"").toLowerCase();
-  const list=sheetDossiers.filter(d=>!q||(d.num+d.client+d.lieu).toLowerCase().includes(q))
-    .slice().sort((a,b)=>(a.archive===b.archive)?0:(a.archive?1:-1)); // actifs d'abord, archivés en bas
-  const sel=document.getElementById("m-dossier");const cur=sel.value;
-  sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
-  if(cur)for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===cur){sel.selectedIndex=i;break;}}
+  const qn = stripAccents(q);
+  // On filtre et on conserve les dossiers valides (num non vide)
+  const list = sheetDossiers
+    .filter(d=>d.num && (!qn || stripAccents((d.num + " " + d.client + " " + d.lieu).toLowerCase()).includes(qn)));
+  const sel=document.getElementById("m-dossier");
+  if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML = list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
+  if(cur){
+    for(let i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===cur){ sel.selectedIndex=i; break; }
+    }
+  }
   updateModalPreview();
 }
 function updateModalPreview(){
