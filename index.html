@@ -978,11 +978,18 @@ function checkDuplicates(){
 function renderSidebarDos(){
   checkDuplicates();
   const q=(document.getElementById("s-search-dos")?.value||"").toLowerCase();
+  const qn = stripAccents(q); // normalisé sans accents
   const showArchived=document.getElementById("s-show-archived-dos")?.checked;
-  const list=sheetDossiers.filter(d=>(showArchived||!d.archive)&&(!q||(d.num+d.client+d.lieu).toLowerCase().includes(q)));
-  const el=document.getElementById("s-dos-list");if(!el)return;
-  if(!list.length&&sheetDossiers.length===0){
-    el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">⏳ Chargement…</div>`;return;
+  const list=sheetDossiers.filter(d=>{
+    if(!(showArchived||!d.archive)) return false;
+    // concatène num/client/lieu, met en minuscule et enlève les accents pour la comparaison
+    if(!qn) return true;
+    const hay = stripAccents((d.num + " " + d.client + " " + d.lieu).toLowerCase());
+    return hay.includes(qn);
+  });
+  const el=document.getElementById("s-dos-list"); if(!el) return;
+  if(!list.length && sheetDossiers.length===0){
+    el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">⏳ Chargement…</div>`; return;
   }
   el.innerHTML=list.map(d=>{
     const i=sheetDossiers.indexOf(d);
