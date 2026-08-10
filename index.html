@@ -112,7 +112,9 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .modal-body{padding:14px 16px}
 .m-field{margin-bottom:12px}
 .m-field label{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-.m-select{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-select{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none;text-overflow:ellipsis;white-space:nowrap}
+.m-select[size]{/* when select shows multiple rows, allow scrolling */
+  white-space:normal;overflow:auto;max-height:240px}
 .m-select:focus{border-color:var(--blue)}
 .m-input{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
 .m-input:focus{border-color:var(--blue)}
