@@ -234,6 +234,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <div class="sidebar-tabs">
       <div class="stab active" onclick="switchSTab('dossiers')">📁 Dossiers</div>
       <div class="stab" onclick="switchSTab('collabs')">👤 Collabs</div>
+      <div class="stab" onclick="switchSTab('contacts')">📇 Contacts</div>
       <div class="stab" onclick="switchSTab('materiel')">🔧 Matériel</div>
     </div>
     <div class="sidebar-content">
@@ -250,10 +251,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             </div>
           </div>
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="Marseille Centre" autocomplete="off"></div>
-          <div class="s-field"><label>Interlocuteur</label>
-            <div style="display:flex;gap:6px">
-              <select id="f-dos-interloc-select" onchange="onDosInterlocSelectChange()" style="flex:1"></select>
-              <button type="button" class="btn-add-s" onclick="addNewInterlocuteur()" title="Nouvel interlocuteur" style="flex:none;width:34px">＋</button>
+          <div class="s-field"><label>Interlocuteur(s)</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="f-dos-interloc-input" list="dl-interlocs" placeholder="Nom1; Nom2" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:7px" oninput="onDosInterlocInputChange()">
+              <datalist id="dl-interlocs"></datalist>
+              <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
             </div>
           </div>
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
@@ -309,6 +311,30 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="btn-add-s" onclick="openCollabForm(null)" title="Nouveau collaborateur">＋</button>
         </div>
         <div id="s-collab-list"></div>
+      </div>
+
+      <!-- CONTACTS -->
+      <div class="sidebar-panel" id="sp-contacts">
+        <div class="s-form" id="interloc-form">
+          <div class="s-form-title" id="interloc-form-title">Nouveau contact</div>
+          <div class="s-field"><label>Nom *</label><input id="f-interloc-name" placeholder="Jean Martin" autocomplete="off"></div>
+          <div class="s-field"><label>Client</label>
+            <div style="display:flex;gap:6px"><select id="f-interloc-client-select" style="flex:1"></select>
+            <button type="button" class="btn-add-s" onclick="addNewClient()" title="Nouveau client" style="flex:none;width:34px">＋</button></div>
+          </div>
+          <div class="s-field"><label>Email</label><input id="f-interloc-email" type="email" placeholder="contact@client.fr" autocomplete="off"></div>
+          <div class="s-field"><label>Téléphone</label><input id="f-interloc-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="off"></div>
+          <div class="s-form-btns">
+            <button class="s-btn-cancel" onclick="closeInterlocForm()">Annuler</button>
+            <button class="s-btn-save" id="interloc-save-btn" onclick="saveInterloc()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="search-row-s">
+          <input type="search" id="s-search-interloc" placeholder="Rechercher…" oninput="renderSidebarInterlocs()">
+          <button class="btn-add-s" onclick="reloadSheetInterlocuteurs()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
+          <button class="btn-add-s" onclick="openInterlocForm(null)" title="Nouveau contact">＋</button>
+        </div>
+        <div id="s-interloc-list"></div>
       </div>
 
       <!-- MATERIEL -->
@@ -959,7 +985,57 @@ async function reloadSheetMat(){
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
 }
 
-function checkDuplicates(){
+async function reloadSheetInterlocuteurs(){
+  const btn=document.querySelector("[onclick='reloadSheetInterlocuteurs()']");
+  if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
+  try{
+    const irows=await sheetGet(SHEET_TABS.interlocuteurs,"A2:D1000");
+    sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
+      name:r[0]?.trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2
+    }));
+    renderSidebarInterlocs();populateDosClientSelect(document.getElementById('f-dos-client-select')?.value||"");
+    showToast(`${sheetInterlocuteurs.length} contacts chargés ✓`);
+  }catch(e){showToast("Erreur rechargement contacts",true);}
+  if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
+}
+
+function renderSidebarInterlocs(){
+  const q=normalizeText(document.getElementById('s-search-interloc')?.value||"");
+  const list=sheetInterlocuteurs.filter(i=>!q||normalizeText((i.name||"")+" "+(i.client||"")+" "+(i.email||"")+" "+(i.tel||"")).includes(q));
+  const el=document.getElementById('s-interloc-list'); if(!el)return;
+  el.innerHTML=list.map(i=>{
+    const idx=sheetInterlocuteurs.indexOf(i);
+    return `<div class="s-item"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">${i.name}</div><div style="font-size:11px;color:var(--muted)">${i.client}${i.email?` · ${i.email}`:""}${i.tel?` · ${i.tel}`:""}</div></div><button class="s-edit" onclick="openInterlocForm(${idx})">✏️</button></div>`;
+  }).join("");
+}
+
+let editingInterlocIdx=null;
+function openInterlocForm(idx){
+  editingInterlocIdx=idx;
+  const f=document.getElementById('interloc-form'); if(!f)return; f.classList.add('visible');
+  document.getElementById('interloc-form-title').textContent=idx!=null?"Modifier contact":"Nouveau contact";
+  const rec=idx!=null?sheetInterlocuteurs[idx]:null;
+  populateDosClientSelect(rec?.client||"");
+  document.getElementById('f-interloc-name').value=rec?.name||"";
+  document.getElementById('f-interloc-email').value=rec?.email||"";
+  document.getElementById('f-interloc-tel').value=rec?.tel||"";
+}
+function closeInterlocForm(){editingInterlocIdx=null;document.getElementById('interloc-form').classList.remove('visible');}
+async function saveInterloc(){
+  const name=document.getElementById('f-interloc-name').value.trim(); if(!name){document.getElementById('f-interloc-name').focus();return;}
+  const rec={name,client:document.getElementById('f-interloc-client-select').value.trim()||"",email:document.getElementById('f-interloc-email').value.trim()||"",tel:document.getElementById('f-interloc-tel').value.trim()||""};
+  const btn=document.getElementById('interloc-save-btn'); if(btn)btn.textContent='⏳';
+  if(editingInterlocIdx!=null){
+    const existing=sheetInterlocuteurs[editingInterlocIdx]; rec._sheetRow=existing._sheetRow; sheetInterlocuteurs[editingInterlocIdx]=rec;
+    await sheetUpdateMerged(SHEET_TABS.interlocuteurs,existing._sheetRow,interlocCI,interlocHC,rec);
+  }else{
+    sheetInterlocuteurs.push(rec);
+    try{await ensureRefTabs(); await sheetAppend(SHEET_TABS.interlocuteurs,[buildRowFromMap(interlocCI,interlocHC,rec)]);}catch(e){showToast('Erreur enregistrement contact',true);}    
+  }
+  if(btn)btn.textContent='Enregistrer'; closeInterlocForm(); renderSidebarInterlocs(); populateDosInterlocSelect(document.getElementById('f-dos-client-select')?.value||'',rec.name);
+}
+
+function checkDuplicates(){"}
   const nums=sheetDossiers.map(d=>d.num);
   const counts={};nums.forEach(n=>{counts[n]=(counts[n]||0)+1;});
   const dups=Object.entries(counts).filter(([,v])=>v>1).map(([k])=>k);
@@ -1047,7 +1123,7 @@ async function saveDos(){
   }
   const d={num,client:document.getElementById("f-dos-client-select").value.trim()||"—",
     lieu:document.getElementById("f-dos-lieu").value.trim()||"—",
-    interlocuteur:document.getElementById("f-dos-interloc-select").value.trim(),
+    interlocuteur:document.getElementById("f-dos-interloc-input").value.trim(),
     email:document.getElementById("f-dos-email").value.trim(),
     tel:document.getElementById("f-dos-tel").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
@@ -1088,11 +1164,11 @@ function populateDosClientSelect(selected){
   sel.value=selected&&selected!=="—"?selected:"";
 }
 function populateDosInterlocSelect(client,selected){
-  const sel=document.getElementById("f-dos-interloc-select");if(!sel)return;
+  const input=document.getElementById("f-dos-interloc-input");const dl=document.getElementById("dl-interlocs");if(!input||!dl)return;
   let list=sheetInterlocuteurs.filter(i=>i.client===client);
   if(selected&&!list.some(i=>i.name===selected))list=[...list,{name:selected,client,email:"",tel:""}];
-  sel.innerHTML=`<option value="">— Choisir un interlocuteur —</option>`+list.map(i=>`<option value="${i.name}">${i.name}</option>`).join("");
-  sel.value=selected||"";
+  dl.innerHTML=list.map(i=>`<option value="${i.name}"></option>`).join("");
+  input.value=selected||"";
 }
 function onDosClientSelectChange(){
   const client=document.getElementById("f-dos-client-select").value;
@@ -1100,14 +1176,11 @@ function onDosClientSelectChange(){
   document.getElementById("f-dos-email").value="";
   document.getElementById("f-dos-tel").value="";
 }
-function onDosInterlocSelectChange(){
+function onDosInterlocInputChange(){
   const client=document.getElementById("f-dos-client-select").value;
-  const name=document.getElementById("f-dos-interloc-select").value;
+  const name=document.getElementById("f-dos-interloc-input").value.split(';')[0]?.trim();
   const rec=sheetInterlocuteurs.find(i=>i.client===client&&i.name===name);
-  if(rec){
-    document.getElementById("f-dos-email").value=rec.email||"";
-    document.getElementById("f-dos-tel").value=rec.tel||"";
-  }
+  if(rec){document.getElementById("f-dos-email").value=rec.email||"";document.getElementById("f-dos-tel").value=rec.tel||"";} 
 }
 async function addNewClient(){
   const name=prompt("Nom du nouveau client :");
@@ -1131,9 +1204,10 @@ async function addNewInterlocuteur(){
   const rec={name:name.trim(),client,email,tel};
   sheetInterlocuteurs.push(rec);
   try{
+    await ensureRefTabs();
     await sheetAppend(SHEET_TABS.interlocuteurs,[buildRowFromMap(interlocCI,interlocHC,rec)]);
     showToast("Interlocuteur enregistré ✓");
-  }catch(e){showToast("Erreur d'enregistrement de l'interlocuteur",true);}
+  }catch(e){showToast("Erreur d'enregistrement de l'interlocuteur",true);} 
   populateDosInterlocSelect(client,rec.name);
   onDosInterlocSelectChange();
 }
