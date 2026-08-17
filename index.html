@@ -603,7 +603,7 @@ function setLoading(on){
 
 
 async function waitForGoogle(){
-  while(!window.google||!google.accounts||!google.accounts.oauth2){
+  while(!window.google||!google.accounts){
     await new Promise(r=>setTimeout(r,100));
   }
 }
@@ -649,16 +649,11 @@ window.addEventListener("load", async ()=>{
   }
 });
 function initTokenClient(){
-  if(!window.google||!google.accounts||!google.accounts.oauth2){setTimeout(initTokenClient,300);return;}
+  if(!window.google){setTimeout(initTokenClient,300);return;}
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
     callback:(resp)=>{
-      if(resp.error){
-        console.error("Google auth error", resp);
-        showToast("Connexion Google impossible. Vérifie le client OAuth et les autorisations.",true);
-        document.getElementById("login-overlay").classList.add("visible");
-        return;
-      }
+      if(resp.error){showToast("Connexion annulée",true);return;}
       accessToken=resp.access_token;
       // Stocker avec expiration (1h)
       const expiry=Date.now()+3500*1000;
@@ -671,11 +666,10 @@ function initTokenClient(){
     }
   });
 }
-function signIn(forceConsent=false){
-  if(!tokenClient){setTimeout(()=>signIn(forceConsent),400);return;}
-  const opts={include_granted_scopes:true};
-  opts.prompt=forceConsent?"consent":"select_account";
-  tokenClient.requestAccessToken(opts);
+function signIn(){
+  if(!tokenClient){setTimeout(signIn,400);return;}
+  // Ne demande le consentement que si pas de token valide
+  tokenClient.requestAccessToken({prompt:""});
 }
 function signOut(){
   if(accessToken)google.accounts.oauth2.revoke(accessToken);
@@ -689,16 +683,7 @@ function signOut(){
 }
 function fetchUserInfo(){
   fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}})
-    .then(r=>{
-      if(!r.ok){throw new Error("userinfo "+r.status);}
-      return r.json();
-    })
-    .then(u=>{currentUser=u;lsSet("arr_user",u);renderUserBar();})
-    .catch(err=>{
-      console.error("userinfo failed", err);
-      showToast("Connexion Google refusée ou expirée. Reconnecte-toi.", true);
-      signOut();
-    });
+    .then(r=>r.json()).then(u=>{currentUser=u;lsSet("arr_user",u);renderUserBar();});
 }
 function renderUserBar(){
   const bar=document.getElementById("user-bar");
