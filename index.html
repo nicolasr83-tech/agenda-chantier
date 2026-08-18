@@ -1843,7 +1843,9 @@ function parseEventsToByDossier(events){
     while(cur<=last){const dow=cur.getDay();if(dow!==0&&dow!==6)nbJ++;cur.setDate(cur.getDate()+1);}
     const qty=nbJ;
     if(!byDossier[dos])byDossier[dos]=[];
-    byDossier[dos].push({date:ds,dateEnd:de,code,title:ev.summary,nbJ,qty});
+    const evDesc = ev.description||"";
+    const evNote = evDesc.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
+    byDossier[dos].push({date:ds,dateEnd:de,code,title:ev.summary,nbJ,qty,description:evDesc,note:evNote});
   });
   return byDossier;
 }
