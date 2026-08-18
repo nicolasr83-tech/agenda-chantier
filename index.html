@@ -231,6 +231,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <h1>Arragon Planning</h1>
   <button class="btn-pill" onclick="openRecapPage()" title="Récap pointage par chantier">📊 Pointage</button>
   <div id="user-bar"><button class="btn-signin-h" onclick="signIn()">Se connecter</button></div>
+  <button id="btn-signout" class="btn-pill" onclick="signOut()" style="margin-left:8px;">🔌 Déconnexion</button>
 </div>
 
 <div class="app">
@@ -376,10 +377,13 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
       <button id="btn-weekend" onclick="toggleWeekend()" title="Afficher/masquer Sam/Dim"
         style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
-      <select id="cal-filter-collab" onchange="onCalFilterCollabChange()" title="Filtrer par collaborateur"
-        style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);flex-shrink:0">
-        <option value="">👥 Tous</option>
-      </select>
+      <div class="cal-collab-filter" id="cal-filter-collab" style="position:relative;flex-shrink:0">
+        <button class="multi-btn" id="cal-filter-collab-btn" onclick="toggleCollabFilterMenu(event)" title="Filtrer par collaborateur" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);cursor:pointer">👥 <span id="cal-filter-collab-label">Tous</span> ▾</button>
+        <div class="multi-menu" id="cal-filter-collab-menu" style="display:none;position:absolute;right:0;top:36px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:220;width:220px">
+          <div id="cal-filter-collab-menu-items" style="max-height:200px;overflow:auto"></div>
+          <div style="text-align:right;margin-top:6px"><button class="rc-btn" onclick="applyCalFilterCollab()" style="font-size:12px;padding:6px 8px">Appliquer</button></div>
+        </div>
+      </div>
     </div>
     <div class="cal-dow" id="cal-dow"></div>
     <div class="cal-grid"><div class="cal-days" id="cal-days"></div></div>
@@ -1344,15 +1348,28 @@ function renderSidebarCollabs(){
   renderCalFilterCollab();
 }
 function renderCalFilterCollab(){
-  const sel=document.getElementById("cal-filter-collab");if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML=`<option value="">👥 Tous</option>`+sheetCollabs.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
-  if(cur&&sheetCollabs.some(c=>c.name===cur))sel.value=cur;else calFilterCollab=null;
+  const menuItems=document.getElementById("cal-filter-collab-menu-items");
+  const label=document.getElementById("cal-filter-collab-label");
+  if(!menuItems||!label)return;
+  const selected = Array.isArray(calFilterCollab)?calFilterCollab.slice() : (calFilterCollab? [calFilterCollab] : []);
+  menuItems.innerHTML = sheetCollabs.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:6px"><input type="checkbox" data-name="${c.name.replace(/"/g,'&quot;') }" ${selected.includes(c.name)?'checked':''}> <span style="flex:1">${c.name}${c.pseudo?` (${c.pseudo})`:''}</span></label>`).join("");
+  if(selected.length===0) label.textContent='Tous'; else if(selected.length===1) label.textContent=selected[0]; else label.textContent=`${selected.length} sélectionnés`;
 }
-function onCalFilterCollabChange(){
-  calFilterCollab=document.getElementById("cal-filter-collab").value||null;
+function toggleCollabFilterMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById("cal-filter-collab-menu");
+  if(!m)return; m.style.display = m.style.display==='block'?'none':'block';
+}
+function applyCalFilterCollab(){
+  const items=document.querySelectorAll("#cal-filter-collab-menu-items input[type=checkbox]");
+  const chosen = Array.from(items).filter(i=>i.checked).map(i=>i.getAttribute('data-name'));
+  calFilterCollab = chosen.length?chosen:null;
+  renderCalFilterCollab();
   buildCalendar();
+  const m=document.getElementById("cal-filter-collab-menu"); if(m)m.style.display='none';
 }
+// close menu when clicking elsewhere
+document.addEventListener('click',()=>{const m=document.getElementById("cal-filter-collab-menu");if(m)m.style.display='none';});
 function openCollabForm(idx){
   editingCollabIdx=idx;
   document.getElementById("collab-form").classList.add("visible");
@@ -1522,7 +1539,12 @@ function renderDow(){
 
 function eventsIndexedByDate(){
   const byDate={};
-  const src=calFilterCollab?calEvents.filter(ev=>eventCollab(ev)?.name===calFilterCollab):calEvents;
+  let src = calEvents;
+  if(Array.isArray(calFilterCollab)){
+    if(calFilterCollab.length>0) src = calEvents.filter(ev=>{const c=eventCollab(ev);return c&&calFilterCollab.includes(c.name);});
+  } else if(calFilterCollab){
+    src = calEvents.filter(ev=>eventCollab(ev)?.name===calFilterCollab);
+  }
   src.forEach(ev=>{
     let ds=ev.start?.date||ev.start?.dateTime?.slice(0,10);
     let de=ev.end?.date||ev.end?.dateTime?.slice(0,10);
