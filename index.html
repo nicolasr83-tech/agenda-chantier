@@ -2356,7 +2356,7 @@ function buildDossierPDF(dos,year,month,byDossier){
     body:evs.sort((a,b)=>a.date.localeCompare(b.date)).map(ev=>[
       formatDateShort(ev.date), ev.dateEnd&&ev.dateEnd!==ev.date?formatDateShort(ev.dateEnd):"",
       PREST_LABELS[PREST_KEYS.indexOf(ev.code)]||ev.code, ev.qty,
-      ev.note||""
+      (ev.note || (ev.description? ev.description.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0] : "") )||""
     ]),
     styles:{fontSize:8,cellPadding:2,font:"helvetica"},
     headStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontSize:8},
@@ -2423,8 +2423,7 @@ function prepareRecapEmail(dos){
   const signature = userSig || "Cabinet Arragon\nGéomètre-Topographe";
   const body=`Bonjour${di.interlocuteur?" "+di.interlocuteur.split(" ")[0]:""},\n\n`+
     `Veuillez trouver ci-joint le pointage du dossier ${dos} (${di.client} – ${di.lieu}) pour ${mn} ${recapYear}.\n\n`+
-    `⚠ Pense à joindre le fichier ${formatsTxt} généré avant l'envoi (le brouillon ne contient pas de pièce jointe).\n\n`+
-    `Cordialement,\n${signature}`;
+    `${signature}`;
   const mailto=`mailto:${encodeURIComponent(di.email)}?cc=${encodeURIComponent(SECRETARIAT_EMAIL)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href=mailto;
   showToast("Brouillon d'email ouvert — pense à joindre le fichier généré avant d'envoyer");
