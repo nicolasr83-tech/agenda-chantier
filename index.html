@@ -379,7 +379,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
       <div class="cal-collab-filter" id="cal-filter-collab" style="position:relative;flex-shrink:0">
         <button class="multi-btn" id="cal-filter-collab-btn" onclick="toggleCollabFilterMenu(event)" title="Filtrer par collaborateur" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);cursor:pointer">👥 <span id="cal-filter-collab-label">Tous</span> ▾</button>
-        <div class="multi-menu" id="cal-filter-collab-menu" style="display:none;position:absolute;right:0;top:36px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:220;width:220px">
+        <div class="multi-menu" id="cal-filter-collab-menu" style="display:none;position:absolute;right:0;top:36px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:220;width:220px;font-size:13px">
           <div id="cal-filter-collab-menu-items" style="max-height:200px;overflow:auto"></div>
           <div style="text-align:right;margin-top:6px"><button class="rc-btn" onclick="applyCalFilterCollab()" style="font-size:12px;padding:6px 8px">Appliquer</button></div>
         </div>
@@ -1352,7 +1352,7 @@ function renderCalFilterCollab(){
   const label=document.getElementById("cal-filter-collab-label");
   if(!menuItems||!label)return;
   const selected = Array.isArray(calFilterCollab)?calFilterCollab.slice() : (calFilterCollab? [calFilterCollab] : []);
-  menuItems.innerHTML = sheetCollabs.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:6px"><input type="checkbox" data-name="${c.name.replace(/"/g,'&quot;') }" ${selected.includes(c.name)?'checked':''}> <span style="flex:1">${c.name}${c.pseudo?` (${c.pseudo})`:''}</span></label>`).join("");
+  menuItems.innerHTML = sheetCollabs.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:6px;font-size:13px"><input type="checkbox" data-name="${c.name.replace(/\"/g,'&quot;') }" ${selected.includes(c.name)?'checked':''}> <span style="flex:1">${c.name}${c.pseudo?` (${c.pseudo})`:''}</span></label>`).join("");
   if(selected.length===0) label.textContent='Tous'; else if(selected.length===1) label.textContent=selected[0]; else label.textContent=`${selected.length} sélectionnés`;
 }
 function toggleCollabFilterMenu(e){
@@ -1369,7 +1369,8 @@ function applyCalFilterCollab(){
   const m=document.getElementById("cal-filter-collab-menu"); if(m)m.style.display='none';
 }
 // close menu when clicking elsewhere
-document.addEventListener('click',()=>{const m=document.getElementById("cal-filter-collab-menu");if(m)m.style.display='none';});
+// Only close when clicking outside the menu so checkbox clicks inside it don't auto-close it
+document.addEventListener('click',(ev)=>{const m=document.getElementById("cal-filter-collab-menu");if(!m)return; if(!m.contains(ev.target)) m.style.display='none';});
 function openCollabForm(idx){
   editingCollabIdx=idx;
   document.getElementById("collab-form").classList.add("visible");
