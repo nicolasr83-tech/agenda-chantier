@@ -116,6 +116,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .m-select[size], .m-select[multiple]{/* when select shows multiple rows, allow scrolling */
   white-space:normal;overflow:auto;max-height:240px}
 .m-select:focus{border-color:var(--blue)}
+/* checkbox checklist styled like the select */
+.m-select-checklist{padding:6px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);max-height:240px;overflow:auto}
+.m-select-checklist label{display:block;padding:6px;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;font-size:13px}
+.m-select-checklist input[type=checkbox]{margin-right:8px}
 .m-input{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
 .m-input:focus{border-color:var(--blue)}
 .m-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -224,7 +228,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <button class="btn-icon" onclick="toggleSidebar()" title="Panneau">☰</button>
   <h1>Arragon Planning</h1>
   <button class="btn-pill" onclick="openRecapPage()" title="Récap pointage par chantier">📊 Pointage</button>
-  <button class="btn-icon" onclick="openExportModal()" title="Exporter">📥</button>
   <div id="user-bar"><button class="btn-signin-h" onclick="signIn()">Se connecter</button></div>
 </div>
 
@@ -252,8 +255,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           </div>
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="Marseille Centre" autocomplete="off"></div>
           <div class="s-field"><label>Interlocuteur(s)</label>
-            <div style="display:flex;gap:6px;align-items:center">
-              <select class="m-select" id="f-dos-interloc-input" multiple size="5" style="flex:1;min-height:92px;max-height:240px" onchange="onDosInterlocInputChange()"></select>
+            <div style="display:flex;gap:6px;align-items:flex-start">
+              <div id="f-dos-interloc-input" class="m-select-checklist" style="flex:1;min-height:92px;max-height:240px"></div>
               <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
             </div>
           </div>
@@ -1179,27 +1182,30 @@ function populateDosClientSelect(selected){
   sel.value=selected&&selected!=="—"?selected:"";
 }
 function getSelectedDosInterlocNames(){
-  const el=document.getElementById("f-dos-interloc-input");
-  if(!el)return [];
-  return Array.from(el.selectedOptions).map(o=>o.value.trim()).filter(Boolean);
+  const container=document.getElementById("f-dos-interloc-input");
+  if(!container) return [];
+  return Array.from(container.querySelectorAll('input[type=checkbox]:checked')).map(cb=>cb.value.trim()).filter(Boolean);
 }
 function populateDosInterlocSelect(client,selected){
-  const select=document.getElementById("f-dos-interloc-input");if(!select)return;
+  const container=document.getElementById("f-dos-interloc-input");if(!container)return;
   const selectedNames=(selected||"").split(";").map(v=>v.trim()).filter(Boolean);
   let list=sheetInterlocuteurs.filter(i=>i.client===client);
   if(selectedNames.length){
     const existingNames=new Set(list.map(i=>i.name));
     selectedNames.filter(name=>!existingNames.has(name)).forEach(name=>list.push({name,client,email:"",tel:""}));
   }
-  select.innerHTML="";
+  container.innerHTML="";
   list.forEach(i=>{
-    const opt=document.createElement("option");
-    opt.value=i.name;
-    opt.textContent=i.name;
-    opt.selected=selectedNames.includes(i.name);
-    select.appendChild(opt);
+    const id="dos-interloc-"+Math.random().toString(36).slice(2,8);
+    const label=document.createElement('label');
+    label.style.display='block'; label.style.padding='6px'; label.style.cursor='pointer';
+    const chk=document.createElement('input'); chk.type='checkbox'; chk.value=i.name; chk.style.marginRight='8px';
+    if(selectedNames.includes(i.name)) chk.checked=true;
+    chk.onchange=onDosInterlocInputChange;
+    label.appendChild(chk);
+    label.appendChild(document.createTextNode(' '+i.name));
+    container.appendChild(label);
   });
-  if(!selectedNames.length){select.selectedIndex=-1;}
 }
 function onDosClientSelectChange(){
   const client=document.getElementById("f-dos-client-select").value;
