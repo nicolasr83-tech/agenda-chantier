@@ -113,7 +113,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .m-field{margin-bottom:12px}
 .m-field label{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
 .m-select{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text);-webkit-appearance:none;text-overflow:ellipsis;white-space:nowrap}
-.m-select[size]{/* when select shows multiple rows, allow scrolling */
+.m-select[size], .m-select[multiple]{/* when select shows multiple rows, allow scrolling */
   white-space:normal;overflow:auto;max-height:240px}
 .m-select:focus{border-color:var(--blue)}
 .m-input{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
@@ -253,8 +253,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Lieu / Chantier</label><input id="f-dos-lieu" placeholder="Marseille Centre" autocomplete="off"></div>
           <div class="s-field"><label>Interlocuteur(s)</label>
             <div style="display:flex;gap:6px;align-items:center">
-              <input id="f-dos-interloc-input" list="dl-interlocs" placeholder="Nom1; Nom2" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:7px" oninput="onDosInterlocInputChange()">
-              <datalist id="dl-interlocs"></datalist>
+              <select class="m-select" id="f-dos-interloc-input" multiple size="5" style="flex:1;min-height:92px;max-height:240px" onchange="onDosInterlocInputChange()"></select>
               <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
             </div>
           </div>
@@ -904,12 +903,8 @@ async function loadSheetData(){
       _sheetRow:i+2,
     }));
     // Render contacts panel and populate client select inside Contacts form
-    try{renderSidebarInterlocs();
-      const icSel=document.getElementById('f-interloc-client-select');
-      if(icSel){
-        icSel.innerHTML=`<option value="">— Choisir un client —</option>`+sheetClients.map(c=>`<option value="${c}">${c}</option>`).join('');
-      }
-    }catch(e){console.warn('Populate contacts UI failed',e);}  
+    try{renderSidebarInterlocs(); populateInterlocClientSelect(document.getElementById('f-interloc-client-select')?.value||'');}
+    catch(e){console.warn('Populate contacts UI failed',e);}
   }catch(e){sheetInterlocuteurs=[];console.warn("Chargement Interlocuteurs impossible",e);}
 }
 
@@ -1000,7 +995,9 @@ async function reloadSheetInterlocuteurs(){
     sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
       name:r[0]?.trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2
     }));
-    renderSidebarInterlocs();populateDosClientSelect(document.getElementById('f-dos-client-select')?.value||"");
+    renderSidebarInterlocs();
+    populateInterlocClientSelect(document.getElementById('f-interloc-client-select')?.value||"");
+    populateDosClientSelect(document.getElementById('f-dos-client-select')?.value||"");
     showToast(`${sheetInterlocuteurs.length} contacts chargés ✓`);
   }catch(e){showToast("Erreur rechargement contacts",true);}
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
@@ -1016,14 +1013,24 @@ function renderSidebarInterlocs(){
   }).join("");
 }
 
+function populateInterlocClientSelect(selected){
+  const sel=document.getElementById('f-interloc-client-select');if(!sel)return;
+  let opts=sheetClients.slice();
+  if(selected&&selected!=="—"&&!opts.includes(selected))opts.push(selected);
+  opts.sort((a,b)=>a.localeCompare(b,"fr"));
+  sel.innerHTML=`<option value="">— Choisir un client —</option>`+opts.map(c=>`<option value="${c}">${c}</option>`).join("");
+  sel.value=selected&&selected!=="—"?selected:"";
+}
+
 let editingInterlocIdx=null;
 function openInterlocForm(idx){
   editingInterlocIdx=idx;
   const f=document.getElementById('interloc-form'); if(!f)return; f.classList.add('visible');
   document.getElementById('interloc-form-title').textContent=idx!=null?"Modifier contact":"Nouveau contact";
   const rec=idx!=null?sheetInterlocuteurs[idx]:null;
-  populateDosClientSelect(rec?.client||"");
+  populateInterlocClientSelect(rec?.client||"");
   document.getElementById('f-interloc-name').value=rec?.name||"";
+  document.getElementById('f-interloc-client-select').value=rec?.client||"";
   document.getElementById('f-interloc-email').value=rec?.email||"";
   document.getElementById('f-interloc-tel').value=rec?.tel||"";
 }
@@ -1128,9 +1135,10 @@ async function saveDos(){
       return;
     }
   }
+  const selectedInterlocNames=getSelectedDosInterlocNames();
   const d={num,client:document.getElementById("f-dos-client-select").value.trim()||"—",
     lieu:document.getElementById("f-dos-lieu").value.trim()||"—",
-    interlocuteur:document.getElementById("f-dos-interloc-input").value.trim(),
+    interlocuteur:selectedInterlocNames.join("; "),
     email:document.getElementById("f-dos-email").value.trim(),
     tel:document.getElementById("f-dos-tel").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
@@ -1170,12 +1178,28 @@ function populateDosClientSelect(selected){
   sel.innerHTML=`<option value="">— Choisir un client —</option>`+opts.map(c=>`<option value="${c}">${c}</option>`).join("");
   sel.value=selected&&selected!=="—"?selected:"";
 }
+function getSelectedDosInterlocNames(){
+  const el=document.getElementById("f-dos-interloc-input");
+  if(!el)return [];
+  return Array.from(el.selectedOptions).map(o=>o.value.trim()).filter(Boolean);
+}
 function populateDosInterlocSelect(client,selected){
-  const input=document.getElementById("f-dos-interloc-input");const dl=document.getElementById("dl-interlocs");if(!input||!dl)return;
+  const select=document.getElementById("f-dos-interloc-input");if(!select)return;
+  const selectedNames=(selected||"").split(";").map(v=>v.trim()).filter(Boolean);
   let list=sheetInterlocuteurs.filter(i=>i.client===client);
-  if(selected&&!list.some(i=>i.name===selected))list=[...list,{name:selected,client,email:"",tel:""}];
-  dl.innerHTML=list.map(i=>`<option value="${i.name}"></option>`).join("");
-  input.value=selected||"";
+  if(selectedNames.length){
+    const existingNames=new Set(list.map(i=>i.name));
+    selectedNames.filter(name=>!existingNames.has(name)).forEach(name=>list.push({name,client,email:"",tel:""}));
+  }
+  select.innerHTML="";
+  list.forEach(i=>{
+    const opt=document.createElement("option");
+    opt.value=i.name;
+    opt.textContent=i.name;
+    opt.selected=selectedNames.includes(i.name);
+    select.appendChild(opt);
+  });
+  if(!selectedNames.length){select.selectedIndex=-1;}
 }
 function onDosClientSelectChange(){
   const client=document.getElementById("f-dos-client-select").value;
@@ -1185,9 +1209,18 @@ function onDosClientSelectChange(){
 }
 function onDosInterlocInputChange(){
   const client=document.getElementById("f-dos-client-select").value;
-  const name=document.getElementById("f-dos-interloc-input").value.split(';')[0]?.trim();
-  const rec=sheetInterlocuteurs.find(i=>i.client===client&&i.name===name);
-  if(rec){document.getElementById("f-dos-email").value=rec.email||"";document.getElementById("f-dos-tel").value=rec.tel||"";} 
+  const selectedNames=getSelectedDosInterlocNames();
+  const emails=[];
+  const tels=[];
+  selectedNames.forEach(name=>{
+    const rec=sheetInterlocuteurs.find(i=>i.client===client&&i.name===name);
+    if(rec){
+      if(rec.email)emails.push(rec.email);
+      if(rec.tel)tels.push(rec.tel);
+    }
+  });
+  document.getElementById("f-dos-email").value=emails.join("; ");
+  document.getElementById("f-dos-tel").value=tels.join("; ");
 }
 async function addNewClient(){
   const name=prompt("Nom du nouveau client :");
