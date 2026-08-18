@@ -117,9 +117,14 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   white-space:normal;overflow:auto;max-height:240px}
 .m-select:focus{border-color:var(--blue)}
 /* checkbox checklist styled like the select */
-.m-select-checklist{padding:6px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);max-height:240px;overflow:auto}
-.m-select-checklist label{display:block;padding:6px;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;font-size:13px}
-.m-select-checklist input[type=checkbox]{margin-right:8px}
+.m-select-checklist{padding:0;border:1.5px solid var(--border);border-radius:8px;background:var(--white);max-height:240px;overflow:auto;font-size:13px}
+.m-select-checklist label{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;white-space:nowrap}
+.m-select-checklist label:hover{background:rgba(0,0,0,0.02)}
+.m-select-checklist input[type=checkbox]{margin-right:8px;transform:scale(1.02)}
+/* ensure compact scrollbar area similar to select */
+.m-select-checklist::-webkit-scrollbar{width:10px;height:10px}
+.m-select-checklist::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:6px}
+.m-select-checklist::-webkit-scrollbar-track{background:transparent}
 .m-input{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
 .m-input:focus{border-color:var(--blue)}
 .m-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
