@@ -903,6 +903,13 @@ async function loadSheetData(){
       tel:cellOf(r,interlocCI,"tel")?.trim()||"",
       _sheetRow:i+2,
     }));
+    // Render contacts panel and populate client select inside Contacts form
+    try{renderSidebarInterlocs();
+      const icSel=document.getElementById('f-interloc-client-select');
+      if(icSel){
+        icSel.innerHTML=`<option value="">— Choisir un client —</option>`+sheetClients.map(c=>`<option value="${c}">${c}</option>`).join('');
+      }
+    }catch(e){console.warn('Populate contacts UI failed',e);}  
   }catch(e){sheetInterlocuteurs=[];console.warn("Chargement Interlocuteurs impossible",e);}
 }
 
@@ -1332,7 +1339,7 @@ function applySidebar(){
   document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 function switchSTab(tab){
-  ["dossiers","collabs","materiel"].forEach((t,i)=>{
+  ["dossiers","collabs","contacts","materiel"].forEach((t,i)=>{
     document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
     document.getElementById("sp-"+t).classList.toggle("active",t===tab);
   });
