@@ -686,37 +686,44 @@ function fetchUserInfo(){
 }
 
 // Met à jour tous les événements du calendrier qui référencent un N° de dossier donné
-async function updateCalendarEventsForDossier(oldNum,newNum,newClient,newLieu){
-  if(!accessToken) return;
-  if(!oldNum || oldNum===newNum) return;
+async function updateCalendarEventsForDossier(oldNum,newNum,newClient,newLieu,newInterlocuteur,newAdresse){
+  if(!accessToken || !oldNum) return;
   function escapeRegExp(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
   const re=new RegExp('^'+escapeRegExp(oldNum)+'(?=_|\\b)');
+  const hasNumChange = !!newNum && oldNum !== newNum;
   let updated=0;
-  for(const ev of calEvents.slice()){ // clone pour sécurité
-    if(!(ev.summary||"").match(re))continue;
-    const newSummary=(ev.summary||"").replace(re,newNum);
-    // Mettre à jour la première ligne de description si elle ressemble à "Client – Lieu"
-    let newDesc=ev.description||"";
+  for(const ev of calEvents.slice()){
+    const summary=(ev.summary||"");
+    if(!summary.match(re))continue;
+    const newSummary = hasNumChange ? summary.replace(re,newNum) : summary;
+    let newDesc = ev.description || "";
     if(newDesc){
-      const lines=newDesc.split("\n");
-      if(lines[0]&&lines[0].includes("–")){
-        lines[0]=`${newClient||""} – ${newLieu||""}`;
-        newDesc=lines.join("\n");
+      const lines = newDesc.split("\n");
+      const fIdx = lines.findIndex(l => l.includes("–") && !l.includes("Collaborateur") && !l.includes("Interlocuteur") && !l.includes("Matériel") && !l.includes("Créé via"));
+      if(fIdx >= 0){
+        lines[fIdx] = `${newClient || lines[fIdx].split(" – ")[0] || ""} – ${newLieu || lines[fIdx].split(" – ").slice(1).join(" – ") || ""}`;
       }
+      const iIdx = lines.findIndex(l => l.startsWith("Interlocuteur :"));
+      if(newInterlocuteur){
+        if(iIdx >= 0) lines[iIdx] = `Interlocuteur : ${newInterlocuteur}`;
+        else lines.splice(1, 0, `Interlocuteur : ${newInterlocuteur}`);
+      } else if(iIdx >= 0) {
+        lines.splice(iIdx, 1);
+      }
+      newDesc = lines.join("\n");
     }
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(ev.id)}`;
     try{
-      const body={summary:newSummary,description:newDesc,start:ev.start,end:ev.end,location:ev.location,colorId:ev.colorId};
+      const body={summary:newSummary,description:newDesc,start:ev.start,end:ev.end,location:(newAdresse || ev.location || ""),colorId:ev.colorId};
       const resp=await fetch(url,{method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify(body)});
       if(!resp.ok){console.warn('Mise à jour évènement failed',ev.id,resp.status);continue;}
       const updatedEv=await resp.json();
-      // Mettre à jour le cache local
       const i=calEvents.findIndex(e=>e.id===ev.id);
       if(i>=0)calEvents[i]=updatedEv;
       updated++;
     }catch(e){console.warn('Erreur updateCalendarEventsForDossier',e);}
   }
-  if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour ${oldNum} → ${newNum}`);} 
+  if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour ${oldNum}${hasNumChange?` → ${newNum}`:""}`);} 
 }
 
 function renderUserBar(){
@@ -945,7 +952,7 @@ async function loadSheetData(){
 
 
 async function reloadSheetDossiers(){
-  const oldByRow = Object.fromEntries((sheetDossiers||[]).map(d=>[d._sheetRow,d]));
+  const oldByNum = Object.fromEntries((sheetDossiers||[]).filter(d=>d.num).map(d=>[d.num,d]));
   const btn=document.querySelector('[onclick="reloadSheetDossiers()"]');
   if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
   // Vide le cache local et recharge depuis Sheets
@@ -992,13 +999,21 @@ async function reloadSheetDossiers(){
       showToast(`✓ ${sheetDossiers.length} dossiers chargés`);
     }
 
-    // Détecter modifications externes d'un dossier (num, client, lieu) et propager vers Google Calendar
+    // Détecter modifications externes d'un dossier (num, client, lieu, interlocuteur, adresse) et propager vers Google Calendar
     try{
-      for(const nd of sheetDossiers){
-        const od = oldByRow[nd._sheetRow];
-        if(od && (od.num!==nd.num || od.client!==nd.client || od.lieu!==nd.lieu)){
-          // Propager la modification sur les événements liés
-          updateCalendarEventsForDossier(od.num, nd.num, nd.client, nd.lieu);
+      const currentByNum = Object.fromEntries(sheetDossiers.filter(d=>d.num).map(d=>[d.num,d]));
+      const modelKeys = new Set([...Object.keys(oldByNum), ...Object.keys(currentByNum)]);
+      for(const key of modelKeys){
+        const od = oldByNum[key];
+        const nd = currentByNum[key];
+        if(!od && nd) continue; // nouveau dossier : pas de comparaison utile ici
+        if(!nd) {
+          // dossier supprimé depuis le Sheet => ne pas tenter de mettre à jour par row ; on laisse la logique d'édition/annulation gérer le cas
+          continue;
+        }
+        const changed = od.num !== nd.num || od.client !== nd.client || od.lieu !== nd.lieu || od.interlocuteur !== nd.interlocuteur || od.adresse !== nd.adresse;
+        if(changed){
+          updateCalendarEventsForDossier(od.num || nd.num, nd.num, nd.client, nd.lieu, nd.interlocuteur, nd.adresse);
         }
       }
     }catch(e){console.warn('Propagation dossier→Agenda failed',e);}  
@@ -1210,7 +1225,7 @@ async function saveDos(){
     sheetDossiers[editingDosIdx]=d;
     await sheetUpdateMerged(SHEET_TABS.dos,existing._sheetRow,dosCI,dosHC,values);
     // Si le numéro ou infos ont changé, propager vers Google Calendar
-    try{ if(oldNum && oldNum!==d.num) await updateCalendarEventsForDossier(oldNum,d.num,d.client,d.lieu); }catch(e){console.warn('Erreur propagation saveDos->Agenda',e);}    
+    try{ if(oldNum) await updateCalendarEventsForDossier(oldNum,d.num,d.client,d.lieu,d.interlocuteur,d.adresse); }catch(e){console.warn('Erreur propagation saveDos->Agenda',e);}    
   }else{
     sheetDossiers.push(d);
     await sheetAppend(SHEET_TABS.dos,[buildRowFromMap(dosCI,dosHC,values)]);
