@@ -1035,7 +1035,7 @@ async function saveInterloc(){
   if(btn)btn.textContent='Enregistrer'; closeInterlocForm(); renderSidebarInterlocs(); populateDosInterlocSelect(document.getElementById('f-dos-client-select')?.value||'',rec.name);
 }
 
-function checkDuplicates(){"}
+function checkDuplicates(){
   const nums=sheetDossiers.map(d=>d.num);
   const counts={};nums.forEach(n=>{counts[n]=(counts[n]||0)+1;});
   const dups=Object.entries(counts).filter(([,v])=>v>1).map(([k])=>k);
