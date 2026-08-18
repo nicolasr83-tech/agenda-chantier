@@ -262,7 +262,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Interlocuteur(s)</label>
             <div style="display:flex;gap:6px;align-items:flex-start">
               <div id="f-dos-interloc-input" class="m-select-checklist" style="flex:1;min-height:92px;max-height:240px"></div>
-              <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
+              <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px;position:relative;z-index:20">👥</button>
             </div>
           </div>
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
@@ -1203,12 +1203,13 @@ function populateDosInterlocSelect(client,selected){
   list.forEach(i=>{
     const id="dos-interloc-"+Math.random().toString(36).slice(2,8);
     const label=document.createElement('label');
-    label.style.display='block'; label.style.padding='6px'; label.style.cursor='pointer';
+    label.style.display='flex'; label.style.alignItems='center'; label.style.gap='8px'; label.style.padding='8px 10px'; label.style.cursor='pointer'; label.style.whiteSpace='nowrap';
     const chk=document.createElement('input'); chk.type='checkbox'; chk.value=i.name; chk.style.marginRight='8px';
     if(selectedNames.includes(i.name)) chk.checked=true;
     chk.onchange=onDosInterlocInputChange;
+    const span=document.createElement('span'); span.textContent=i.name; span.style.flex='1'; span.style.overflow='hidden'; span.style.textOverflow='ellipsis'; span.style.color='var(--text)';
     label.appendChild(chk);
-    label.appendChild(document.createTextNode(' '+i.name));
+    label.appendChild(span);
     container.appendChild(label);
   });
 }
