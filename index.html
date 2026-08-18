@@ -381,7 +381,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         <button class="multi-btn" id="cal-filter-collab-btn" onclick="toggleCollabFilterMenu(event)" title="Filtrer par collaborateur" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);cursor:pointer">👥 <span id="cal-filter-collab-label">Tous</span> ▾</button>
         <div class="multi-menu" id="cal-filter-collab-menu" style="display:none;position:absolute;right:0;top:36px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:220;width:220px;font-size:13px">
           <div id="cal-filter-collab-menu-items" style="max-height:200px;overflow:auto"></div>
-          <div style="text-align:right;margin-top:6px"><button class="rc-btn" onclick="applyCalFilterCollab()" style="font-size:12px;padding:6px 8px">Appliquer</button></div>
+          <div style="text-align:right;margin-top:6px;display:flex;gap:6px;justify-content:flex-end"><button class="rc-btn" onclick="clearCalFilterCollab()" style="font-size:12px;padding:6px 8px">Tous</button><button class="rc-btn" onclick="applyCalFilterCollab()" style="font-size:12px;padding:6px 8px">Appliquer</button></div>
         </div>
       </div>
     </div>
@@ -1367,6 +1367,13 @@ function applyCalFilterCollab(){
   renderCalFilterCollab();
   buildCalendar();
   const m=document.getElementById("cal-filter-collab-menu"); if(m)m.style.display='none';
+}
+function clearCalFilterCollab(){
+  const items=document.querySelectorAll("#cal-filter-collab-menu-items input[type=checkbox]");
+  Array.from(items).forEach(i=>i.checked=false);
+  calFilterCollab = null;
+  renderCalFilterCollab();
+  // keep menu open so user can re-select if desired
 }
 // close menu when clicking elsewhere
 // Only close when clicking outside the menu so checkbox clicks inside it don't auto-close it
