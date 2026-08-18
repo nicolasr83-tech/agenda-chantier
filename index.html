@@ -1195,12 +1195,34 @@ function getSelectedDosInterlocNames(){
 }
 function populateDosInterlocSelect(client,selected){
   const container=document.getElementById("f-dos-interloc-input");if(!container)return;
+  const parentFlex=container.parentNode; const sField=parentFlex?parentFlex.parentNode:null;
   const selectedNames=(selected||"").split(";").map(v=>v.trim()).filter(Boolean);
   let list=sheetInterlocuteurs.filter(i=>i.client===client);
   if(selectedNames.length){
     const existingNames=new Set(list.map(i=>i.name));
     selectedNames.filter(name=>!existingNames.has(name)).forEach(name=>list.push({name,client,email:"",tel:""}));
   }
+
+  // ensure a small filter input above the checklist
+  let search=document.getElementById('f-dos-interloc-search');
+  if(!search && sField){
+    search=document.createElement('input');
+    search.id='f-dos-interloc-search';
+    search.placeholder='Filtrer…';
+    search.className='m-input';
+    search.style.margin='6px 8px 8px 0';
+    search.autocomplete='off';
+    search.addEventListener('input',()=>{
+      const q=normalizeText(search.value||'');
+      Array.from(container.children).forEach(lbl=>{
+        const name=lbl.querySelector('span')?.textContent||'';
+        lbl.style.display = normalizeText(name).includes(q)?'flex':'none';
+      });
+    });
+    // insert search above the parent flex so it appears as a full-width row
+    if(sField) sField.insertBefore(search,parentFlex);
+  }
+
   container.innerHTML="";
   list.forEach(i=>{
     const id="dos-interloc-"+Math.random().toString(36).slice(2,8);
