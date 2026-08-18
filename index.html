@@ -19,6 +19,7 @@
   --green:#16A34A;--green-bg:#DCFCE7;--red:#DC2626;
   --radius:10px;--safe-bottom:env(safe-area-inset-bottom,0px);
   --sidebar-w:300px;
+  --sidebar-collapsed-w:64px;
 }
 html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);overflow:hidden}
 
@@ -35,7 +36,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .app{display:flex;height:calc(100vh - 56px);overflow:hidden;position:relative}
 
 /* Sidebar */
-.sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .25s ease;z-index:150;flex-shrink:0}
+.sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .25s ease,width .25s ease;z-index:150;flex-shrink:0}
+.sidebar.collapsed{width:var(--sidebar-collapsed-w)}
+.sidebar.collapsed .sidebar-content{display:none}
+.sidebar.collapsed .sidebar-tabs{display:flex;flex-direction:column;gap:6px;padding:8px}
+.sidebar.collapsed .stab{padding:6px 0;width:48px;text-align:center;white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .stab.active{background:transparent}
 .sidebar.hidden{transform:translateX(-100%);position:absolute;top:0;left:0;height:100%;box-shadow:4px 0 20px rgba(0,0,0,.15)}
 .sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
 .stab{flex:1;padding:9px 2px;text-align:center;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
@@ -224,7 +230,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <button class="btn-icon" onclick="toggleSidebar()" title="Panneau">☰</button>
   <h1>Arragon Planning</h1>
   <button class="btn-pill" onclick="openRecapPage()" title="Récap pointage par chantier">📊 Pointage</button>
-  <button class="btn-icon" onclick="openExportModal()" title="Exporter">📥</button>
   <div id="user-bar"><button class="btn-signin-h" onclick="signIn()">Se connecter</button></div>
 </div>
 
@@ -1430,10 +1435,20 @@ function updateModalMat(){
 
 
 let sidebarOpen=window.innerWidth>768;
-function toggleSidebar(){sidebarOpen=!sidebarOpen;applySidebar();}
-function closeSidebar(){sidebarOpen=false;applySidebar();}
+let sidebarCollapsed=false; // desktop collapse state
+function toggleSidebar(){
+  if(window.innerWidth>768){
+    sidebarCollapsed=!sidebarCollapsed;
+    applySidebar();
+  } else {
+    sidebarOpen=!sidebarOpen;applySidebar();
+  }
+}
+function closeSidebar(){sidebarOpen=false;sidebarCollapsed=false;applySidebar();}
 function applySidebar(){
-  document.getElementById("sidebar").classList.toggle("open",sidebarOpen);
+  const sb=document.getElementById("sidebar");
+  sb.classList.toggle("open",sidebarOpen);
+  sb.classList.toggle("collapsed",sidebarCollapsed);
   document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 function switchSTab(tab){
