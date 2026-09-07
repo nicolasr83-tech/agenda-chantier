@@ -2094,6 +2094,7 @@ function buildDossierPDF(dos,year,month,byDossier){
   doc.autoTable({
     startY:y,theme:"grid",styles:{fontSize:9,cellPadding:2.5,font:"helvetica"},
     body:[
+      ["Lieu",di?.lieu||""],
       ["Client",di?.client||""],
       ["N° Dossier",dos],
       ["Interlocuteur",di?.interlocuteur||""],
