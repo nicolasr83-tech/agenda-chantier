@@ -1478,8 +1478,16 @@ function switchSTab(tab){
 
 async function loadCalendar(silent){
   if(!accessToken)return;
-  const first=new Date(curYear,curMonth,1).toISOString();
-  const last=new Date(curYear,curMonth+1,0,23,59,59).toISOString();
+  // Charger les semaines complètes qui contiennent le mois, afin que les
+  // jours juste avant/après le mois puissent afficher leurs événements.
+  const monthFirst=new Date(curYear,curMonth,1);
+  const monthLast=new Date(curYear,curMonth+1,0);
+  const firstOffset=monthFirst.getDay()===0?6:monthFirst.getDay()-1;
+  const lastOffset=monthLast.getDay()===0?0:6-monthLast.getDay();
+  const rangeFirst=new Date(curYear,curMonth,1-firstOffset);
+  const rangeLast=new Date(curYear,curMonth+1,lastOffset,23,59,59);
+  const first=rangeFirst.toISOString();
+  const last=rangeLast.toISOString();
   if(!silent)setLoading(true);
   try{
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(first)}&timeMax=${encodeURIComponent(last)}&singleEvents=true&orderBy=startTime&maxResults=500`;
@@ -1581,13 +1589,10 @@ function buildCalendar(){
     allDays.push({dt,dayOffset});
   }
 
-  // Calculer les jours du mois précédent pour remplir la première semaine
-  const firstDay=allDays[0]?.dt||new Date(curYear,curMonth,1);
-  let firstDow=firstDay.getDay();
-  firstDow=firstDow===0?6:firstDow-1;
-  // En mode sans weekend, le décalage est basé sur les jours ouvrés
+  // En mode sans weekend, un mois qui commence le week-end doit tout de même
+  // afficher les cinq jours ouvrés de la semaine précédente.
   const leadingEmpty=hideWeekend
-    ? allDays[0]?((allDays[0].dt.getDay()===0?4:allDays[0].dt.getDay()-1)):0
+    ? (startDow<=4?startDow:5)
     : startDow;
 
   const totalCells=Math.ceil((leadingEmpty+allDays.length)/cols)*cols;
