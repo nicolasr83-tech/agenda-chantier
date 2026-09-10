@@ -1579,9 +1579,9 @@ function eventsIndexedByDate(){
   let src = calEvents;
   if(calFilterDos) src = src.filter(ev=>eventDossier(ev)===calFilterDos);
   if(Array.isArray(calFilterCollab)){
-    if(calFilterCollab.length>0) src = calEvents.filter(ev=>{const c=eventCollab(ev);return c&&calFilterCollab.includes(c.name);});
+    if(calFilterCollab.length>0) src = src.filter(ev=>{const c=eventCollab(ev);return c&&calFilterCollab.includes(c.name);});
   } else if(calFilterCollab){
-    src = calEvents.filter(ev=>eventCollab(ev)?.name===calFilterCollab);
+    src = src.filter(ev=>eventCollab(ev)?.name===calFilterCollab);
   }
   src.forEach(ev=>{
     let ds=ev.start?.date||ev.start?.dateTime?.slice(0,10);
