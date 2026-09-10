@@ -128,9 +128,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .m-toggle{display:flex;background:var(--grey);border-radius:8px;padding:2px;flex-wrap:wrap;gap:2px}
 .m-toggle button{flex:1;padding:7px 4px;border:none;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;background:none;color:var(--muted);min-width:50px}
 .m-toggle button.active{background:var(--white);color:var(--navy);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1)}
-.collab-preview{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--grey);border-radius:8px;margin-top:5px}
-.cp-dot{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--white)}
-.cp-info{font-size:13px;font-weight:500}
 .modal-footer{padding:0 16px 16px;display:flex;gap:7px}
 .btn-modal-cancel{flex:1;padding:12px;border-radius:8px;font-size:13px;font-weight:500;border:1.5px solid var(--border);background:var(--white);color:var(--text);cursor:pointer}
 .btn-modal-save{flex:2;padding:12px;border-radius:8px;font-size:13px;font-weight:700;background:var(--blue);color:var(--white);border:none;cursor:pointer}
@@ -406,15 +403,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <span class="search-modal-icon">🔍</span>
           <input type="search" id="m-dos-search" placeholder="Rechercher un dossier…" oninput="filterModalDos()" autocomplete="off">
         </div>
-        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0" onchange="updateModalPreview()"></select>
+        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0"></select>
       </div>
       <div class="m-field">
         <label>Collaborateur</label>
-        <select class="m-select" id="m-collab" onchange="updateModalPreview()"></select>
-        <div class="collab-preview" id="collab-preview" style="display:none">
-          <div class="cp-dot" id="cp-dot"></div>
-          <span class="cp-info" id="cp-info"></span>
-        </div>
+        <select class="m-select" id="m-collab"></select>
       </div>
       <div class="m-field">
         <label>Prestation</label>
@@ -1410,7 +1403,6 @@ function updateModalCollab(){
   const cur=sel?.value;
   if(sel)sel.innerHTML=sheetCollabs.map((c,i)=>`<option value="${i}">${c.name}${c.pseudo?" ("+c.pseudo+")":""}</option>`).join("");
   if(cur)sel.value=cur;
-  updateModalPreview();
 }
 
 
@@ -1781,7 +1773,6 @@ function openEditModal(evId){
   }
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("m-mat-warning").style.display="none";
-  updateModalPreview();
   document.getElementById("modal-bg").classList.add("open");
 }
 
@@ -1793,17 +1784,6 @@ function filterModalDos(){
   const sel=document.getElementById("m-dossier");const cur=sel.value;
   sel.innerHTML=list.map(d=>`<option value="${d.num}">${d.archive?"🗄️ ":""}${d.num} – ${d.client} – ${d.lieu}</option>`).join("");
   if(cur)for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===cur){sel.selectedIndex=i;break;}}
-  updateModalPreview();
-}
-function updateModalPreview(){
-  const idx=parseInt(document.getElementById("m-collab")?.value);
-  const prev=document.getElementById("collab-preview");if(!prev)return;
-  if(isNaN(idx)||idx<0||idx>=sheetCollabs.length){prev.style.display="none";return;}
-  const c=sheetCollabs[idx];
-  document.getElementById("cp-dot").style.background=collabColor(c);
-  document.getElementById("cp-dot").textContent=collabInit(c.name);
-  document.getElementById("cp-info").textContent=c.name+(c.pseudo?" · @"+c.pseudo:"");
-  prev.style.display="flex";
 }
 let selectedHalfDay="matin"; // "matin" ou "aprem"
 
