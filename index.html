@@ -374,6 +374,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
       <button id="btn-weekend" onclick="toggleWeekend()" title="Afficher/masquer Sam/Dim"
         style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
+      <button id="cal-filter-dos-btn" onclick="clearCalFilterDos()" title="Afficher tous les dossiers"
+        style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📁 <span id="cal-filter-dos-label">Tous les dossiers</span></button>
       <div class="cal-collab-filter" id="cal-filter-collab" style="position:relative;flex-shrink:0">
         <button class="multi-btn" id="cal-filter-collab-btn" onclick="toggleCollabFilterMenu(event)" title="Filtrer par collaborateur" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;color:var(--text);background:var(--white);cursor:pointer">👥 <span id="cal-filter-collab-label">Tous</span> ▾</button>
         <div class="multi-menu" id="cal-filter-collab-menu" style="display:none;position:absolute;right:0;top:36px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:220;width:220px;font-size:13px">
@@ -574,6 +576,7 @@ let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[];
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
 let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
+let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
 let expType="global";
@@ -1135,6 +1138,7 @@ function normalizeText(s){
 
 function renderSidebarDos(){
   checkDuplicates();
+  updateCalFilterDosLabel();
   const q=normalizeText(document.getElementById("s-search-dos")?.value||"");
   const showArchived=document.getElementById("s-show-archived-dos")?.checked;
   const list=sheetDossiers.filter(d=>(showArchived||!d.archive)&&(!q||normalizeText(d.num+d.client+d.lieu).includes(q)));
@@ -1145,12 +1149,37 @@ function renderSidebarDos(){
   el.innerHTML=list.map(d=>{
     const i=sheetDossiers.indexOf(d);
     const interlocDiv=d.interlocuteur?'<div style="font-size:10px;color:var(--muted)">👤 '+d.interlocuteur+'</div>':"";
-    return `<div class="s-item" style="${d.archive?"opacity:.55":""}"><div style="flex:1;min-width:0">
+    const isSelected=calFilterDos===d.num;
+    return `<div class="s-item" onclick="selectCalendarDossier('${String(d.num).replace(/'/g,"\\'")}')" title="Afficher les événements de ce dossier" style="cursor:pointer;${d.archive?"opacity:.55;":""}${isSelected?"background:var(--lblue);border-color:var(--blue);":""}"><div style="flex:1;min-width:0">
       <div style="font-size:11px;font-weight:700;color:var(--blue);font-family:monospace">${d.archive?"🗄️ ":""}${d.num}</div>
       <div style="font-size:11px;color:var(--muted)">${d.client} – ${d.lieu}</div>
       ${interlocDiv}
-    </div><button class="s-edit" onclick="openDosForm(${i})">✏️</button></div>`;
+    </div><button class="s-edit" onclick="event.stopPropagation();openDosForm(${i})">✏️</button></div>`;
   }).join("");
+}
+function selectCalendarDossier(num){
+  calFilterDos=calFilterDos===num?null:num;
+  updateCalFilterDosLabel();
+  renderSidebarDos();
+  buildCalendar();
+}
+function clearCalFilterDos(){
+  if(!calFilterDos)return;
+  calFilterDos=null;
+  updateCalFilterDosLabel();
+  renderSidebarDos();
+  buildCalendar();
+}
+function updateCalFilterDosLabel(){
+  const label=document.getElementById("cal-filter-dos-label");
+  const btn=document.getElementById("cal-filter-dos-btn");
+  if(!label||!btn)return;
+  const dossier=calFilterDos&&sheetDossiers.find(d=>d.num===calFilterDos);
+  label.textContent=dossier?dossier.num:"Tous les dossiers";
+  btn.title=dossier?"Afficher tous les dossiers":"Afficher tous les dossiers";
+  btn.style.background=dossier?"var(--blue)":"var(--white)";
+  btn.style.color=dossier?"var(--white)":"var(--text)";
+  btn.style.borderColor=dossier?"var(--blue)":"var(--border)";
 }
 function openDosForm(idx){
   editingDosIdx=idx;
@@ -1548,6 +1577,7 @@ function renderDow(){
 function eventsIndexedByDate(){
   const byDate={};
   let src = calEvents;
+  if(calFilterDos) src = src.filter(ev=>eventDossier(ev)===calFilterDos);
   if(Array.isArray(calFilterCollab)){
     if(calFilterCollab.length>0) src = calEvents.filter(ev=>{const c=eventCollab(ev);return c&&calFilterCollab.includes(c.name);});
   } else if(calFilterCollab){
@@ -1569,6 +1599,11 @@ function eventsIndexedByDate(){
     }
   });
   return byDate;
+}
+
+function eventDossier(ev){
+  const summary=(ev.summary||"").split("_");
+  return summary[0]||"";
 }
 
 function buildCalendar(){
