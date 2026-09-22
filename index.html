@@ -204,6 +204,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .rc-table td.rc-zero{color:#C6CAD1}
 .rc-table td.rc-inactive{color:#D8DADF;font-style:italic;background:repeating-linear-gradient(45deg,#FAFAFB,#FAFAFB 4px,#F3F3F5 4px,#F3F3F5 8px)}
 .rc-table td.rc-nonzero{color:var(--green);font-weight:700}
+.rc-sent-cell{min-width:150px}
+.rc-sent-control{display:flex;align-items:center;justify-content:center;gap:6px}
+.rc-sent-control input{width:15px;height:15px;cursor:pointer}
+.rc-sent-label{font-size:10px;font-weight:600;color:var(--muted)}
+.rc-sent-label.sent{color:var(--green)}
+.rc-sent-meta{display:block;font-size:9px;color:var(--muted);margin-top:2px}
 .rc-icon-btn{border:1px solid var(--border);background:var(--white);border-radius:6px;width:26px;height:26px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .rc-icon-btn:hover{background:var(--grey)}
 .rc-icon-btn:disabled{opacity:.35;cursor:not-allowed}
@@ -571,7 +577,7 @@ function prestActive(di,code){
   return !!(field&&di[field]);
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs"};
+const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages"};
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 
@@ -755,16 +761,18 @@ async function sheetGet(tab,range){
 }
 async function sheetAppend(tab,values){
   const r=encodeURIComponent(`${tab}!A:Z`);
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
+  if(!resp.ok)throw new Error("Sheet append "+resp.status);
 }
 async function sheetUpdate(tab,sheetRow,values){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
   const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
+  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
+  if(!resp.ok)throw new Error("Sheet update "+resp.status);
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -845,6 +853,10 @@ const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur"};
 const MAT_HEADERS = {name:"Nom", cat:"Categorie"};
 const CLIENT_HEADERS = {nom:"Nom du client"};
 const INTERLOC_HEADERS = {name:"Nom", client:"Client", email:"Email", tel:"Telephone"};
+const POINTAGE_HEADERS = {
+  num:"N° Dossier", year:"Année", month:"Mois", sent:"Pointage envoyé",
+  sentAt:"Date d'envoi", sentBy:"Envoyé par"
+};
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
@@ -860,7 +872,7 @@ let dosCI={},dosHC=0, collabCI={},collabHC=0, matCI={},matHC=0, clientCI={},clie
 
 let _refTabsChecked=false;
 async function ensureRefTabs(){
-  // Crée les onglets "Clients" et "Interlocuteurs" s'ils n'existent pas encore
+  // Crée les onglets de référentiels et de suivi s'ils n'existent pas encore.
   if(_refTabsChecked)return;
   try{
     const meta=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`,
@@ -869,6 +881,7 @@ async function ensureRefTabs(){
     const requests=[];
     if(!existing.includes(SHEET_TABS.clients))requests.push({addSheet:{properties:{title:SHEET_TABS.clients}}});
     if(!existing.includes(SHEET_TABS.interlocuteurs))requests.push({addSheet:{properties:{title:SHEET_TABS.interlocuteurs}}});
+    if(!existing.includes(SHEET_TABS.pointages))requests.push({addSheet:{properties:{title:SHEET_TABS.pointages}}});
     if(requests.length){
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
         {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
@@ -876,8 +889,19 @@ async function ensureRefTabs(){
       if(!existing.includes(SHEET_TABS.clients))await sheetAppend(SHEET_TABS.clients,[["Nom du client"]]);
       if(!existing.includes(SHEET_TABS.interlocuteurs))await sheetAppend(SHEET_TABS.interlocuteurs,[["Nom","Client","Email","Téléphone"]]);
     }
+    const pointageHeaders=Object.values(POINTAGE_HEADERS);
+    const pointageHeader=(await sheetGet(SHEET_TABS.pointages,"A1:ZZ1"))[0]||[];
+    const pointageRow=pointageHeader.slice();
+    let pointageChanged=!pointageHeader.length;
+    pointageHeaders.forEach(label=>{
+      if(!pointageRow.some(h=>normHeader(h)===normHeader(label))){
+        pointageRow.push(label);
+        pointageChanged=true;
+      }
+    });
+    if(pointageChanged)await sheetUpdate(SHEET_TABS.pointages,1,[pointageRow]);
     _refTabsChecked=true;
-  }catch(e){console.warn("Création onglets Clients/Interlocuteurs impossible",e);}
+  }catch(e){console.warn("Création des onglets référentiels/suivi impossible",e);}
 }
 
 async function loadSheetData(){
@@ -2186,6 +2210,74 @@ let recapFormats={pdf:true, xlsx:true};
 let recapDirHandle=null;      // File System Access API (Chrome/Edge desktop)
 let recapGenerated={};        // {clé:true} une fois le(s) fichier(s) généré(s)
 let recapPriceEditKey=null;   // dossier dont l'éditeur de prix est ouvert
+let recapPointageStatus={};   // {"N° dossier|année|mois":{sent,sentAt,sentBy,_sheetRow}}
+let recapPointageCI={},recapPointageHC=0;
+
+function recapPointageKey(dos){
+  // Le mois est stocké de 1 à 12 dans Sheets, contrairement à Date qui est 0-indexé.
+  return `${dos}|${recapYear}|${recapMonth+1}`;
+}
+async function loadRecapPointageStatus(){
+  await ensureRefTabs();
+  const table=await sheetGetTable(SHEET_TABS.pointages,POINTAGE_HEADERS,{});
+  recapPointageCI=table.colIndex;recapPointageHC=table.headerCount;
+  recapPointageStatus={};
+  table.rows.forEach((row,i)=>{
+    const dos=cellOf(row,recapPointageCI,"num")?.trim();
+    const year=parseInt(cellOf(row,recapPointageCI,"year"));
+    const month=parseInt(cellOf(row,recapPointageCI,"month"));
+    if(!dos||!Number.isFinite(year)||!Number.isFinite(month))return;
+    const key=`${dos}|${year}|${month}`;
+    recapPointageStatus[key]={
+      sent:parseBool(cellOf(row,recapPointageCI,"sent")),
+      sentAt:cellOf(row,recapPointageCI,"sentAt")?.trim()||"",
+      sentBy:cellOf(row,recapPointageCI,"sentBy")?.trim()||"",
+      _sheetRow:i+2
+    };
+  });
+}
+function recapSentControl(dos){
+  const status=recapPointageStatus[recapPointageKey(dos)]||{};
+  const encoded=encodeURIComponent(dos);
+  const label=status.sent?"Envoyé":"Non envoyé";
+  const meta=status.sent&&status.sentAt?`<span class="rc-sent-meta">${new Date(status.sentAt).toLocaleString("fr-FR")}</span>`:"";
+  return `<div class="rc-sent-control">
+    <input type="checkbox" ${status.sent?"checked":""} onchange="toggleRecapSent(decodeURIComponent('${encoded}'),this.checked,this)" aria-label="${label}">
+    <span><span class="rc-sent-label${status.sent?" sent":""}">${label}</span>${meta}</span>
+  </div>`;
+}
+async function toggleRecapSent(dos,checked,input){
+  const key=recapPointageKey(dos);
+  const oldStatus=recapPointageStatus[key]||{sent:false,sentAt:"",sentBy:""};
+  input.disabled=true;
+  const row=input.closest("tr");
+  const label=row?.querySelector(".rc-sent-label");
+  if(label)label.textContent="Enregistrement…";
+  // Le décochage efface volontairement la date et l'auteur : le suivi décrit
+  // l'état courant du mois, pas l'historique des précédents envois.
+  const values={
+    num:dos,year:recapYear,month:recapMonth+1,
+    sent:checked?"Oui":"Non",
+    sentAt:checked?new Date().toISOString():"",
+    sentBy:checked?(currentUser?.email||currentUser?.name||""):""
+  };
+  try{
+    if(oldStatus._sheetRow){
+      await sheetUpdateMerged(SHEET_TABS.pointages,oldStatus._sheetRow,recapPointageCI,recapPointageHC,values);
+      recapPointageStatus[key]={...oldStatus,sent:checked,sentAt:values.sentAt,sentBy:values.sentBy};
+    }else{
+      await sheetAppend(SHEET_TABS.pointages,[buildRowFromMap(recapPointageCI,recapPointageHC,values)]);
+      recapPointageStatus[key]={sent:checked,sentAt:values.sentAt,sentBy:values.sentBy};
+    }
+    renderRecapList();
+    showToast(checked?"Pointage marqué comme envoyé ✓":"Statut d'envoi réinitialisé ✓");
+  }catch(e){
+    input.checked=oldStatus.sent;
+    renderRecapList();
+    showToast("Erreur d'enregistrement du statut d'envoi",true);
+    console.warn("Mise à jour du suivi des pointages impossible",e);
+  }
+}
 
 // Format un nombre en "1 234" avec un VRAI espace (les polices standard des
 // PDF n'ont pas le glyphe de l'espace fine insécable que fr-FR utilise par
@@ -2230,7 +2322,10 @@ async function loadRecapData(){
   el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">⏳ Chargement des pointages…</div>`;
   document.getElementById("rc-status").textContent="";
   try{
-    const events=await fetchMonthEvents(recapYear,recapMonth);
+    const [events]=await Promise.all([
+      fetchMonthEvents(recapYear,recapMonth),
+      loadRecapPointageStatus()
+    ]);
     recapByDossier=parseEventsToByDossier(events);
     recapSelected=new Set(["GLOBAL",...Object.keys(recapByDossier)]);
     renderRecapList();
@@ -2284,6 +2379,7 @@ function renderRecapList(){
       ${cols.map(k=>cellQty(tot[k],prestActive(di,k)||tot[k]>0)).join("")}
       <td class="rc-total-cell">${totalJ}</td>
       <td class="rc-montant-cell">${fmtEUR(montant)}</td>
+      <td class="rc-sent-cell">${recapSentControl(d)}</td>
       <td>
         <div style="display:flex;gap:4px;justify-content:center">
           <button class="rc-icon-btn" onclick="toggleRecapPriceEdit('${d}')" title="Modifier les prix (enregistré dans le Sheet)">✏️</button>
@@ -2298,7 +2394,7 @@ function renderRecapList(){
         const label=PREST_LABELS[PREST_KEYS.indexOf(k)];
         return `<div class="rc-price-field"><label>Prix ${label}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
       }).join("");
-      rowsHtml+=`<tr class="rc-price-row"><td colspan="${5+nPrest}">
+      rowsHtml+=`<tr class="rc-price-row"><td colspan="${6+nPrest}">
         <div class="rc-price-grid">
           ${priceFields}
           <button class="btn-modal-save" style="flex:none;padding:8px 14px" onclick="saveRecapPrice('${d}')">Enregistrer dans le Sheet</button>
@@ -2318,7 +2414,7 @@ function renderRecapList(){
     <thead><tr>
       <th></th><th>N° Dossier</th><th>Client / Chantier</th>
       ${prestHeaders}
-      <th>Total<br>Jours</th><th>Montant<br>(€)</th><th>Actions</th>
+      <th>Total<br>Jours</th><th>Montant<br>(€)</th><th>Pointage<br>envoyé</th><th>Actions</th>
     </tr></thead>
     <tbody>
       <tr class="global-row">
@@ -2326,7 +2422,7 @@ function renderRecapList(){
         <td colspan="2" class="rc-name-cell">🌐 GLOBAL — ${dosKeys.length} chantier(s) du mois</td>
         <td colspan="${nPrest}"></td>
         <td class="rc-total-cell">${totGlobalJ}</td>
-        <td class="rc-montant-cell">${fmtEUR(totGlobalM)}</td>
+        <td class="rc-montant-cell">${fmtEUR(totGlobalM)}</td><td></td>
         <td>${recapGenerated["GLOBAL"]?'<span class="rc-icon-btn done" style="width:auto;padding:0 8px">✓ généré</span>':""}</td>
       </tr>
       ${rowsHtml}
