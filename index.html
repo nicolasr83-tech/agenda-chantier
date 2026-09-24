@@ -1087,14 +1087,22 @@ async function reloadSheetInterlocuteurs(){
   const btn=document.querySelector("[onclick='reloadSheetInterlocuteurs()']");
   if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
   try{
+    const oldByRow=Object.fromEntries((sheetInterlocuteurs||[]).map(i=>[i._sheetRow,i]));
     const irows=await sheetGet(SHEET_TABS.interlocuteurs,"A2:D1000");
     sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
       name:r[0]?.trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2
     }));
+    let synced=0;
+    for(const updated of sheetInterlocuteurs){
+      const previous=oldByRow[updated._sheetRow];
+      if(!previous || previous.name===updated.name&&previous.client===updated.client&&
+        previous.email===updated.email&&previous.tel===updated.tel)continue;
+      synced+=await syncContactToDossiers(previous,updated);
+    }
     renderSidebarInterlocs();
     populateInterlocClientSelect(document.getElementById('f-interloc-client-select')?.value||"");
     populateDosClientSelect(document.getElementById('f-dos-client-select')?.value||"");
-    showToast(`${sheetInterlocuteurs.length} contacts chargés ✓`);
+    showToast(`${sheetInterlocuteurs.length} contacts chargés${synced?` · ${synced} dossier(s) mis à jour`:""} ✓`);
   }catch(e){showToast("Erreur rechargement contacts",true);}
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
 }
@@ -1131,13 +1139,51 @@ function openInterlocForm(idx){
   document.getElementById('f-interloc-tel').value=rec?.tel||"";
 }
 function closeInterlocForm(){editingInterlocIdx=null;document.getElementById('interloc-form').classList.remove('visible');}
+async function syncContactToDossiers(previous,updated){
+  if(!previous?.name)return 0;
+  const oldName=previous.name.trim();
+  const newName=updated.name.trim();
+  const affected=sheetDossiers.filter(d=>{
+    const names=(d.interlocuteur||"").split(";").map(v=>v.trim()).filter(Boolean);
+    return names.includes(oldName);
+  });
+  let synced=0;
+  for(const dossier of affected){
+    const names=(dossier.interlocuteur||"").split(";").map(v=>v.trim()).filter(Boolean)
+      .map(name=>name===oldName?newName:name);
+    const contacts=names.map(name=>sheetInterlocuteurs.find(i=>i.name===name)).filter(Boolean);
+    const next={...dossier,
+      interlocuteur:[...new Set(names)].join("; "),
+      email:contacts.map(i=>i.email).filter(Boolean).join("; "),
+      tel:contacts.map(i=>i.tel).filter(Boolean).join("; "),
+    };
+    const values={
+      interlocuteur:next.interlocuteur,
+      email:next.email,
+      tel:next.tel,
+    };
+    await sheetUpdateMerged(SHEET_TABS.dos,dossier._sheetRow,dosCI,dosHC,values);
+    Object.assign(dossier,next);
+    synced++;
+    try{
+      await updateCalendarEventsForDossier(
+        dossier.num,dossier.num,dossier.client,dossier.lieu,dossier.interlocuteur,dossier.adresse
+      );
+    }catch(e){console.warn("Erreur propagation contact→Agenda",e);}
+  }
+  return synced;
+}
 async function saveInterloc(){
   const name=document.getElementById('f-interloc-name').value.trim(); if(!name){document.getElementById('f-interloc-name').focus();return;}
   const rec={name,client:document.getElementById('f-interloc-client-select').value.trim()||"",email:document.getElementById('f-interloc-email').value.trim()||"",tel:document.getElementById('f-interloc-tel').value.trim()||""};
   const btn=document.getElementById('interloc-save-btn'); if(btn)btn.textContent='⏳';
   if(editingInterlocIdx!=null){
-    const existing=sheetInterlocuteurs[editingInterlocIdx]; rec._sheetRow=existing._sheetRow; sheetInterlocuteurs[editingInterlocIdx]=rec;
+    const existing=sheetInterlocuteurs[editingInterlocIdx];
+    rec._sheetRow=existing._sheetRow;
+    sheetInterlocuteurs[editingInterlocIdx]=rec;
     await sheetUpdateMerged(SHEET_TABS.interlocuteurs,existing._sheetRow,interlocCI,interlocHC,rec);
+    const synced=await syncContactToDossiers(existing,rec);
+    if(synced)showToast(`${synced} dossier(s) mis à jour ✓`);
   }else{
     sheetInterlocuteurs.push(rec);
     try{await ensureRefTabs(); await sheetAppend(SHEET_TABS.interlocuteurs,[buildRowFromMap(interlocCI,interlocHC,rec)]);}catch(e){showToast('Erreur enregistrement contact',true);}    
