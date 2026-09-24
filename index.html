@@ -742,6 +742,34 @@ async function updateCalendarEventsForDossier(oldNum,newNum,newClient,newLieu,ne
   if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour ${oldNum}${hasNumChange?` → ${newNum}`:""}`);} 
 }
 
+async function updateCalendarEventsForMateriel(oldName,newName){
+  if(!accessToken || !oldName || oldName===newName)return;
+  let updated=0;
+  for(const ev of calEvents.slice()){
+    const description=ev.description||"";
+    const hasMaterial=description.split("\n").some(line=>{
+      const match=line.match(/^\s*Mat(?:é|e)riel\s*:\s*(.*)$/i);
+      return match&&match[1].trim()===oldName;
+    });
+    if(!hasMaterial)continue;
+    const newDescription=description.split("\n").map(line=>{
+      const match=line.match(/^(\s*)Mat(?:é|e)riel(\s*:\s*)(.*)$/i);
+      return match&&match[3].trim()===oldName?`${match[1]}Matériel : ${newName}`:line;
+    }).join("\n");
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(ev.id)}`;
+    try{
+      const body={summary:ev.summary,description:newDescription,start:ev.start,end:ev.end,location:ev.location||"",colorId:ev.colorId};
+      const resp=await fetch(url,{method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!resp.ok){console.warn("Mise à jour matériel événement failed",ev.id,resp.status);continue;}
+      const updatedEv=await resp.json();
+      const i=calEvents.findIndex(e=>e.id===ev.id);
+      if(i>=0)calEvents[i]=updatedEv;
+      updated++;
+    }catch(e){console.warn("Erreur updateCalendarEventsForMateriel",e);}
+  }
+  if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour le matériel`);}
+}
+
 function renderUserBar(){
   const bar=document.getElementById("user-bar");
   if(currentUser&&accessToken){
@@ -1537,11 +1565,14 @@ async function saveMat(){
   if(!name){document.getElementById("f-mat-name").focus();return;}
   const m={name,cat:document.getElementById("f-mat-cat").value};
   const btn=document.getElementById("mat-save-btn");btn.textContent="⏳";
+  let oldName="";
   if(editingMatIdx!=null){
     const existing=sheetMat[editingMatIdx];
+    oldName=existing.name;
     m._sheetRow=existing._sheetRow;
     sheetMat[editingMatIdx]=m;
     await sheetUpdateMerged(SHEET_TABS.mat,existing._sheetRow||editingMatIdx+2,matCI,matHC,m);
+    try{await updateCalendarEventsForMateriel(oldName,name);}catch(e){console.warn("Erreur propagation saveMat->Agenda",e);}
   }else{
     sheetMat.push(m);
     await sheetAppend(SHEET_TABS.mat,[buildRowFromMap(matCI,matHC,m)]);
@@ -1552,6 +1583,10 @@ async function saveMat(){
 function updateModalMat(){
   const sel=document.getElementById("m-materiel");
   if(sel)sel.innerHTML=`<option value="">— Aucun —</option>`+sheetMat.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
+}
+function eventMaterialName(ev){
+  const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel\s*:/i.test(l));
+  return line?line.replace(/^\s*Mat(?:é|e)riel\s*:\s*/i,"").trim():"";
 }
 
 
@@ -1904,6 +1939,12 @@ function openEditModal(evId){
     const ci2=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
     if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
+  const materialName=eventMaterialName(ev);
+  if(materialName){
+    const materialIdx=sheetMat.findIndex(m=>m.name.trim()===materialName);
+    if(materialIdx>=0)document.getElementById("m-materiel").value=materialIdx;
+  }
+  checkMatConflict();
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("m-mat-warning").style.display="none";
   document.getElementById("modal-bg").classList.add("open");
