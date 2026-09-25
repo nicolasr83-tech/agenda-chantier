@@ -742,6 +742,34 @@ async function updateCalendarEventsForDossier(oldNum,newNum,newClient,newLieu,ne
   if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour ${oldNum}${hasNumChange?` → ${newNum}`:""}`);} 
 }
 
+async function updateCalendarEventsForMateriel(oldName,newName){
+  if(!accessToken || !oldName || oldName===newName)return;
+  let updated=0;
+  for(const ev of calEvents.slice()){
+    const description=ev.description||"";
+    const hasMaterial=description.split("\n").some(line=>{
+      const match=line.match(/^\s*Mat(?:é|e)riel\s*:\s*(.*)$/i);
+      return match&&match[1].trim()===oldName;
+    });
+    if(!hasMaterial)continue;
+    const newDescription=description.split("\n").map(line=>{
+      const match=line.match(/^(\s*)Mat(?:é|e)riel(\s*:\s*)(.*)$/i);
+      return match&&match[3].trim()===oldName?`${match[1]}Matériel : ${newName}`:line;
+    }).join("\n");
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(ev.id)}`;
+    try{
+      const body={summary:ev.summary,description:newDescription,start:ev.start,end:ev.end,location:ev.location||"",colorId:ev.colorId};
+      const resp=await fetch(url,{method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!resp.ok){console.warn("Mise à jour matériel événement failed",ev.id,resp.status);continue;}
+      const updatedEv=await resp.json();
+      const i=calEvents.findIndex(e=>e.id===ev.id);
+      if(i>=0)calEvents[i]=updatedEv;
+      updated++;
+    }catch(e){console.warn("Erreur updateCalendarEventsForMateriel",e);}
+  }
+  if(updated>0){buildCalendar();showToast(`Mise à jour de ${updated} événement(s) pour le matériel`);}
+}
+
 function renderUserBar(){
   const bar=document.getElementById("user-bar");
   if(currentUser&&accessToken){
@@ -1087,14 +1115,22 @@ async function reloadSheetInterlocuteurs(){
   const btn=document.querySelector("[onclick='reloadSheetInterlocuteurs()']");
   if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
   try{
+    const oldByRow=Object.fromEntries((sheetInterlocuteurs||[]).map(i=>[i._sheetRow,i]));
     const irows=await sheetGet(SHEET_TABS.interlocuteurs,"A2:D1000");
     sheetInterlocuteurs=irows.filter(r=>r[0]?.trim()).map((r,i)=>({
       name:r[0]?.trim(),client:r[1]?.trim()||"",email:r[2]?.trim()||"",tel:r[3]?.trim()||"",_sheetRow:i+2
     }));
+    let synced=0;
+    for(const updated of sheetInterlocuteurs){
+      const previous=oldByRow[updated._sheetRow];
+      if(!previous || previous.name===updated.name&&previous.client===updated.client&&
+        previous.email===updated.email&&previous.tel===updated.tel)continue;
+      synced+=await syncContactToDossiers(previous,updated);
+    }
     renderSidebarInterlocs();
     populateInterlocClientSelect(document.getElementById('f-interloc-client-select')?.value||"");
     populateDosClientSelect(document.getElementById('f-dos-client-select')?.value||"");
-    showToast(`${sheetInterlocuteurs.length} contacts chargés ✓`);
+    showToast(`${sheetInterlocuteurs.length} contacts chargés${synced?` · ${synced} dossier(s) mis à jour`:""} ✓`);
   }catch(e){showToast("Erreur rechargement contacts",true);}
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
 }
@@ -1131,13 +1167,51 @@ function openInterlocForm(idx){
   document.getElementById('f-interloc-tel').value=rec?.tel||"";
 }
 function closeInterlocForm(){editingInterlocIdx=null;document.getElementById('interloc-form').classList.remove('visible');}
+async function syncContactToDossiers(previous,updated){
+  if(!previous?.name)return 0;
+  const oldName=previous.name.trim();
+  const newName=updated.name.trim();
+  const affected=sheetDossiers.filter(d=>{
+    const names=(d.interlocuteur||"").split(";").map(v=>v.trim()).filter(Boolean);
+    return names.includes(oldName);
+  });
+  let synced=0;
+  for(const dossier of affected){
+    const names=(dossier.interlocuteur||"").split(";").map(v=>v.trim()).filter(Boolean)
+      .map(name=>name===oldName?newName:name);
+    const contacts=names.map(name=>sheetInterlocuteurs.find(i=>i.name===name)).filter(Boolean);
+    const next={...dossier,
+      interlocuteur:[...new Set(names)].join("; "),
+      email:contacts.map(i=>i.email).filter(Boolean).join("; "),
+      tel:contacts.map(i=>i.tel).filter(Boolean).join("; "),
+    };
+    const values={
+      interlocuteur:next.interlocuteur,
+      email:next.email,
+      tel:next.tel,
+    };
+    await sheetUpdateMerged(SHEET_TABS.dos,dossier._sheetRow,dosCI,dosHC,values);
+    Object.assign(dossier,next);
+    synced++;
+    try{
+      await updateCalendarEventsForDossier(
+        dossier.num,dossier.num,dossier.client,dossier.lieu,dossier.interlocuteur,dossier.adresse
+      );
+    }catch(e){console.warn("Erreur propagation contact→Agenda",e);}
+  }
+  return synced;
+}
 async function saveInterloc(){
   const name=document.getElementById('f-interloc-name').value.trim(); if(!name){document.getElementById('f-interloc-name').focus();return;}
   const rec={name,client:document.getElementById('f-interloc-client-select').value.trim()||"",email:document.getElementById('f-interloc-email').value.trim()||"",tel:document.getElementById('f-interloc-tel').value.trim()||""};
   const btn=document.getElementById('interloc-save-btn'); if(btn)btn.textContent='⏳';
   if(editingInterlocIdx!=null){
-    const existing=sheetInterlocuteurs[editingInterlocIdx]; rec._sheetRow=existing._sheetRow; sheetInterlocuteurs[editingInterlocIdx]=rec;
+    const existing=sheetInterlocuteurs[editingInterlocIdx];
+    rec._sheetRow=existing._sheetRow;
+    sheetInterlocuteurs[editingInterlocIdx]=rec;
     await sheetUpdateMerged(SHEET_TABS.interlocuteurs,existing._sheetRow,interlocCI,interlocHC,rec);
+    const synced=await syncContactToDossiers(existing,rec);
+    if(synced)showToast(`${synced} dossier(s) mis à jour ✓`);
   }else{
     sheetInterlocuteurs.push(rec);
     try{await ensureRefTabs(); await sheetAppend(SHEET_TABS.interlocuteurs,[buildRowFromMap(interlocCI,interlocHC,rec)]);}catch(e){showToast('Erreur enregistrement contact',true);}    
@@ -1491,11 +1565,14 @@ async function saveMat(){
   if(!name){document.getElementById("f-mat-name").focus();return;}
   const m={name,cat:document.getElementById("f-mat-cat").value};
   const btn=document.getElementById("mat-save-btn");btn.textContent="⏳";
+  let oldName="";
   if(editingMatIdx!=null){
     const existing=sheetMat[editingMatIdx];
+    oldName=existing.name;
     m._sheetRow=existing._sheetRow;
     sheetMat[editingMatIdx]=m;
     await sheetUpdateMerged(SHEET_TABS.mat,existing._sheetRow||editingMatIdx+2,matCI,matHC,m);
+    try{await updateCalendarEventsForMateriel(oldName,name);}catch(e){console.warn("Erreur propagation saveMat->Agenda",e);}
   }else{
     sheetMat.push(m);
     await sheetAppend(SHEET_TABS.mat,[buildRowFromMap(matCI,matHC,m)]);
@@ -1506,6 +1583,10 @@ async function saveMat(){
 function updateModalMat(){
   const sel=document.getElementById("m-materiel");
   if(sel)sel.innerHTML=`<option value="">— Aucun —</option>`+sheetMat.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
+}
+function eventMaterialName(ev){
+  const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel\s*:/i.test(l));
+  return line?line.replace(/^\s*Mat(?:é|e)riel\s*:\s*/i,"").trim():"";
 }
 
 
@@ -1858,6 +1939,12 @@ function openEditModal(evId){
     const ci2=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
     if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
+  const materialName=eventMaterialName(ev);
+  if(materialName){
+    const materialIdx=sheetMat.findIndex(m=>m.name.trim()===materialName);
+    if(materialIdx>=0)document.getElementById("m-materiel").value=materialIdx;
+  }
+  checkMatConflict();
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("m-mat-warning").style.display="none";
   document.getElementById("modal-bg").classList.add("open");
