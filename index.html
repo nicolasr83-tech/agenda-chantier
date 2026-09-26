@@ -55,6 +55,16 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .s-dot{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--white)}
 .s-name{flex:1;font-size:12px;font-weight:500}
 .s-sub{font-size:11px;color:var(--muted)}
+.mat-day-head{display:flex;align-items:center;gap:6px;margin:2px 0 8px;padding:7px 9px;border-radius:7px;background:var(--lblue);color:var(--navy);font-size:11px;font-weight:600}
+.mat-day-head button{margin-left:auto;border:1px solid var(--blue);border-radius:6px;background:var(--white);color:var(--blue);padding:4px 7px;font-size:11px;cursor:pointer}
+.mat-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;font-size:10px;color:var(--muted)}
+.mat-legend span{display:inline-flex;align-items:center;gap:3px}
+.mat-status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.mat-status-dot.available{background:var(--green)}
+.mat-status-dot.busy{background:var(--red)}
+.mat-status-dot.current{background:var(--blue)}
+.mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
+.mat-item-current{background:var(--lblue);border-color:var(--blue)}
 .s-edit{font-size:13px;color:var(--muted);cursor:pointer;padding:3px;border:none;background:none}
 .s-edit:hover{color:var(--blue)}
 .s-form{background:var(--grey);border-radius:8px;padding:10px;margin-bottom:8px;display:none}
@@ -370,6 +380,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="btn-add-s" onclick="reloadSheetMat()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
           <button class="btn-add-s" onclick="openMatForm(null)" title="Nouveau matériel">＋</button>
         </div>
+        <div id="s-mat-day-head" class="mat-day-head" style="display:none"></div>
+        <div class="mat-legend">
+          <span><i class="mat-status-dot available"></i>Disponible</span>
+          <span><i class="mat-status-dot busy"></i>Déjà affecté</span>
+          <span><i class="mat-status-dot current"></i>Événement consulté</span>
+        </div>
         <div id="s-mat-list"></div>
       </div>
     </div>
@@ -443,15 +459,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         <div class="m-field"><label>Heure fin</label><input type="time" class="m-input" id="m-time-end"></div>
       </div>
       <div class="m-field">
-        <label>Matériel (optionnel)</label>
-        <select class="m-select" id="m-materiel">
+        <label>Matériel(s) (optionnel · plusieurs possibles)</label>
+        <select class="m-select" id="m-materiel" multiple size="5" onchange="checkMatConflict()">
           <option value="">— Aucun —</option>
         </select>
-        <div id="m-mat-warning" style="font-size:11px;color:var(--red);margin-top:3px;display:none">⚠ Ce matériel est déjà affecté ce jour-là</div>
+        <div id="m-mat-warning" style="font-size:11px;color:var(--red);margin-top:3px;display:none"></div>
       </div>
       <div class="m-row">
         <div class="m-field"><label>Date début</label><input type="date" class="m-input" id="m-date-start" onchange="checkMatConflict()"></div>
-        <div class="m-field"><label>Date fin</label><input type="date" class="m-input" id="m-date-end"></div>
+        <div class="m-field"><label>Date fin</label><input type="date" class="m-input" id="m-date-end" onchange="checkMatConflict()"></div>
       </div>
       <div class="m-field"><label>Notes</label><input type="text" class="m-input" id="m-notes" placeholder="Informations complémentaires…"></div>
     </div>
@@ -591,6 +607,7 @@ let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
 let expType="global";
 let hideWeekend=true;
+let selectedMaterielDate=null;
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -749,12 +766,14 @@ async function updateCalendarEventsForMateriel(oldName,newName){
     const description=ev.description||"";
     const hasMaterial=description.split("\n").some(line=>{
       const match=line.match(/^\s*Mat(?:é|e)riel\s*:\s*(.*)$/i);
-      return match&&match[1].trim()===oldName;
+      return match&&eventMaterialNames(ev).includes(oldName);
     });
     if(!hasMaterial)continue;
     const newDescription=description.split("\n").map(line=>{
-      const match=line.match(/^(\s*)Mat(?:é|e)riel(\s*:\s*)(.*)$/i);
-      return match&&match[3].trim()===oldName?`${match[1]}Matériel : ${newName}`:line;
+      const match=line.match(/^(\s*)Mat(?:é|e)riel(?:s)?(\s*:\s*)(.*)$/i);
+      if(!match)return line;
+      const names=match[3].split(/\s*,\s*/).map(v=>v.trim()).filter(Boolean).map(n=>n===oldName?newName:n);
+      return `${match[1]}Matériel : ${names.join(", ")}`;
     }).join("\n");
     const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events/${encodeURIComponent(ev.id)}`;
     try{
@@ -1542,14 +1561,40 @@ function renderSidebarMat(){
   const q=normalizeText(document.getElementById("s-search-mat")?.value||"");
   const list=sheetMat.filter(m=>!q||normalizeText(m.name+m.cat).includes(q));
   const icons={"Instrument topo":"📡","Drone":"✈️","Scanner 3D":"📷","Véhicule":"🚗","Autre":"🔧"};
+  const date=selectedMaterielDate;
+  const dayHead=document.getElementById("s-mat-day-head");
+  if(dayHead){
+    dayHead.style.display=date?"flex":"none";
+    if(date)dayHead.innerHTML=`📅 ${formatDateFr(date)}<button onclick="openModal('${date}')">＋ Créer un événement</button>`;
+  }
   document.getElementById("s-mat-list").innerHTML=list.map(m=>{
     const i=sheetMat.indexOf(m);
-    return `<div class="s-item">
+    const assignments=date?materialAssignmentsOnDate(m.name,date):[];
+    const current=assignments.some(a=>a.id===editingEventId);
+    const busy=assignments.length>0&&!current;
+    const status=current?"mat-item-current":busy?"mat-item-busy":"";
+    const detail=current?"Affecté à l’événement consulté":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
+    return `<div class="s-item ${status}" title="${detail}">
       <div style="font-size:18px">${icons[m.cat]||"🔧"}</div>
-      <div><div class="s-name">${m.name}</div><div class="s-sub">${m.cat}</div></div>
+      <div><div class="s-name">${m.name}</div><div class="s-sub">${m.cat} · ${detail}</div></div>
       <button class="s-edit" onclick="openMatForm(${i})">✏️</button>
     </div>`;
   }).join("");
+}
+function eventDisplayName(ev){return (ev.summary||"Événement").replace(/_/g," · ");}
+function eventMaterialNames(ev){
+  const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel(?:s)?\s*:/i.test(l));
+  if(!line)return [];
+  return line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").split(/\s*,\s*/).map(v=>v.trim()).filter(Boolean);
+}
+function materialAssignmentsOnDate(name,date){
+  return calEvents.filter(ev=>{
+    if(!eventMaterialNames(ev).some(n=>n===name))return false;
+    const start=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    let end=ev.end?.date||ev.end?.dateTime?.slice(0,10)||start;
+    if(ev.end?.date){const d=new Date(end+"T12:00:00");d.setDate(d.getDate()-1);end=d.toISOString().slice(0,10);}
+    return start&&date>=start&&date<=end;
+  });
 }
 function openMatForm(idx){
   editingMatIdx=idx;
@@ -1582,11 +1627,14 @@ async function saveMat(){
 }
 function updateModalMat(){
   const sel=document.getElementById("m-materiel");
-  if(sel)sel.innerHTML=`<option value="">— Aucun —</option>`+sheetMat.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
+  if(!sel)return;
+  const selected=Array.from(sel.selectedOptions||[]).map(o=>o.value);
+  sel.innerHTML=sheetMat.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
+  selected.forEach(v=>{const o=sel.querySelector(`option[value="${v}"]`);if(o)o.selected=true;});
 }
 function eventMaterialName(ev){
-  const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel\s*:/i.test(l));
-  return line?line.replace(/^\s*Mat(?:é|e)riel\s*:\s*/i,"").trim():"";
+  const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel(?:s)?\s*:/i.test(l));
+  return line?line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").trim():"";
 }
 
 
@@ -1612,6 +1660,16 @@ function switchSTab(tab){
     document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
     document.getElementById("sp-"+t).classList.toggle("active",t===tab);
   });
+  if(tab==="materiel")renderSidebarMat();
+}
+function handleCalendarDayClick(ds){
+  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
+  if(materielTab){
+    selectedMaterielDate=ds;
+    renderSidebarMat();
+    return;
+  }
+  openModal(ds);
 }
 
 
@@ -1638,6 +1696,7 @@ async function loadCalendar(silent){
     if(!silent||sig(newEvents)!==sig(calEvents)){
       calEvents=newEvents;
       requestAnimationFrame(buildCalendar);
+      if(selectedMaterielDate)renderSidebarMat();
     }
   }catch(e){if(!silent)showToast("Erreur chargement",true);}
   if(!silent)setLoading(false);
@@ -1806,7 +1865,7 @@ function buildCalendar(){
     }).join("");
     const more=evs.length>maxShow?`<div class="ev-more" onclick="event.stopPropagation();showMorePopup(this,'${ds}')">+${evs.length-maxShow} autre${evs.length-maxShow>1?"s":""}</div>`:"";
     const dayNum=isToday?`<div class="day-num"><span>${d}</span></div>`:`<div class="day-num">${d}</div>`;
-    html+=`<div class="${cls}" onclick="openModal('${ds}')">${dayNum}${chips}${more}</div>`;
+    html+=`<div class="${cls}" onclick="handleCalendarDayClick('${ds}')">${dayNum}${chips}${more}</div>`;
   }
   document.getElementById("cal-days").innerHTML=html;
 }
@@ -1877,6 +1936,7 @@ function openModal(ds){
   document.getElementById("modal-date").textContent=formatDateFr(d);
   document.getElementById("m-notes").value="";
   document.getElementById("m-dos-search").value="";
+  document.getElementById("m-materiel").selectedIndex=-1;
   setPrest("1T",document.querySelector("[data-code='1T']"));
   selectedHalfDay="matin";
   document.getElementById("hd-matin").classList.add("active");
@@ -1903,6 +1963,7 @@ function openEditModal(evId){
   document.getElementById("m-date-end").value=de;
   document.getElementById("modal-date").textContent=formatDateFr(ds);
   document.getElementById("m-dos-search").value="";
+  document.getElementById("m-materiel").selectedIndex=-1;
   filterModalDos();updateModalCollab();updateModalMat();
   // enlarge modal and dossier list for event edit
   const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
@@ -1939,11 +2000,11 @@ function openEditModal(evId){
     const ci2=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
     if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
-  const materialName=eventMaterialName(ev);
-  if(materialName){
-    const materialIdx=sheetMat.findIndex(m=>m.name.trim()===materialName);
-    if(materialIdx>=0)document.getElementById("m-materiel").value=materialIdx;
-  }
+  const materialNames=eventMaterialNames(ev);
+  const materialSelect=document.getElementById("m-materiel");
+  Array.from(materialSelect.options).forEach(o=>{o.selected=materialNames.includes(sheetMat[parseInt(o.value)]?.name);});
+  selectedMaterielDate=ds;
+  renderSidebarMat();
   checkMatConflict();
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("m-mat-warning").style.display="none";
@@ -1985,13 +2046,25 @@ function setHalfDay(period,el,applyTimes){
   else{document.getElementById("m-time-start").value="14:00";document.getElementById("m-time-end").value="17:00";}
 }
 function checkMatConflict(){
-  const mi=parseInt(document.getElementById("m-materiel")?.value);
-  const d=document.getElementById("m-date-start")?.value;
+  const sel=document.getElementById("m-materiel");
+  const selected=Array.from(sel?.selectedOptions||[]).map(o=>parseInt(o.value)).filter(i=>!isNaN(i));
+  const ds=document.getElementById("m-date-start")?.value;
+  const de=document.getElementById("m-date-end")?.value||ds;
   const warn=document.getElementById("m-mat-warning");if(!warn)return;
-  if(isNaN(mi)||mi<0||!d){warn.style.display="none";return;}
-  const mn=sheetMat[mi]?.name;
-  const conflict=calEvents.some(ev=>((ev.start?.date||ev.start?.dateTime?.slice(0,10))===d)&&ev.id!==editingEventId&&ev.description?.includes(mn));
-  warn.style.display=conflict?"block":"none";
+  if(!selected.length||!ds){warn.style.display="none";return;}
+  const conflicts=[];
+  selected.forEach(i=>{
+    const name=sheetMat[i]?.name;
+    if(!name)return;
+    const dates=[];let cur=new Date(ds+"T12:00:00");const last=new Date((de||ds)+"T12:00:00");
+    while(cur<=last){dates.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1);}
+    const matches=dates.flatMap(date=>materialAssignmentsOnDate(name,date)).filter(ev=>ev.id!==editingEventId);
+    if(matches.length)conflicts.push(`${name} (${[...new Set(matches.map(eventDisplayName))].join(", ")})`);
+  });
+  warn.style.display=conflicts.length?"block":"none";
+  warn.textContent=conflicts.length?`⚠ Déjà affecté à cette date (attribution autorisée) : ${conflicts.join(" · ")}`:"";
+  selectedMaterielDate=ds;
+  renderSidebarMat();
 }
 function buildTitle(){
   const dos=document.getElementById("m-dossier")?.value||"";
@@ -2021,14 +2094,14 @@ async function saveEvent(){
   if(tEnd<=tStart&&ds===de){showToast("L'heure de fin doit être après l'heure de début",true);return;}
   const startDt=`${ds}T${tStart}:00`;
   const endDt=`${de}T${tEnd}:00`;
-  const mi=parseInt(document.getElementById("m-materiel")?.value);
-  const matName=(!isNaN(mi)&&sheetMat[mi])?sheetMat[mi].name:"";
+  const materialNames=Array.from(document.getElementById("m-materiel")?.selectedOptions||[])
+    .map(o=>sheetMat[parseInt(o.value)]?.name).filter(Boolean);
   const dosInfo=dosById(dos);
   const notes=document.getElementById("m-notes")?.value.trim()||"";
   const desc=[dosInfo?`${dosInfo.client} – ${dosInfo.lieu}`:"",
     dosInfo?.interlocuteur?`Interlocuteur : ${dosInfo.interlocuteur}`:"",
     collab?`Collaborateur : ${collab.name}`:"",notes,
-    matName?`Matériel : ${matName}`:"","Créé via Arragon Planning"].filter(Boolean).join("\n");
+    materialNames.length?`Matériel : ${materialNames.join(", ")}`:"","Créé via Arragon Planning"].filter(Boolean).join("\n");
   // Adresse = champ location → cliquable dans Google Calendar pour ouvrir Maps
   const location=dosInfo?.adresse||(dosInfo?.lieu?dosInfo.lieu+", France":"");
 
