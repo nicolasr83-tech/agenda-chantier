@@ -65,6 +65,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.current{background:var(--blue)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-item-current{background:var(--lblue);border-color:var(--blue)}
+.mat-picker{position:relative}
+.mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
+.mat-picker-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:230;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.mat-picker-menu.open{display:block}
+.mat-picker-items{max-height:190px;overflow-y:auto}
+.mat-picker-items label{display:flex;align-items:center;gap:8px;padding:7px;font-size:13px;cursor:pointer}
+.mat-picker-items label:hover{background:var(--grey);border-radius:5px}
+.mat-picker-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.mat-picker-summary{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
 .s-edit{font-size:13px;color:var(--muted);cursor:pointer;padding:3px;border:none;background:none}
 .s-edit:hover{color:var(--blue)}
 .s-form{background:var(--grey);border-radius:8px;padding:10px;margin-bottom:8px;display:none}
@@ -460,9 +469,17 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       </div>
       <div class="m-field">
         <label>Matériel(s) (optionnel · plusieurs possibles)</label>
-        <select class="m-select" id="m-materiel" multiple size="5" onchange="checkMatConflict()">
-          <option value="">— Aucun —</option>
-        </select>
+        <div class="mat-picker" id="m-materiel-picker">
+          <button type="button" class="mat-picker-btn" id="m-materiel-btn" onclick="toggleModalMatMenu(event)">Choisir le matériel ▾</button>
+          <div class="mat-picker-menu" id="m-materiel-menu">
+            <div class="mat-picker-items" id="m-materiel-items"></div>
+            <div class="mat-picker-actions">
+              <button type="button" class="rc-btn" onclick="clearModalMatSelection()" style="font-size:12px;padding:6px 8px">Tout décocher</button>
+              <button type="button" class="rc-btn" onclick="closeModalMatMenu()" style="font-size:12px;padding:6px 8px">Terminé</button>
+            </div>
+          </div>
+        </div>
+        <div id="m-materiel-summary" class="mat-picker-summary"></div>
         <div id="m-mat-warning" style="font-size:11px;color:var(--red);margin-top:3px;display:none"></div>
       </div>
       <div class="m-row">
@@ -1626,16 +1643,53 @@ async function saveMat(){
   showToast("Matériel enregistré ✓");
 }
 function updateModalMat(){
-  const sel=document.getElementById("m-materiel");
-  if(!sel)return;
-  const selected=Array.from(sel.selectedOptions||[]).map(o=>o.value);
-  sel.innerHTML=sheetMat.map((m,i)=>`<option value="${i}">${m.name} (${m.cat})</option>`).join("");
-  selected.forEach(v=>{const o=sel.querySelector(`option[value="${v}"]`);if(o)o.selected=true;});
+  const selected=selectedModalMaterialNames();
+  const items=document.getElementById("m-materiel-items");
+  if(!items)return;
+  items.innerHTML=sheetMat.map((m,i)=>`<label><input type="checkbox" value="${i}" ${selected.includes(m.name)?"checked":""} onchange="onModalMatSelectionChange()"> <span>${m.name} <span style="color:var(--muted);font-size:11px">(${m.cat})</span></span></label>`).join("");
+  renderModalMatSelection();
+}
+function selectedModalMaterialNames(){
+  return Array.from(document.querySelectorAll("#m-materiel-items input[type=checkbox]:checked"))
+    .map(input=>sheetMat[parseInt(input.value)]?.name).filter(Boolean);
+}
+function renderModalMatSelection(){
+  const names=selectedModalMaterialNames();
+  const button=document.getElementById("m-materiel-btn");
+  const summary=document.getElementById("m-materiel-summary");
+  if(button)button.textContent=names.length?`${names.length} matériel${names.length>1?"s":""} sélectionné${names.length>1?"s":""} ▾`:"Choisir le matériel ▾";
+  if(summary)summary.textContent=names.length?names.join(", "):"Aucun matériel sélectionné";
+}
+function setModalMatSelection(names){
+  const selected=new Set(names);
+  document.querySelectorAll("#m-materiel-items input[type=checkbox]").forEach(input=>{
+    input.checked=selected.has(sheetMat[parseInt(input.value)]?.name);
+  });
+  renderModalMatSelection();
+}
+function toggleModalMatMenu(ev){
+  ev.stopPropagation();
+  document.getElementById("m-materiel-menu")?.classList.toggle("open");
+}
+function closeModalMatMenu(){
+  document.getElementById("m-materiel-menu")?.classList.remove("open");
+}
+function clearModalMatSelection(){
+  setModalMatSelection([]);
+  onModalMatSelectionChange();
+}
+function onModalMatSelectionChange(){
+  renderModalMatSelection();
+  checkMatConflict();
 }
 function eventMaterialName(ev){
   const line=(ev?.description||"").split("\n").find(l=>/^\s*Mat(?:é|e)riel(?:s)?\s*:/i.test(l));
   return line?line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").trim():"";
 }
+document.addEventListener("click",ev=>{
+  const picker=document.getElementById("m-materiel-picker");
+  if(picker&&!picker.contains(ev.target))closeModalMatMenu();
+});
 
 
 let sidebarOpen=window.innerWidth>768;
@@ -1927,6 +1981,7 @@ function goToday(){curYear=new Date().getFullYear();curMonth=new Date().getMonth
 
 function openModal(ds){
   editingEventId=null;
+  closeModalMatMenu();
   document.getElementById("modal-title").textContent="Nouvel événement";
   document.getElementById("btn-del").style.display="none";
   document.getElementById("btn-modal-save").textContent="Enregistrer";
@@ -1936,7 +1991,7 @@ function openModal(ds){
   document.getElementById("modal-date").textContent=formatDateFr(d);
   document.getElementById("m-notes").value="";
   document.getElementById("m-dos-search").value="";
-  document.getElementById("m-materiel").selectedIndex=-1;
+  setModalMatSelection([]);
   setPrest("1T",document.querySelector("[data-code='1T']"));
   selectedHalfDay="matin";
   document.getElementById("hd-matin").classList.add("active");
@@ -1952,6 +2007,7 @@ function openModal(ds){
 
 function openEditModal(evId){
   const ev=calEvents.find(e=>e.id===evId);if(!ev)return;
+  closeModalMatMenu();
   editingEventId=evId;
   document.getElementById("modal-title").textContent="Modifier l'événement";
   document.getElementById("btn-del").style.display="flex";
@@ -1963,7 +2019,7 @@ function openEditModal(evId){
   document.getElementById("m-date-end").value=de;
   document.getElementById("modal-date").textContent=formatDateFr(ds);
   document.getElementById("m-dos-search").value="";
-  document.getElementById("m-materiel").selectedIndex=-1;
+  setModalMatSelection([]);
   filterModalDos();updateModalCollab();updateModalMat();
   // enlarge modal and dossier list for event edit
   const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
@@ -2001,13 +2057,11 @@ function openEditModal(evId){
     if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
   const materialNames=eventMaterialNames(ev);
-  const materialSelect=document.getElementById("m-materiel");
-  Array.from(materialSelect.options).forEach(o=>{o.selected=materialNames.includes(sheetMat[parseInt(o.value)]?.name);});
+  setModalMatSelection(materialNames);
   selectedMaterielDate=ds;
   renderSidebarMat();
   checkMatConflict();
   document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
-  document.getElementById("m-mat-warning").style.display="none";
   document.getElementById("modal-bg").classList.add("open");
 }
 
@@ -2046,15 +2100,13 @@ function setHalfDay(period,el,applyTimes){
   else{document.getElementById("m-time-start").value="14:00";document.getElementById("m-time-end").value="17:00";}
 }
 function checkMatConflict(){
-  const sel=document.getElementById("m-materiel");
-  const selected=Array.from(sel?.selectedOptions||[]).map(o=>parseInt(o.value)).filter(i=>!isNaN(i));
+  const selected=selectedModalMaterialNames();
   const ds=document.getElementById("m-date-start")?.value;
   const de=document.getElementById("m-date-end")?.value||ds;
   const warn=document.getElementById("m-mat-warning");if(!warn)return;
   if(!selected.length||!ds){warn.style.display="none";return;}
   const conflicts=[];
-  selected.forEach(i=>{
-    const name=sheetMat[i]?.name;
+  selected.forEach(name=>{
     if(!name)return;
     const dates=[];let cur=new Date(ds+"T12:00:00");const last=new Date((de||ds)+"T12:00:00");
     while(cur<=last){dates.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1);}
@@ -2076,6 +2128,7 @@ function buildTitle(){
   return `${dos}_${selectedPrest}${lieu?"_"+lieu:""}${tag?"_"+tag:""}`;
 }
 function closeModal(){
+  closeModalMatMenu();
   document.getElementById("modal-bg").classList.remove("open");
   const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.remove('large-modal');
   const sel=document.getElementById('m-dossier'); if(sel)sel.size=4;
@@ -2094,8 +2147,7 @@ async function saveEvent(){
   if(tEnd<=tStart&&ds===de){showToast("L'heure de fin doit être après l'heure de début",true);return;}
   const startDt=`${ds}T${tStart}:00`;
   const endDt=`${de}T${tEnd}:00`;
-  const materialNames=Array.from(document.getElementById("m-materiel")?.selectedOptions||[])
-    .map(o=>sheetMat[parseInt(o.value)]?.name).filter(Boolean);
+  const materialNames=selectedModalMaterialNames();
   const dosInfo=dosById(dos);
   const notes=document.getElementById("m-notes")?.value.trim()||"";
   const desc=[dosInfo?`${dosInfo.client} – ${dosInfo.lieu}`:"",
