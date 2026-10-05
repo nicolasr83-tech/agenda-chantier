@@ -72,6 +72,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-picker-items{max-height:190px;overflow-y:auto}
 .mat-picker-items label{display:flex;align-items:center;gap:8px;padding:7px;font-size:13px;cursor:pointer}
 .mat-picker-items label:hover{background:var(--grey);border-radius:5px}
+.mat-picker-item-name{flex:1;min-width:0}
+.mat-picker-item-status{font-size:11px;text-align:right}
+.mat-picker-item-status.available{color:var(--green)}
+.mat-picker-item-status.busy{color:var(--red);font-weight:600}
+.mat-picker-item-status.current{color:var(--blue);font-weight:600}
 .mat-picker-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
 .mat-picker-summary{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
 .s-edit{font-size:13px;color:var(--muted);cursor:pointer;padding:3px;border:none;background:none}
@@ -470,7 +475,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="m-field">
         <label>Matériel(s) (optionnel · plusieurs possibles)</label>
         <div class="mat-picker" id="m-materiel-picker">
-          <button type="button" class="mat-picker-btn" id="m-materiel-btn" onclick="toggleModalMatMenu(event)">Choisir le matériel ▾</button>
+          <button type="button" class="mat-picker-btn" id="m-materiel-btn" aria-haspopup="true" aria-expanded="false" aria-controls="m-materiel-menu" onclick="toggleModalMatMenu(event)">Choisir le matériel ▾</button>
           <div class="mat-picker-menu" id="m-materiel-menu">
             <div class="mat-picker-items" id="m-materiel-items"></div>
             <div class="mat-picker-actions">
@@ -1604,14 +1609,23 @@ function eventMaterialNames(ev){
   if(!line)return [];
   return line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").split(/\s*,\s*/).map(v=>v.trim()).filter(Boolean);
 }
-function materialAssignmentsOnDate(name,date){
+function eventMaterialDateRange(ev){
+  const start=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+  let end=ev.end?.date||ev.end?.dateTime?.slice(0,10)||start;
+  if(!start)return null;
+  if(ev.end?.date){const d=new Date(end+"T12:00:00");d.setDate(d.getDate()-1);end=d.toISOString().slice(0,10);}
+  return {start,end:end||start};
+}
+function materialAssignmentsInRange(name,startDate,endDate){
+  if(!startDate||!endDate||endDate<startDate)return [];
   return calEvents.filter(ev=>{
-    if(!eventMaterialNames(ev).some(n=>n===name))return false;
-    const start=ev.start?.date||ev.start?.dateTime?.slice(0,10);
-    let end=ev.end?.date||ev.end?.dateTime?.slice(0,10)||start;
-    if(ev.end?.date){const d=new Date(end+"T12:00:00");d.setDate(d.getDate()-1);end=d.toISOString().slice(0,10);}
-    return start&&date>=start&&date<=end;
+    if(!eventMaterialNames(ev).includes(name))return false;
+    const range=eventMaterialDateRange(ev);
+    return range&&range.start<=endDate&&range.end>=startDate;
   });
+}
+function materialAssignmentsOnDate(name,date){
+  return materialAssignmentsInRange(name,date,date);
 }
 function openMatForm(idx){
   editingMatIdx=idx;
@@ -1646,8 +1660,54 @@ function updateModalMat(){
   const selected=selectedModalMaterialNames();
   const items=document.getElementById("m-materiel-items");
   if(!items)return;
-  items.innerHTML=sheetMat.map((m,i)=>`<label><input type="checkbox" value="${i}" ${selected.includes(m.name)?"checked":""} onchange="onModalMatSelectionChange()"> <span>${m.name} <span style="color:var(--muted);font-size:11px">(${m.cat})</span></span></label>`).join("");
+  items.replaceChildren();
+  sheetMat.forEach((m,i)=>{
+    const label=document.createElement("label");
+    const checkbox=document.createElement("input");
+    checkbox.type="checkbox";
+    checkbox.value=String(i);
+    checkbox.checked=selected.includes(m.name);
+    checkbox.addEventListener("change",onModalMatSelectionChange);
+    const name=document.createElement("span");
+    name.className="mat-picker-item-name";
+    name.textContent=`${m.name} (${m.cat})`;
+    const status=document.createElement("span");
+    status.className="mat-picker-item-status";
+    label.append(checkbox,name,status);
+    items.appendChild(label);
+  });
   renderModalMatSelection();
+  updateModalMatAvailability();
+}
+function updateModalMatAvailability(){
+  const ds=document.getElementById("m-date-start")?.value;
+  const de=document.getElementById("m-date-end")?.value||ds;
+  document.querySelectorAll("#m-materiel-items label").forEach((label,i)=>{
+    const name=sheetMat[i]?.name;
+    const status=label.querySelector(".mat-picker-item-status");
+    if(!name||!status)return;
+    const assignments=ds&&de?materialAssignmentsBetween(name,ds,de):[];
+    const otherAssignments=assignments.filter(ev=>ev.id!==editingEventId);
+    const currentAssigned=assignments.some(ev=>ev.id===editingEventId);
+    status.className="mat-picker-item-status";
+    if(otherAssignments.length){
+      const names=[...new Set(otherAssignments.map(eventDisplayName))];
+      status.classList.add("busy");
+      status.textContent=`⚠ Déjà affecté${names.length===1?` · ${names[0]}`:` · ${names.length} événements`}`;
+      label.title=`Déjà affecté : ${names.join(", ")}. L’attribution reste possible.`;
+    }else if(currentAssigned){
+      status.classList.add("current");
+      status.textContent="✓ Événement consulté";
+      label.title="Déjà attribué à l’événement actuellement consulté.";
+    }else{
+      status.classList.add("available");
+      status.textContent="Disponible";
+      label.removeAttribute("title");
+    }
+  });
+}
+function materialAssignmentsBetween(name,startDate,endDate){
+  return materialAssignmentsInRange(name,startDate,endDate);
 }
 function selectedModalMaterialNames(){
   return Array.from(document.querySelectorAll("#m-materiel-items input[type=checkbox]:checked"))
@@ -1669,10 +1729,14 @@ function setModalMatSelection(names){
 }
 function toggleModalMatMenu(ev){
   ev.stopPropagation();
-  document.getElementById("m-materiel-menu")?.classList.toggle("open");
+  const menu=document.getElementById("m-materiel-menu");
+  if(!menu)return;
+  const isOpen=menu.classList.toggle("open");
+  document.getElementById("m-materiel-btn")?.setAttribute("aria-expanded",String(isOpen));
 }
 function closeModalMatMenu(){
   document.getElementById("m-materiel-menu")?.classList.remove("open");
+  document.getElementById("m-materiel-btn")?.setAttribute("aria-expanded","false");
 }
 function clearModalMatSelection(){
   setModalMatSelection([]);
@@ -1751,6 +1815,8 @@ async function loadCalendar(silent){
       calEvents=newEvents;
       requestAnimationFrame(buildCalendar);
       if(selectedMaterielDate)renderSidebarMat();
+      if(document.getElementById("modal-bg")?.classList.contains("open"))checkMatConflict();
+      else updateModalMatAvailability();
     }
   }catch(e){if(!silent)showToast("Erreur chargement",true);}
   if(!silent)setLoading(false);
@@ -2103,14 +2169,13 @@ function checkMatConflict(){
   const selected=selectedModalMaterialNames();
   const ds=document.getElementById("m-date-start")?.value;
   const de=document.getElementById("m-date-end")?.value||ds;
+  updateModalMatAvailability();
   const warn=document.getElementById("m-mat-warning");if(!warn)return;
   if(!selected.length||!ds){warn.style.display="none";return;}
   const conflicts=[];
   selected.forEach(name=>{
     if(!name)return;
-    const dates=[];let cur=new Date(ds+"T12:00:00");const last=new Date((de||ds)+"T12:00:00");
-    while(cur<=last){dates.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1);}
-    const matches=dates.flatMap(date=>materialAssignmentsOnDate(name,date)).filter(ev=>ev.id!==editingEventId);
+    const matches=materialAssignmentsBetween(name,ds,de).filter(ev=>ev.id!==editingEventId);
     if(matches.length)conflicts.push(`${name} (${[...new Set(matches.map(eventDisplayName))].join(", ")})`);
   });
   warn.style.display=conflicts.length?"block":"none";
