@@ -1911,27 +1911,12 @@ function buildCalendar(){
   document.getElementById("cal-title").textContent=`${MONTHS_FR[curMonth]} ${curYear}`;
   const today=new Date();
   const cols=hideWeekend?5:7;
-  // En mode 5 jours, on calcule le décalage lundi uniquement
-  let startDow=new Date(curYear,curMonth,1).getDay();
-  startDow=startDow===0?6:startDow-1; // lundi=0 ... dim=6
-  const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
-
-  // Collecter les jours à afficher
-  const allDays=[];
-  for(let dayOffset=0;dayOffset<daysInMonth;dayOffset++){
-    const dt=new Date(curYear,curMonth,1+dayOffset);
-    const dow=dt.getDay(); // 0=dim, 6=sam
-    if(hideWeekend&&(dow===0||dow===6))continue;
-    allDays.push({dt,dayOffset});
-  }
-
-  // En mode sans weekend, un mois qui commence le week-end doit tout de même
-  // afficher les cinq jours ouvrés de la semaine précédente.
-  const leadingEmpty=hideWeekend
-    ? (startDow<=4?startDow:5)
-    : startDow;
-
-  const totalCells=Math.ceil((leadingEmpty+allDays.length)/cols)*cols;
+  const monthFirst=new Date(curYear,curMonth,1);
+  const monthLast=new Date(curYear,curMonth+1,0);
+  const firstOffset=(monthFirst.getDay()+6)%7; // lundi=0 ... dimanche=6
+  const gridStart=new Date(curYear,curMonth,1-firstOffset);
+  const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
+  const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
   const maxShow=window.innerWidth<=768?2:6;
   const weekColWidth=window.innerWidth<=768?24:28;
@@ -1939,32 +1924,17 @@ function buildCalendar(){
   // Mettre à jour la grille CSS
   document.getElementById("cal-days").style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
   document.getElementById("cal-dow").style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
-
   let html="";
-  let dayIdx=-leadingEmpty;
-
+  let html="";
   for(let i=0;i<totalCells;i++){
-    let dt,inMonth;
-    if(dayIdx<0){
-      // Jours du mois précédent
-      const prevDate=new Date(curYear,curMonth,1+dayIdx);
-      if(hideWeekend&&(prevDate.getDay()===0||prevDate.getDay()===6)){dayIdx++;i--;continue;}
-      dt=prevDate;inMonth=false;
-    } else if(dayIdx<daysInMonth){
-      dt=new Date(curYear,curMonth,1+dayIdx);
-      if(hideWeekend&&(dt.getDay()===0||dt.getDay()===6)){dayIdx++;i--;continue;}
-      inMonth=true;
-    } else {
-      // Jours du mois suivant
-      const nextDate=new Date(curYear,curMonth+1,1+(dayIdx-daysInMonth));
-      if(hideWeekend&&(nextDate.getDay()===0||nextDate.getDay()===6)){dayIdx++;i--;continue;}
-      dt=nextDate;inMonth=false;
-    }
     if(i%cols===0){
-      const weekStart=new Date(curYear,curMonth,1-startDow+Math.floor(i/cols)*7);
+      const weekStart=new Date(gridStart);
+      weekStart.setDate(weekStart.getDate()+Math.floor(i/cols)*7);
       html+=`<div class="cal-week-cell">${getISOWeek(weekStart)}</div>`;
     }
-    dayIdx++;
+    const dt=new Date(gridStart);
+    dt.setDate(dt.getDate()+Math.floor(i/cols)*7+(i%cols));
+    const inMonth=dt.getMonth()===curMonth;
 
     const y=dt.getFullYear(),m=dt.getMonth(),d=dt.getDate();
     const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
