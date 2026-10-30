@@ -2630,6 +2630,7 @@ function renderRecapList(){
         <div style="display:flex;gap:4px;justify-content:center">
           <button class="rc-icon-btn" onclick="toggleRecapPriceEdit('${d}')" title="Modifier les prix (enregistré dans le Sheet)">✏️</button>
           <button class="rc-icon-btn" ${hasEmail?"":"disabled"} onclick="prepareRecapEmail('${d}')" title="${hasEmail?"Préparer l'email":"Aucun email renseigné"}">✉️</button>
+          <button class="rc-icon-btn" ${hasEmail?"":"disabled"} onclick="downloadRecapEmailWithPdf('${d}')" title="${hasEmail?"Télécharger un email .eml avec le PDF joint":"Aucun email renseigné"}" aria-label="Télécharger l'email avec le PDF joint">📎</button>
           <button class="rc-icon-btn${recapGenerated[d]?" done":""}" ${recapGenerated[d]?"":"disabled"} title="${recapGenerated[d]?"Fichier(s) généré(s)":"Pas encore généré"}">✓</button>
         </div>
       </td>
@@ -2911,20 +2912,85 @@ async function runRecapGenerateAll(){
 }
 
 // ── Préparation d'email (mailto — jamais envoyé automatiquement) ────────────
-function prepareRecapEmail(dos){
-  const di=dosById(dos);
-  if(!di?.email){showToast("Aucun email renseigné pour ce dossier",true);return;}
+function recapEmailContent(dos,di){
   const mn=MONTHS_FR[recapMonth];
-  const formatsTxt=[recapFormats.xlsx?"Excel":"",recapFormats.pdf?"PDF":""].filter(Boolean).join(" / ")||"Excel / PDF";
   const subject=`Pointage ${dos} – ${mn} ${recapYear} – Cabinet Arragon`;
   const userSig = (localStorage.getItem('default_signature') || "").toString();
   const signature = userSig || "Cabinet Arragon\nGéomètre-Topographe";
   const body=`Bonjour${di.interlocuteur?" "+di.interlocuteur.split(" ")[0]:""},\n\n`+
     `Veuillez trouver ci-joint le pointage du dossier ${dos} (${di.client} – ${di.lieu}) pour ${mn} ${recapYear}.\n\n`+
     `${signature}`;
+  return {subject,body,mn};
+}
+
+function prepareRecapEmail(dos){
+  const di=dosById(dos);
+  if(!di?.email){showToast("Aucun email renseigné pour ce dossier",true);return;}
+  const {subject,body}=recapEmailContent(dos,di);
   const mailto=`mailto:${encodeURIComponent(di.email)}?cc=${encodeURIComponent(SECRETARIAT_EMAIL)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href=mailto;
   showToast("Brouillon d'email ouvert — pense à joindre le fichier généré avant d'envoyer");
+}
+
+function bytesToBase64(bytes){
+  let binary="";
+  for(let offset=0;offset<bytes.length;offset+=0x8000){
+    binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+  }
+  return btoa(binary);
+}
+
+function foldBase64(value){
+  return value.match(/.{1,76}/g)?.join("\r\n")||"";
+}
+
+function encodeRfc2231(value){
+  return encodeURIComponent(value).replace(/[!'()*]/g,char=>"%"+char.charCodeAt(0).toString(16).toUpperCase());
+}
+
+async function downloadRecapEmailWithPdf(dos){
+  const di=dosById(dos);
+  if(!di?.email){showToast("Aucun email renseigné pour ce dossier",true);return;}
+  try{
+    if(/[\r\n]/.test(di.email))throw new Error("Adresse email invalide");
+    const {subject,body,mn}=recapEmailContent(dos,di);
+    const safe=dos.replace(/[\/\\]/g,"-");
+    const filename=`Pointage_${safe}_${mn}_${recapYear}.pdf`;
+    const asciiFilename=filename.normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^\x20-\x7E]/g,"_").replace(/["\\]/g,"_");
+    const pdfBlob=buildDossierPDF(dos,recapYear,recapMonth,recapByDossier).output("blob");
+    const pdfBase64=foldBase64(bytesToBase64(new Uint8Array(await pdfBlob.arrayBuffer())));
+    const textBase64=foldBase64(bytesToBase64(new TextEncoder().encode(body)));
+    const subjectBase64=bytesToBase64(new TextEncoder().encode(subject));
+    const boundary=`----=_Arragon_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const recipients=di.email.split(/[;,]/).map(email=>email.trim()).filter(Boolean).join(", ");
+    const eml=[
+      `To: ${recipients}`,
+      `Cc: ${SECRETARIAT_EMAIL}`,
+      `Subject: =?UTF-8?B?${subjectBase64}?=`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      textBase64,
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${asciiFilename}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeRfc2231(filename)}`,
+      "",
+      pdfBase64,
+      `--${boundary}--`,
+      "",
+    ].join("\r\n");
+    await saveRecapFile(`Pointage_${safe}_${mn}_${recapYear}.eml`,new Blob([eml],{type:"message/rfc822"}));
+    showToast("Email .eml téléchargé avec le PDF joint");
+  }catch(error){
+    console.error("Erreur de préparation de l'email .eml",error);
+    showToast("Impossible de préparer l'email avec le PDF joint",true);
+  }
 }
 
 
