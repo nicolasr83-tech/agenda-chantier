@@ -63,8 +63,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.available{background:var(--green)}
 .mat-status-dot.busy{background:var(--red)}
 .mat-status-dot.current{background:var(--blue)}
+.mat-status-dot.unavailable{background:var(--red)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-item-current{background:var(--lblue);border-color:var(--blue)}
+.mat-item-unavailable{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-picker{position:relative}
 .mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
 .mat-picker-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:230;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
@@ -77,6 +79,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-picker-item-status.available{color:var(--green)}
 .mat-picker-item-status.busy{color:var(--red);font-weight:600}
 .mat-picker-item-status.current{color:var(--blue);font-weight:600}
+.mat-picker-item-status.unavailable{color:var(--red);font-weight:600}
 .mat-picker-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
 .mat-picker-summary{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
 .s-edit{font-size:13px;color:var(--muted);cursor:pointer;padding:3px;border:none;background:none}
@@ -379,11 +382,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-form-title" id="mat-form-title">Nouveau matériel</div>
           <div class="s-field"><label>Nom *</label><input id="f-mat-name" placeholder="GPS Leica GS18" autocomplete="off"></div>
           <div class="s-field"><label>Catégorie</label>
-            <select id="f-mat-cat">
-              <option>Instrument topo</option><option>Drone</option>
-              <option>Scanner 3D</option><option>Véhicule</option><option>Autre</option>
-            </select>
+            <select id="f-mat-cat"></select>
           </div>
+          <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:8px">
+            <input type="checkbox" id="f-mat-unavailable" style="width:15px;height:15px"> Indisponible (en révision)
+          </label>
+          <div class="s-field"><label>Date de la dernière révision</label><input id="f-mat-last-revision" type="date"></div>
           <div class="s-form-btns">
             <button class="s-btn-cancel" onclick="closeMatForm()">Annuler</button>
             <button class="s-btn-save" id="mat-save-btn" onclick="saveMat()">Enregistrer</button>
@@ -399,6 +403,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <span><i class="mat-status-dot available"></i>Disponible</span>
           <span><i class="mat-status-dot busy"></i>Déjà affecté</span>
           <span><i class="mat-status-dot current"></i>Événement consulté</span>
+          <span><i class="mat-status-dot unavailable"></i>En révision</span>
         </div>
         <div id="s-mat-list"></div>
       </div>
@@ -879,9 +884,30 @@ async function sheetGetTable(tab,headerMap,fallbackMap){
   const rows=headerCount>0?await sheetGet(tab,`A2:${lastCol}1000`):[];
   return {colIndex,headerCount,rows};
 }
+async function loadSheetMatTable(){
+  const headers=(await sheetGet(SHEET_TABS.mat,"A1:ZZ1"))[0]||[];
+  let changed=false;
+  if(!headers[0]?.trim()){headers[0]=MAT_HEADERS.name;changed=true;}
+  if(!headers[1]?.trim()){headers[1]=MAT_HEADERS.cat;changed=true;}
+  Object.entries(MAT_HEADERS).forEach(([key,label])=>{
+    if(key==="name"||key==="cat")return;
+    if(!headers.some(header=>normHeader(header)===normHeader(label))){
+      headers.push(label);
+      changed=true;
+    }
+  });
+  if(changed)await sheetUpdate(SHEET_TABS.mat,1,[headers]);
+  return sheetGetTable(SHEET_TABS.mat,MAT_HEADERS,MAT_FALLBACK);
+}
 function cellOf(row,colIndex,key){
   const i=colIndex[key];
   return i===undefined?"":(row[i]??"");
+}
+function sheetDateToInput(value){
+  const date=String(value||"").trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(date))return date;
+  const match=date.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  return match?`${match[3]}-${match[2].padStart(2,"0")}-${match[1].padStart(2,"0")}`:"";
 }
 // Construit une ligne complète à partir des valeurs {clé:valeur}, en respectant
 // les positions de colonnes trouvées (colIndex) et la largeur totale du tableau.
@@ -919,7 +945,7 @@ const DOS_HEADERS = {
   prixPrep:"Prix Preparation", prixRap:"Prix Rapport",
 };
 const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur"};
-const MAT_HEADERS = {name:"Nom", cat:"Categorie"};
+const MAT_HEADERS = {name:"Nom", cat:"Catégorie", unavailable:"Indisponible", lastRevision:"Dernière révision"};
 const CLIENT_HEADERS = {nom:"Nom du client"};
 const INTERLOC_HEADERS = {name:"Nom", client:"Client", email:"Email", tel:"Telephone"};
 const POINTAGE_HEADERS = {
@@ -1020,14 +1046,16 @@ async function loadSheetData(){
     renderSidebarCollabs();updateModalCollab();
 
     // Matériel
-    const mt=await sheetGetTable(SHEET_TABS.mat,MAT_HEADERS,MAT_FALLBACK);
+    const mt=await loadSheetMatTable();
     matCI=mt.colIndex;matHC=mt.headerCount;
     sheetMat=mt.rows.filter(r=>cellOf(r,matCI,"name")?.trim()).map((r,i)=>({
       name:cellOf(r,matCI,"name")?.trim(),
-      cat:cellOf(r,matCI,"cat")?.trim()||"Autre",
+      cat:cellOf(r,matCI,"cat")?.trim()||"",
+      unavailable:parseBool(cellOf(r,matCI,"unavailable")),
+      lastRevision:sheetDateToInput(cellOf(r,matCI,"lastRevision")),
       _sheetRow:i+2,
     }));
-    renderSidebarMat();updateModalMat();
+    updateMatCategoryOptions();renderSidebarMat();updateModalMat();
   }catch(e){console.warn("Sheet load error",e);}
 
   // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
@@ -1142,11 +1170,16 @@ async function reloadSheetMat(){
   const btn=document.querySelector("[onclick='reloadSheetMat()']");
   if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
   try{
-    const mrows=await sheetGet(SHEET_TABS.mat,"A2:B1000");
-    sheetMat=mrows.filter(r=>r[0]?.trim()).map((r,i)=>({
-      name:r[0]?.trim(),cat:r[1]?.trim()||"Autre",_sheetRow:i+2,
+    const mt=await loadSheetMatTable();
+    matCI=mt.colIndex;matHC=mt.headerCount;
+    sheetMat=mt.rows.filter(r=>cellOf(r,matCI,"name")?.trim()).map((r,i)=>({
+      name:cellOf(r,matCI,"name")?.trim(),
+      cat:cellOf(r,matCI,"cat")?.trim()||"",
+      unavailable:parseBool(cellOf(r,matCI,"unavailable")),
+      lastRevision:sheetDateToInput(cellOf(r,matCI,"lastRevision")),
+      _sheetRow:i+2,
     }));
-    renderSidebarMat();updateModalMat();
+    updateMatCategoryOptions();renderSidebarMat();updateModalMat();
     showToast(`${sheetMat.length} matériels chargés ✓`);
   }catch(e){showToast("Erreur rechargement",true);}
   if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
@@ -1582,7 +1615,6 @@ function updateModalCollab(){
 function renderSidebarMat(){
   const q=normalizeText(document.getElementById("s-search-mat")?.value||"");
   const list=sheetMat.filter(m=>!q||normalizeText(m.name+m.cat).includes(q));
-  const icons={"Instrument topo":"📡","Drone":"✈️","Scanner 3D":"📷","Véhicule":"🚗","Autre":"🔧"};
   const date=selectedMaterielDate;
   const dayHead=document.getElementById("s-mat-day-head");
   if(dayHead){
@@ -1594,11 +1626,12 @@ function renderSidebarMat(){
     const assignments=date?materialAssignmentsOnDate(m.name,date):[];
     const current=assignments.some(a=>a.id===editingEventId);
     const busy=assignments.length>0&&!current;
-    const status=current?"mat-item-current":busy?"mat-item-busy":"";
-    const detail=current?"Affecté à l’événement consulté":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
+    const status=m.unavailable?"mat-item-unavailable":current?"mat-item-current":busy?"mat-item-busy":"";
+    const detail=m.unavailable?"Indisponible (en révision)":current?"Affecté à l’événement consulté":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
+    const revision=m.lastRevision?` · Dernière révision : ${formatDateShort(m.lastRevision)}`:"";
     return `<div class="s-item ${status}" title="${detail}">
-      <div style="font-size:18px">${icons[m.cat]||"🔧"}</div>
-      <div><div class="s-name">${m.name}</div><div class="s-sub">${m.cat} · ${detail}</div></div>
+      <div style="font-size:18px">🔧</div>
+      <div><div class="s-name">${m.name}</div><div class="s-sub">${m.cat||"—"} · ${detail}${revision}</div></div>
       <button class="s-edit" onclick="openMatForm(${i})">✏️</button>
     </div>`;
   }).join("");
@@ -1633,13 +1666,37 @@ function openMatForm(idx){
   document.getElementById("mat-form-title").textContent=idx!=null?"Modifier":"Nouveau matériel";
   const m=idx!=null?sheetMat[idx]:null;
   document.getElementById("f-mat-name").value=m?.name||"";
-  document.getElementById("f-mat-cat").value=m?.cat||"Instrument topo";
+  updateMatCategoryOptions(m?.cat||"");
+  document.getElementById("f-mat-unavailable").checked=!!m?.unavailable;
+  document.getElementById("f-mat-last-revision").value=m?.lastRevision||"";
+}
+function updateMatCategoryOptions(selectedCategory=""){
+  const select=document.getElementById("f-mat-cat");
+  if(!select)return;
+  const categories=[...new Set(sheetMat.map(m=>m.cat.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr"));
+  select.replaceChildren();
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent=categories.length?"Choisir une catégorie":"Aucune catégorie dans Sheets";
+  select.appendChild(placeholder);
+  categories.forEach(category=>{
+    const option=document.createElement("option");
+    option.value=category;
+    option.textContent=category;
+    select.appendChild(option);
+  });
+  select.value=selectedCategory;
 }
 function closeMatForm(){document.getElementById("mat-form").classList.remove("visible");editingMatIdx=null;}
 async function saveMat(){
   const name=document.getElementById("f-mat-name").value.trim();
   if(!name){document.getElementById("f-mat-name").focus();return;}
-  const m={name,cat:document.getElementById("f-mat-cat").value};
+  const m={
+    name,
+    cat:document.getElementById("f-mat-cat").value,
+    unavailable:document.getElementById("f-mat-unavailable").checked,
+    lastRevision:document.getElementById("f-mat-last-revision").value,
+  };
   const btn=document.getElementById("mat-save-btn");btn.textContent="⏳";
   let oldName="";
   if(editingMatIdx!=null){
@@ -1653,7 +1710,7 @@ async function saveMat(){
     sheetMat.push(m);
     await sheetAppend(SHEET_TABS.mat,[buildRowFromMap(matCI,matHC,m)]);
   }
-  btn.textContent="Enregistrer";closeMatForm();renderSidebarMat();updateModalMat();
+  btn.textContent="Enregistrer";closeMatForm();updateMatCategoryOptions();renderSidebarMat();updateModalMat();
   showToast("Matériel enregistré ✓");
 }
 function updateModalMat(){
@@ -1670,7 +1727,7 @@ function updateModalMat(){
     checkbox.addEventListener("change",onModalMatSelectionChange);
     const name=document.createElement("span");
     name.className="mat-picker-item-name";
-    name.textContent=`${m.name} (${m.cat})`;
+    name.textContent=m.cat?`${m.name} (${m.cat})`:m.name;
     const status=document.createElement("span");
     status.className="mat-picker-item-status";
     label.append(checkbox,name,status);
@@ -1683,13 +1740,22 @@ function updateModalMatAvailability(){
   const ds=document.getElementById("m-date-start")?.value;
   const de=document.getElementById("m-date-end")?.value||ds;
   document.querySelectorAll("#m-materiel-items label").forEach((label,i)=>{
-    const name=sheetMat[i]?.name;
+    const material=sheetMat[i];
+    const name=material?.name;
+    const checkbox=label.querySelector("input");
     const status=label.querySelector(".mat-picker-item-status");
-    if(!name||!status)return;
+    if(!name||!status||!checkbox)return;
+    checkbox.disabled=!!material.unavailable&&!checkbox.checked;
+    status.className="mat-picker-item-status";
+    if(material.unavailable){
+      status.classList.add("unavailable");
+      status.textContent="⛔ Indisponible (en révision)";
+      label.title="Matériel indisponible : en révision.";
+      return;
+    }
     const assignments=ds&&de?materialAssignmentsBetween(name,ds,de):[];
     const otherAssignments=assignments.filter(ev=>ev.id!==editingEventId);
     const currentAssigned=assignments.some(ev=>ev.id===editingEventId);
-    status.className="mat-picker-item-status";
     if(otherAssignments.length){
       const names=[...new Set(otherAssignments.map(eventDisplayName))];
       status.classList.add("busy");
