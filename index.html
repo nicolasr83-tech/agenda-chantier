@@ -896,7 +896,8 @@ async function sheetAppend(tab,values){
 }
 async function sheetUpdate(tab,sheetRow,values){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
-  const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
+  const width=Math.max(1,...values.map(row=>row.length));
+  const r=encodeURIComponent(`${tab}!A${sheetRow}:${sheetColLetter(width)}${sheetRow}`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -945,6 +946,26 @@ async function ensureSheetHeaders(tab,headerMap){
     if(!updated.some(header=>normHeader(header)===normHeader(label)))updated.push(label);
   });
   if(updated.length!==headers.length)await sheetUpdate(tab,1,[updated]);
+}
+async function ensureDossierPriceHeaders(){
+  const headers=(await sheetGet(SHEET_TABS.dos,"A1:ZZ1"))[0]||[];
+  for(const key of ["prixPrep","prixRap"]){
+    const label=DOS_HEADERS[key];
+    if(headers.some(header=>normHeader(header)===normHeader(label)))continue;
+    const firstCandidate=Math.max(DOS_FALLBACK[key],headers.length);
+    let target=-1;
+    for(let i=firstCandidate;i<702;i++){
+      if(String(headers[i]??"").trim())continue;
+      const col=sheetColLetter(i+1);
+      const cells=await sheetGet(SHEET_TABS.dos,`${col}2:${col}`);
+      if(cells.some(row=>String(row[0]??"").trim()))continue;
+      target=i;
+      break;
+    }
+    if(target<0)throw new Error(`Aucune colonne vide disponible pour ${label}`);
+    headers[target]=label;
+    await sheetUpdate(SHEET_TABS.dos,1,[headers]);
+  }
 }
 async function loadSheetVehicleTable(){
   await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
@@ -1087,6 +1108,7 @@ async function loadSheetData(){
   await ensureRefTabs();
   try{
     // Dossiers
+    await ensureDossierPriceHeaders();
     const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
     dosCI=colIndex;dosHC=headerCount;
     const seenNums=new Set();
@@ -1177,6 +1199,7 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
+    await ensureDossierPriceHeaders();
     const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
     dosCI=colIndex;dosHC=headerCount;
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
