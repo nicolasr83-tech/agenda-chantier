@@ -43,8 +43,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .sidebar.collapsed .stab{padding:6px 0;width:48px;text-align:center;white-space:nowrap;overflow:hidden}
 .sidebar.collapsed .stab.active{background:transparent}
 .sidebar.hidden{transform:translateX(-100%);position:absolute;top:0;left:0;height:100%;box-shadow:4px 0 20px rgba(0,0,0,.15)}
-.sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
-.stab{flex:1;padding:9px 2px;text-align:center;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.stab{flex:0 0 auto;padding:9px 4px;text-align:center;font-size:9px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
 .stab.active{color:var(--blue);border-bottom-color:var(--blue)}
 .sidebar-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .sidebar-panel{display:none;padding:10px}
@@ -95,6 +95,16 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .s-btn-save{flex:1;background:var(--blue);color:var(--white);border:none;border-radius:7px;padding:8px;font-size:13px;font-weight:600;cursor:pointer}
 .s-btn-cancel{background:var(--white);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;cursor:pointer;color:var(--muted)}
 .s-grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.vehicle-status{font-size:10px;font-weight:700;padding:3px 6px;border-radius:10px;white-space:nowrap}
+.vehicle-status.available{background:var(--green-bg);color:var(--green)}
+.vehicle-status.assigned{background:var(--lblue);color:var(--blue)}
+.vehicle-status.repair,.vehicle-status.out{background:#FDECEC;color:var(--red)}
+.vehicle-history{font-size:10px;color:var(--muted);padding:3px 0 3px 30px}
+.vehicle-assignment{display:flex;gap:5px;align-items:center;margin-top:5px}
+.vehicle-assignment select{min-width:0;flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:11px}
+.vehicle-assignment button{border:1px solid var(--border);background:var(--white);border-radius:6px;padding:5px 7px;font-size:11px;cursor:pointer}
+.vehicle-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+.vehicle-card{display:block}
 .color-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
 .csw{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
 .csw.sel{border-color:var(--navy);box-shadow:0 0 0 2px var(--white),0 0 0 3px var(--navy)}
@@ -276,6 +286,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="stab" onclick="switchSTab('collabs')">👤 Collabs</div>
       <div class="stab" onclick="switchSTab('contacts')">📇 Contacts</div>
       <div class="stab" onclick="switchSTab('materiel')">🔧 Matériel</div>
+      <div class="stab" onclick="switchSTab('vehicules')">🚗 Véhicules</div>
     </div>
     <div class="sidebar-content">
 
@@ -407,6 +418,43 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         </div>
         <div id="s-mat-list"></div>
       </div>
+
+      <!-- VEHICULES -->
+      <div class="sidebar-panel" id="sp-vehicules">
+        <div class="s-form" id="vehicle-form">
+          <div class="s-form-title" id="vehicle-form-title">Nouveau véhicule</div>
+          <div class="s-field"><label>Immatriculation *</label><input id="f-vehicle-registration" placeholder="AB-123-CD" autocomplete="off" required></div>
+          <div class="s-grid2">
+            <div class="s-field"><label>Marque</label><input id="f-vehicle-make" placeholder="Renault"></div>
+            <div class="s-field"><label>Modèle</label><input id="f-vehicle-model" placeholder="Kangoo"></div>
+          </div>
+          <div class="s-field"><label>Statut</label>
+            <select id="f-vehicle-status" onchange="onVehicleStatusChange()">
+              <option value="Disponible">Disponible</option>
+              <option value="Attribué">Attribué</option>
+              <option value="En réparation">En réparation</option>
+              <option value="Hors service">Hors service</option>
+            </select>
+          </div>
+          <div class="s-grid2">
+            <div class="s-field"><label>Kilométrage actuel</label><input id="f-vehicle-mileage" type="number" min="0" step="1" placeholder="0"></div>
+            <div class="s-field"><label>Mis à jour le</label><input id="f-vehicle-mileage-date" type="date"></div>
+          </div>
+          <div class="s-field"><label>Notes</label><input id="f-vehicle-notes" placeholder="Informations complémentaires"></div>
+          <div class="s-field"><label>Collaborateur attribué</label><select id="f-vehicle-collab"></select></div>
+          <div class="s-field"><label>Début d’attribution</label><input id="f-vehicle-assignment-start" type="date"></div>
+          <div class="s-form-btns">
+            <button class="s-btn-cancel" onclick="closeVehicleForm()">Annuler</button>
+            <button class="s-btn-save" id="vehicle-save-btn" onclick="saveVehicle()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="search-row-s">
+          <input type="search" id="s-search-vehicle" placeholder="Rechercher…" oninput="renderSidebarVehicles()">
+          <button class="btn-add-s" onclick="reloadSheetVehicles()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
+          <button class="btn-add-s" onclick="openVehicleForm(null)" title="Nouveau véhicule">＋</button>
+        </div>
+        <div id="s-vehicle-list"></div>
+      </div>
     </div>
   </div>
 
@@ -454,7 +502,11 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       </div>
       <div class="m-field">
         <label>Collaborateur</label>
-        <select class="m-select" id="m-collab"></select>
+        <select class="m-select" id="m-collab" onchange="onEventCollabChange()"></select>
+      </div>
+      <div class="m-field">
+        <label>Véhicule</label>
+        <select class="m-select" id="m-vehicle"></select>
       </div>
       <div class="m-field">
         <label>Prestation</label>
@@ -620,21 +672,22 @@ function prestActive(di,code){
   return !!(field&&di[field]);
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages"};
+const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules"};
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
-let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[];
+let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[];
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
 let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
 let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
-let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null;
+let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicleIdx=null;
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
+let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0;
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -839,6 +892,7 @@ async function sheetAppend(tab,values){
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
   if(!resp.ok)throw new Error("Sheet append "+resp.status);
+  return (await resp.json()).updates?.updatedRange||"";
 }
 async function sheetUpdate(tab,sheetRow,values){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
@@ -884,6 +938,22 @@ async function sheetGetTable(tab,headerMap,fallbackMap){
   const rows=headerCount>0?await sheetGet(tab,`A2:${lastCol}1000`):[];
   return {colIndex,headerCount,rows};
 }
+async function ensureSheetHeaders(tab,headerMap){
+  const headers=(await sheetGet(tab,"A1:ZZ1"))[0]||[];
+  const updated=headers.slice();
+  Object.values(headerMap).forEach(label=>{
+    if(!updated.some(header=>normHeader(header)===normHeader(label)))updated.push(label);
+  });
+  if(updated.length!==headers.length)await sheetUpdate(tab,1,[updated]);
+}
+async function loadSheetVehicleTable(){
+  await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
+  return sheetGetTable(SHEET_TABS.vehicles,VEHICLE_HEADERS,VEHICLE_FALLBACK);
+}
+async function loadSheetVehicleAssignmentTable(){
+  await ensureSheetHeaders(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS);
+  return sheetGetTable(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS,VEHICLE_ASSIGNMENT_FALLBACK);
+}
 async function loadSheetMatTable(){
   const headers=(await sheetGet(SHEET_TABS.mat,"A1:ZZ1"))[0]||[];
   let changed=false;
@@ -922,11 +992,8 @@ function buildRowFromMap(colIndex,headerCount,values){
 // Met à jour une ligne existante en ne touchant QUE les colonnes connues,
 // pour ne jamais écraser une colonne perso ajoutée par l'utilisateur.
 async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values){
-  let current=[];
-  try{
-    const lastCol=sheetColLetter(Math.max(headerCount,1));
-    current=(await sheetGet(tab,`A${sheetRow}:${lastCol}${sheetRow}`))[0]||[];
-  }catch(e){current=[];}
+  const lastCol=sheetColLetter(Math.max(headerCount,1));
+  const current=(await sheetGet(tab,`A${sheetRow}:${lastCol}${sheetRow}`))[0]||[];
   const row=current.slice();
   while(row.length<headerCount)row.push("");
   Object.entries(values).forEach(([key,val])=>{
@@ -952,6 +1019,13 @@ const POINTAGE_HEADERS = {
   num:"N° Dossier", year:"Année", month:"Mois", sent:"Pointage envoyé",
   sentAt:"Date d'envoi", sentBy:"Envoyé par"
 };
+const VEHICLE_HEADERS = {
+  registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
+  mileage:"Kilométrage", mileageDate:"Date kilométrage", notes:"Notes"
+};
+const VEHICLE_ASSIGNMENT_HEADERS = {
+  registration:"Immatriculation", collaborator:"Collaborateur", startDate:"Date début", endDate:"Date fin"
+};
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
@@ -960,6 +1034,8 @@ const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
 const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
+const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5,notes:6};
+const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
@@ -970,20 +1046,27 @@ async function ensureRefTabs(){
   // Crée les onglets de référentiels et de suivi s'ils n'existent pas encore.
   if(_refTabsChecked)return;
   try{
-    const meta=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`,
-      {headers:{Authorization:"Bearer "+accessToken}}).then(r=>r.json());
+    const metaResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`,
+      {headers:{Authorization:"Bearer "+accessToken}});
+    if(!metaResponse.ok)throw new Error(`Google Sheets metadata ${metaResponse.status}`);
+    const meta=await metaResponse.json();
     const existing=(meta.sheets||[]).map(s=>s.properties.title);
     const requests=[];
     if(!existing.includes(SHEET_TABS.clients))requests.push({addSheet:{properties:{title:SHEET_TABS.clients}}});
     if(!existing.includes(SHEET_TABS.interlocuteurs))requests.push({addSheet:{properties:{title:SHEET_TABS.interlocuteurs}}});
     if(!existing.includes(SHEET_TABS.pointages))requests.push({addSheet:{properties:{title:SHEET_TABS.pointages}}});
+    if(!existing.includes(SHEET_TABS.vehicles))requests.push({addSheet:{properties:{title:SHEET_TABS.vehicles}}});
+    if(!existing.includes(SHEET_TABS.vehicleAssignments))requests.push({addSheet:{properties:{title:SHEET_TABS.vehicleAssignments}}});
     if(requests.length){
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+      const createResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
         {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
          body:JSON.stringify({requests})});
+      if(!createResponse.ok)throw new Error(`Google Sheets tab creation ${createResponse.status}`);
       if(!existing.includes(SHEET_TABS.clients))await sheetAppend(SHEET_TABS.clients,[["Nom du client"]]);
       if(!existing.includes(SHEET_TABS.interlocuteurs))await sheetAppend(SHEET_TABS.interlocuteurs,[["Nom","Client","Email","Téléphone"]]);
     }
+    await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
+    await ensureSheetHeaders(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS);
     const pointageHeaders=Object.values(POINTAGE_HEADERS);
     const pointageHeader=(await sheetGet(SHEET_TABS.pointages,"A1:ZZ1"))[0]||[];
     const pointageRow=pointageHeader.slice();
@@ -996,7 +1079,7 @@ async function ensureRefTabs(){
     });
     if(pointageChanged)await sheetUpdate(SHEET_TABS.pointages,1,[pointageRow]);
     _refTabsChecked=true;
-  }catch(e){console.warn("Création des onglets référentiels/suivi impossible",e);}
+  }catch(e){console.warn("Création des onglets référentiels/suivi impossible",e);showToast("Configuration des onglets Google Sheets impossible",true);}
 }
 
 async function loadSheetData(){
@@ -1043,7 +1126,7 @@ async function loadSheetData(){
       colorId:cellOf(r,collabCI,"colorId")?.trim()||"7",
       _sheetRow:i+2,
     }));
-    renderSidebarCollabs();updateModalCollab();
+    renderSidebarCollabs();updateModalCollab();updateVehicleCollabOptions();
 
     // Matériel
     const mt=await loadSheetMatTable();
@@ -1056,6 +1139,10 @@ async function loadSheetData(){
       _sheetRow:i+2,
     }));
     updateMatCategoryOptions();renderSidebarMat();updateModalMat();
+
+    // Véhicules et historique d'attribution
+    try{await loadSheetVehicles();}
+    catch(e){console.warn("Chargement des véhicules impossible",e);showToast("Chargement des véhicules impossible",true);}
   }catch(e){console.warn("Sheet load error",e);}
 
   // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
@@ -1545,6 +1632,7 @@ function renderSidebarCollabs(){
     </div>`;
   }).join("");
   renderCalFilterCollab();
+  renderSidebarVehicles();
 }
 function renderCalFilterCollab(){
   const menuItems=document.getElementById("cal-filter-collab-menu-items");
@@ -1601,16 +1689,312 @@ async function saveCollab(){
     sheetCollabs.push(c);
     await sheetAppend(SHEET_TABS.collabs,[buildRowFromMap(collabCI,collabHC,c)]);
   }
-  btn.textContent="Enregistrer";closeCollabForm();renderSidebarCollabs();updateModalCollab();
+  btn.textContent="Enregistrer";closeCollabForm();renderSidebarCollabs();updateModalCollab();updateEventVehicleOptions();
   showToast("Collaborateur enregistré ✓");
 }
 function updateModalCollab(){
   const sel=document.getElementById("m-collab");
   const cur=sel?.value;
-  if(sel)sel.innerHTML=sheetCollabs.map((c,i)=>`<option value="${i}">${c.name}${c.pseudo?" ("+c.pseudo+")":""}</option>`).join("");
+  if(sel)sel.innerHTML=`<option value="">— Aucun collaborateur —</option>`+sheetCollabs.map((c,i)=>`<option value="${i}">${htmlEscape(c.name)}${c.pseudo?" ("+htmlEscape(c.pseudo)+")":""}</option>`).join("");
   if(cur)sel.value=cur;
+  updateVehicleCollabOptions();
+  updateEventVehicleOptions();
 }
 
+function htmlEscape(value){
+  return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+function todayInputDate(){
+  const now=new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+}
+function normalizedRegistration(value){
+  return String(value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+}
+function activeVehicleAssignment(vehicleOrRegistration){
+  const registration=typeof vehicleOrRegistration==="string"?vehicleOrRegistration:vehicleOrRegistration?.registration;
+  return sheetVehicleAssignments.filter(a=>a.registration===registration&&!a.endDate)
+    .sort((a,b)=>(b.startDate||"").localeCompare(a.startDate||""))[0]||null;
+}
+function assignedVehicleForCollaborator(name){
+  if(!name)return null;
+  const assignment=sheetVehicleAssignments.filter(a=>a.collaborator===name&&!a.endDate)
+    .sort((a,b)=>(b.startDate||"").localeCompare(a.startDate||""))[0];
+  if(!assignment)return null;
+  const vehicle=sheetVehicles.find(v=>v.registration===assignment.registration);
+  return vehicle&&vehicle.status!=="En réparation"&&vehicle.status!=="Hors service"?vehicle:null;
+}
+function vehicleStatusClass(status){
+  return status==="Attribué"?"assigned":status==="En réparation"?"repair":status==="Hors service"?"out":"available";
+}
+async function loadSheetVehicles(){
+  const vehicles=await loadSheetVehicleTable();
+  vehicleCI=vehicles.colIndex;vehicleHC=vehicles.headerCount;
+  sheetVehicles=vehicles.rows.map((row,i)=>({
+    registration:cellOf(row,vehicleCI,"registration").trim(),
+    make:cellOf(row,vehicleCI,"make").trim(),
+    model:cellOf(row,vehicleCI,"model").trim(),
+    status:cellOf(row,vehicleCI,"status").trim()||"Disponible",
+    mileage:cellOf(row,vehicleCI,"mileage").trim(),
+    mileageDate:sheetDateToInput(cellOf(row,vehicleCI,"mileageDate")),
+    notes:cellOf(row,vehicleCI,"notes").trim(),
+    _sheetRow:i+2,
+  })).filter(vehicle=>vehicle.registration);
+  const assignments=await loadSheetVehicleAssignmentTable();
+  vehicleAssignmentCI=assignments.colIndex;vehicleAssignmentHC=assignments.headerCount;
+  sheetVehicleAssignments=assignments.rows.map((row,i)=>({
+    registration:cellOf(row,vehicleAssignmentCI,"registration").trim(),
+    collaborator:cellOf(row,vehicleAssignmentCI,"collaborator").trim(),
+    startDate:sheetDateToInput(cellOf(row,vehicleAssignmentCI,"startDate")),
+    endDate:sheetDateToInput(cellOf(row,vehicleAssignmentCI,"endDate")),
+    _sheetRow:i+2,
+  })).filter(assignment=>assignment.registration);
+  updateVehicleCollabOptions();
+  renderSidebarVehicles();
+  updateEventVehicleOptions();
+}
+async function reloadSheetVehicles(){
+  const btn=document.querySelector('[onclick="reloadSheetVehicles()"]');
+  if(btn){btn.textContent="⏳";btn.style.pointerEvents="none";}
+  try{
+    await loadSheetVehicles();
+    showToast(`${sheetVehicles.length} véhicules chargés ✓`);
+  }catch(e){
+    console.warn("Chargement des véhicules impossible",e);
+    showToast("Erreur de rechargement des véhicules",true);
+  }
+  if(btn){btn.textContent="🔄";btn.style.pointerEvents="auto";}
+}
+function updateVehicleCollabOptions(selectedName){
+  const select=document.getElementById("f-vehicle-collab");
+  if(!select)return;
+  const selected=selectedName!==undefined?selectedName:select.value;
+  select.innerHTML=`<option value="">— Aucun collaborateur —</option>`+
+    sheetCollabs.map(c=>`<option value="${htmlEscape(c.name)}">${htmlEscape(c.name)}</option>`).join("")+
+    (selected&&!sheetCollabs.some(c=>c.name===selected)?`<option value="${htmlEscape(selected)}">${htmlEscape(selected)} (absent)</option>`:"");
+  select.value=selected||"";
+}
+function updateEventVehicleOptions(selectedRegistration){
+  const select=document.getElementById("m-vehicle");
+  if(!select)return;
+  const selected=selectedRegistration!==undefined?selectedRegistration:select.value;
+  select.replaceChildren(new Option("— Aucun véhicule —",""));
+  sheetVehicles.forEach(vehicle=>{
+    const assigned=activeVehicleAssignment(vehicle);
+    const details=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
+    const option=new Option(`${vehicle.registration}${details?` · ${details}`:""}${assigned?` · ${assigned.collaborator}`:""} · ${vehicle.status}`,vehicle.registration);
+    option.disabled=vehicle.status==="En réparation"||vehicle.status==="Hors service";
+    select.add(option);
+  });
+  if(selected&&!Array.from(select.options).some(option=>option.value===selected)){
+    select.add(new Option(`${selected} · archivé`,selected));
+  }
+  select.value=selected||"";
+}
+function onEventCollabChange(){
+  const idx=parseInt(document.getElementById("m-collab")?.value);
+  const collab=Number.isNaN(idx)?null:sheetCollabs[idx];
+  const vehicle=assignedVehicleForCollaborator(collab?.name);
+  updateEventVehicleOptions(vehicle?.registration||"");
+}
+function eventVehicleName(ev){
+  const line=(ev?.description||"").split("\n").find(l=>/^\s*Véhicule\s*:/i.test(l));
+  return line?line.replace(/^\s*Véhicule\s*:\s*/i,"").trim():"";
+}
+function setEventVehicleFromEvent(ev){
+  const registration=eventVehicleName(ev);
+  const idx=parseInt(document.getElementById("m-collab")?.value);
+  const collab=Number.isNaN(idx)?null:sheetCollabs[idx];
+  const assigned=assignedVehicleForCollaborator(collab?.name);
+  updateEventVehicleOptions(registration||assigned?.registration||"");
+}
+function renderSidebarVehicles(){
+  const listEl=document.getElementById("s-vehicle-list");
+  if(!listEl)return;
+  const q=normalizeText(document.getElementById("s-search-vehicle")?.value||"");
+  const list=sheetVehicles.filter(v=>!q||normalizeText([v.registration,v.make,v.model,v.notes,activeVehicleAssignment(v)?.collaborator].join(" ")).includes(q));
+  listEl.innerHTML=list.map(vehicle=>{
+    const index=sheetVehicles.indexOf(vehicle);
+    const assignment=activeVehicleAssignment(vehicle);
+    const detail=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
+    const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"Kilométrage non renseigné";
+    const history=sheetVehicleAssignments.filter(a=>a.registration===vehicle.registration)
+      .sort((a,b)=>(b.startDate||"").localeCompare(a.startDate||""))
+      .map(a=>`<div class="vehicle-history">${htmlEscape(a.collaborator)} · ${htmlEscape(formatDateShort(a.startDate)||"date inconnue")} → ${htmlEscape(a.endDate?formatDateShort(a.endDate):"En cours")}</div>`).join("");
+    const collabOptions=`<option value="">— Choisir un collaborateur —</option>`+
+      sheetCollabs.map(c=>`<option value="${htmlEscape(c.name)}"${assignment?.collaborator===c.name?" selected":""}>${htmlEscape(c.name)}</option>`).join("");
+    return `<div class="s-item vehicle-card">
+      <div style="font-size:18px">🚗</div>
+      <div style="flex:1;min-width:0">
+        <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
+        <div class="s-sub">${htmlEscape(detail||"Marque / modèle non renseignés")} · ${htmlEscape(mileage)}${assignment?` · ${htmlEscape(assignment.collaborator)}`:""}${vehicle.notes?` · ${htmlEscape(vehicle.notes)}`:""}</div>
+        <div class="vehicle-assignment"><select id="vehicle-collab-${index}">${collabOptions}</select>
+          <button onclick="assignVehicle(${index})">Attribuer</button>
+          ${assignment?`<button onclick="releaseVehicle(${index})">Libérer</button>`:""}
+        </div>
+      </div>
+      <div class="vehicle-actions"><button class="s-edit" onclick="openVehicleForm(${index})" title="Modifier">✏️</button></div>
+      ${history}
+    </div>`;
+  }).join("");
+}
+function openVehicleForm(index){
+  editingVehicleIdx=index;
+  const vehicle=index!=null?sheetVehicles[index]:null;
+  document.getElementById("vehicle-form").classList.add("visible");
+  document.getElementById("vehicle-form-title").textContent=vehicle?"Modifier le véhicule":"Nouveau véhicule";
+  document.getElementById("f-vehicle-registration").value=vehicle?.registration||"";
+  document.getElementById("f-vehicle-make").value=vehicle?.make||"";
+  document.getElementById("f-vehicle-model").value=vehicle?.model||"";
+  document.getElementById("f-vehicle-status").value=vehicle?.status||"Disponible";
+  document.getElementById("f-vehicle-mileage").value=vehicle?.mileage||"";
+  document.getElementById("f-vehicle-mileage-date").value=vehicle?.mileageDate||"";
+  document.getElementById("f-vehicle-notes").value=vehicle?.notes||"";
+  const assignment=vehicle?activeVehicleAssignment(vehicle):null;
+  updateVehicleCollabOptions(assignment?.collaborator||"");
+  document.getElementById("f-vehicle-assignment-start").value=todayInputDate();
+}
+function onVehicleStatusChange(){
+  const status=document.getElementById("f-vehicle-status").value;
+  if(status==="En réparation"||status==="Hors service")document.getElementById("f-vehicle-collab").value="";
+}
+function closeVehicleForm(){
+  document.getElementById("vehicle-form").classList.remove("visible");
+  editingVehicleIdx=null;
+}
+async function writeVehicle(vehicle){
+  const values={registration:vehicle.registration,make:vehicle.make,model:vehicle.model,status:vehicle.status,
+    mileage:vehicle.mileage,mileageDate:vehicle.mileageDate,notes:vehicle.notes};
+  if(vehicle._sheetRow)await sheetUpdateMerged(SHEET_TABS.vehicles,vehicle._sheetRow,vehicleCI,vehicleHC,values);
+  else{
+    const range=await sheetAppend(SHEET_TABS.vehicles,[buildRowFromMap(vehicleCI,vehicleHC,values)]);
+    vehicle._sheetRow=sheetRowFromAppendRange(range);
+  }
+}
+function sheetRowFromAppendRange(range){
+  const match=String(range||"").match(/![A-Z]+(\d+):/);
+  if(!match)throw new Error("Impossible de déterminer la ligne ajoutée dans Google Sheets.");
+  return parseInt(match[1],10);
+}
+async function closeVehicleAssignment(assignment,endDate){
+  await sheetUpdateMerged(SHEET_TABS.vehicleAssignments,assignment._sheetRow,vehicleAssignmentCI,vehicleAssignmentHC,{endDate});
+  assignment.endDate=endDate;
+}
+function dayBefore(date){
+  const day=new Date(`${date}T12:00:00`);
+  day.setDate(day.getDate()-1);
+  return day.toISOString().slice(0,10);
+}
+async function setVehicleAssignment(vehicle,collaborator,startDate){
+  const current=activeVehicleAssignment(vehicle);
+  if(current&&current.collaborator===collaborator)return;
+  if(!current&&!collaborator&&vehicle.status!=="Attribué")return;
+  if(collaborator&&(vehicle.status==="En réparation"||vehicle.status==="Hors service")){
+    throw new Error("Un véhicule en réparation ou hors service ne peut pas être attribué.");
+  }
+  if(collaborator&&!startDate)throw new Error("La date de début d’attribution est obligatoire.");
+  const oldAssignments=[];
+  if(current)oldAssignments.push(current);
+  if(collaborator){
+    sheetVehicleAssignments.filter(a=>a.collaborator===collaborator&&!a.endDate&&a!==current).forEach(a=>oldAssignments.push(a));
+  }
+  const endDate=collaborator?dayBefore(startDate):todayInputDate();
+  for(const assignment of oldAssignments){
+    const effectiveEndDate=endDate<assignment.startDate?assignment.startDate:endDate;
+    await closeVehicleAssignment(assignment,effectiveEndDate);
+    const oldVehicle=sheetVehicles.find(v=>v.registration===assignment.registration);
+    if(oldVehicle&&oldVehicle.registration!==vehicle.registration&&oldVehicle.status==="Attribué"){
+      oldVehicle.status="Disponible";
+      await writeVehicle(oldVehicle);
+    }
+  }
+  if(collaborator){
+    const assignment={registration:vehicle.registration,collaborator,startDate,endDate:""};
+    const range=await sheetAppend(SHEET_TABS.vehicleAssignments,[buildRowFromMap(vehicleAssignmentCI,vehicleAssignmentHC,assignment)]);
+    assignment._sheetRow=sheetRowFromAppendRange(range);
+    sheetVehicleAssignments.push(assignment);
+    vehicle.status="Attribué";
+  }else if(vehicle.status==="Attribué"){
+    vehicle.status="Disponible";
+  }
+  await writeVehicle(vehicle);
+}
+async function assignVehicle(index){
+  const vehicle=sheetVehicles[index];
+  const collaborator=document.getElementById(`vehicle-collab-${index}`)?.value||"";
+  if(!vehicle)return;
+  try{
+    await setVehicleAssignment(vehicle,collaborator,todayInputDate());
+    renderSidebarVehicles();updateEventVehicleOptions();
+    showToast(collaborator?`Véhicule attribué à ${collaborator} ✓`:"Attribution mise à jour ✓");
+  }catch(e){
+    console.warn("Attribution du véhicule impossible",e);
+    showToast(e.message||"Erreur d’attribution du véhicule",true);
+  }
+}
+async function releaseVehicle(index){
+  const vehicle=sheetVehicles[index];
+  if(!vehicle)return;
+  try{
+    await setVehicleAssignment(vehicle,"",todayInputDate());
+    renderSidebarVehicles();updateEventVehicleOptions();
+    showToast("Véhicule libéré ✓");
+  }catch(e){
+    console.warn("Libération du véhicule impossible",e);
+    showToast(e.message||"Erreur de libération du véhicule",true);
+  }
+}
+async function saveVehicle(){
+  const registration=document.getElementById("f-vehicle-registration").value.trim().toUpperCase();
+  if(!registration){document.getElementById("f-vehicle-registration").focus();return;}
+  const existing=editingVehicleIdx!=null?sheetVehicles[editingVehicleIdx]:null;
+  if(sheetVehicles.some((vehicle,i)=>i!==editingVehicleIdx&&normalizedRegistration(vehicle.registration)===normalizedRegistration(registration))){
+    showToast("Cette immatriculation est déjà enregistrée",true);return;
+  }
+  const mileageInput=document.getElementById("f-vehicle-mileage").value.trim();
+  const mileage=mileageInput===""?"":Number(mileageInput);
+  if(mileage!==""&&(!Number.isFinite(mileage)||mileage<0)){
+    showToast("Le kilométrage doit être un nombre positif",true);return;
+  }
+  const collaborator=document.getElementById("f-vehicle-collab").value;
+  let status=document.getElementById("f-vehicle-status").value;
+  if(collaborator&&(status==="En réparation"||status==="Hors service")){
+    showToast("Libère le véhicule ou choisis un statut disponible avant de l’attribuer",true);return;
+  }
+  if(collaborator)status="Attribué";
+  else if(status==="Attribué")status="Disponible";
+  const vehicle={
+    registration,make:document.getElementById("f-vehicle-make").value.trim(),
+    model:document.getElementById("f-vehicle-model").value.trim(),status,mileage,
+    mileageDate:document.getElementById("f-vehicle-mileage-date").value||(mileage!==""?todayInputDate():""),
+    notes:document.getElementById("f-vehicle-notes").value.trim(),_sheetRow:existing?._sheetRow,
+  };
+  const startDate=document.getElementById("f-vehicle-assignment-start").value;
+  const button=document.getElementById("vehicle-save-btn");
+  button.textContent="⏳";
+  try{
+    await writeVehicle(vehicle);
+    if(existing){
+      vehicle._sheetRow=existing._sheetRow;
+      sheetVehicles[editingVehicleIdx]=vehicle;
+    }else{
+      sheetVehicles.push(vehicle);
+    }
+    if(existing?.registration!==registration){
+      for(const assignment of sheetVehicleAssignments.filter(a=>a.registration===existing.registration)){
+        await sheetUpdateMerged(SHEET_TABS.vehicleAssignments,assignment._sheetRow,vehicleAssignmentCI,vehicleAssignmentHC,{registration});
+        assignment.registration=registration;
+      }
+    }
+    await setVehicleAssignment(vehicle,collaborator,startDate);
+    closeVehicleForm();renderSidebarVehicles();updateEventVehicleOptions();
+    showToast("Véhicule enregistré ✓");
+  }catch(e){
+    console.warn("Enregistrement du véhicule impossible",e);
+    showToast(e.message||"Erreur d’enregistrement du véhicule",true);
+  }
+  button.textContent="Enregistrer";
+}
 
 function renderSidebarMat(){
   const q=normalizeText(document.getElementById("s-search-mat")?.value||"");
@@ -1840,11 +2224,12 @@ function applySidebar(){
   document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 function switchSTab(tab){
-  ["dossiers","collabs","contacts","materiel"].forEach((t,i)=>{
+  ["dossiers","collabs","contacts","materiel","vehicules"].forEach((t,i)=>{
     document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
     document.getElementById("sp-"+t).classList.toggle("active",t===tab);
   });
   if(tab==="materiel")renderSidebarMat();
+  if(tab==="vehicules")renderSidebarVehicles();
 }
 function handleCalendarDayClick(ds){
   const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
@@ -2099,6 +2484,8 @@ function openModal(ds){
   document.getElementById("hd-aprem").classList.remove("active");
   document.getElementById("half-day-toggle").classList.remove("visible");
   filterModalDos();updateModalCollab();updateModalMat();
+  document.getElementById("m-collab").value=sheetCollabs.length?"0":"";
+  onEventCollabChange();
   document.getElementById("m-mat-warning").style.display="none";
   // enlarge modal and dossier list for event creation
   const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
@@ -2122,6 +2509,7 @@ function openEditModal(evId){
   document.getElementById("m-dos-search").value="";
   setModalMatSelection([]);
   filterModalDos();updateModalCollab();updateModalMat();
+  document.getElementById("m-collab").value="";
   // enlarge modal and dossier list for event edit
   const modalEl=document.querySelector('.modal'); if(modalEl)modalEl.classList.add('large-modal');
   const sel=document.getElementById('m-dossier'); if(sel)sel.size=8;
@@ -2157,12 +2545,14 @@ function openEditModal(evId){
     const ci2=sheetCollabs.findIndex(c=>c.colorId===ev.colorId);
     if(ci2>=0)document.getElementById("m-collab").value=ci2;
   }
+  onEventCollabChange();
+  setEventVehicleFromEvent(ev);
   const materialNames=eventMaterialNames(ev);
   setModalMatSelection(materialNames);
   selectedMaterielDate=ds;
   renderSidebarMat();
   checkMatConflict();
-  document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
+  document.getElementById("m-notes").value=ev.description?.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Véhicule")&&!l.includes("Créé via"))[0]||"";
   document.getElementById("modal-bg").classList.add("open");
 }
 
@@ -2248,12 +2638,20 @@ async function saveEvent(){
   const startDt=`${ds}T${tStart}:00`;
   const endDt=`${de}T${tEnd}:00`;
   const materialNames=selectedModalMaterialNames();
+  const vehicleRegistration=document.getElementById("m-vehicle")?.value||"";
   const dosInfo=dosById(dos);
   const notes=document.getElementById("m-notes")?.value.trim()||"";
-  const desc=[dosInfo?`${dosInfo.client} – ${dosInfo.lieu}`:"",
+  let desc=[dosInfo?`${dosInfo.client} – ${dosInfo.lieu}`:"",
     dosInfo?.interlocuteur?`Interlocuteur : ${dosInfo.interlocuteur}`:"",
     collab?`Collaborateur : ${collab.name}`:"",notes,
     materialNames.length?`Matériel : ${materialNames.join(", ")}`:"","Créé via Arragon Planning"].filter(Boolean).join("\n");
+  if(vehicleRegistration){
+    const marker="Créé via Arragon Planning";
+    const lines=desc.split("\n");
+    const markerIndex=lines.indexOf(marker);
+    lines.splice(markerIndex<0?lines.length:markerIndex,0,`Véhicule : ${vehicleRegistration}`);
+    desc=lines.join("\n");
+  }
   // Adresse = champ location → cliquable dans Google Calendar pour ouvrir Maps
   const location=dosInfo?.adresse||(dosInfo?.lieu?dosInfo.lieu+", France":"");
 
