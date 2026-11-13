@@ -99,15 +99,14 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .vehicle-status.assigned{background:var(--lblue);color:var(--blue)}
 .vehicle-status.repair,.vehicle-status.out{background:#FDECEC;color:var(--red)}
 .vehicle-history{font-size:10px;color:var(--muted);padding:3px 0 3px 30px}
-.vehicle-assignment{display:flex;gap:5px;align-items:center;margin-top:5px}
-.vehicle-assignment select{min-width:0;flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:11px}
-.vehicle-assignment button{border:1px solid var(--border);background:var(--white);border-radius:6px;padding:5px 7px;font-size:11px;cursor:pointer}
 .vehicle-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
 .vehicle-card{display:block}
 .vehicle-card-details{font-size:11px;color:var(--muted);margin:3px 0}
 .vehicle-card-collaborator{font-size:11px;color:var(--text);margin-top:5px}
 .vehicle-defects{margin-top:7px;padding-top:6px;border-top:1px solid var(--border)}
-.vehicle-defects-title{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
+.vehicle-defects-title{font-family:inherit;font-size:10px;font-weight:700;margin-bottom:3px;background:none;border:0;padding:0;text-align:left;cursor:pointer}
+.vehicle-defects-title.has-defects{color:var(--red)}
+.vehicle-defects-title.no-defects{color:var(--green)}
 .vehicle-defects-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .vehicle-defects-controls{display:flex;align-items:center;gap:4px}
 .vehicle-defects-toggle{border:1px solid var(--border);background:var(--white);border-radius:5px;padding:3px 6px;font-size:10px;cursor:pointer}
@@ -714,7 +713,7 @@ let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
 let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
-let openVehicleDefectEditors=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
+let openVehicleDefectEditors=new Set(),expandedVehicleDefectLists=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -1871,6 +1870,7 @@ function renderSidebarVehicles(){
     const defects=allDefects.filter(defect=>!defect.deletedAt);
     const archivedDefects=allDefects.filter(defect=>defect.deletedAt);
     const editorOpen=openVehicleDefectEditors.has(vehicle.registration);
+    const defectsExpanded=expandedVehicleDefectLists.has(vehicle.registration);
     const historyOpen=expandedVehicleDefectHistory.has(vehicle.registration);
     const activeDefectRows=defects.map(defect=>`<div class="vehicle-defect">
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">${htmlEscape(formatDateShort(defect.createdAt)||"Date inconnue")}</span></span>
@@ -1879,8 +1879,6 @@ function renderSidebarVehicles(){
     const archivedDefectRows=archivedDefects.map(defect=>`<div class="vehicle-defect vehicle-defect-archived">
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
     </div>`).join("");
-    const collabOptions=`<option value="">— Choisir un collaborateur —</option>`+
-      sheetCollabs.map(c=>`<option value="${htmlEscape(c.name)}"${assignment?.collaborator===c.name?" selected":""}>${htmlEscape(c.name)}</option>`).join("");
     return `<div class="s-item vehicle-card">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
@@ -1889,19 +1887,15 @@ function renderSidebarVehicles(){
         ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
         <div class="vehicle-defects">
           <div class="vehicle-defects-heading">
-            <div class="vehicle-defects-title">⚠️ Défauts / désordres (${defects.length})</div>
+            <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts / désordres (${defects.length})</button>
             <div class="vehicle-defects-controls">
               ${archivedDefects.length?`<button class="vehicle-defects-toggle" onclick="toggleVehicleDefectHistory(${index})">${historyOpen?"Masquer":"Historique"} (${archivedDefects.length})</button>`:""}
               <button class="vehicle-defects-toggle" onclick="toggleVehicleCardDefectEditor(${index})">${editorOpen?"Annuler":"＋ Ajouter"}</button>
             </div>
           </div>
-          ${defects.length?activeDefectRows:`<div class="s-sub">Aucun défaut actif</div>`}
+          ${defectsExpanded?(defects.length?activeDefectRows:`<div class="s-sub">Aucun défaut actif</div>`):""}
           ${editorOpen?`<div class="vehicle-defect-editor"><input id="vehicle-defect-input-${index}" placeholder="Décrire le défaut…" maxlength="300" onkeydown="if(event.key==='Enter'){event.preventDefault();addVehicleCardDefect(${index})}"><button type="button" class="btn-add-s" onclick="addVehicleCardDefect(${index})" title="Enregistrer le défaut" style="width:30px;height:30px;font-size:14px">✓</button></div>`:""}
           ${historyOpen&&archivedDefects.length?`<div class="vehicle-defect-history"><div class="vehicle-defect-history-title">Historique des défauts masqués</div>${archivedDefectRows}</div>`:""}
-        </div>
-        <div class="vehicle-assignment"><select id="vehicle-collab-${index}">${collabOptions}</select>
-          <button onclick="assignVehicle(${index})">Attribuer</button>
-          ${assignment?`<button onclick="releaseVehicle(${index})">Libérer</button>`:""}
         </div>
       </div>
       <div class="vehicle-actions"><button class="s-edit" onclick="openVehicleForm(${index})" title="Modifier">✏️</button></div>
@@ -1960,6 +1954,13 @@ async function addVehicleDefect(){
   }finally{
     button.disabled=false;
   }
+}
+function toggleVehicleDefectList(index){
+  const registration=sheetVehicles[index]?.registration;
+  if(!registration)return;
+  if(expandedVehicleDefectLists.has(registration))expandedVehicleDefectLists.delete(registration);
+  else expandedVehicleDefectLists.add(registration);
+  renderSidebarVehicles();
 }
 function toggleVehicleCardDefectEditor(index){
   const registration=sheetVehicles[index]?.registration;
@@ -2089,31 +2090,6 @@ async function setVehicleAssignment(vehicle,collaborator,startDate){
     vehicle.status="Disponible";
   }
   await writeVehicle(vehicle);
-}
-async function assignVehicle(index){
-  const vehicle=sheetVehicles[index];
-  const collaborator=document.getElementById(`vehicle-collab-${index}`)?.value||"";
-  if(!vehicle)return;
-  try{
-    await setVehicleAssignment(vehicle,collaborator,todayInputDate());
-    renderSidebarVehicles();updateEventVehicleOptions();
-    showToast(collaborator?`Véhicule attribué à ${collaborator} ✓`:"Attribution mise à jour ✓");
-  }catch(e){
-    console.warn("Attribution du véhicule impossible",e);
-    showToast(e.message||"Erreur d’attribution du véhicule",true);
-  }
-}
-async function releaseVehicle(index){
-  const vehicle=sheetVehicles[index];
-  if(!vehicle)return;
-  try{
-    await setVehicleAssignment(vehicle,"",todayInputDate());
-    renderSidebarVehicles();updateEventVehicleOptions();
-    showToast("Véhicule libéré ✓");
-  }catch(e){
-    console.warn("Libération du véhicule impossible",e);
-    showToast(e.message||"Erreur de libération du véhicule",true);
-  }
 }
 async function saveVehicle(){
   const registration=document.getElementById("f-vehicle-registration").value.trim().toUpperCase();
