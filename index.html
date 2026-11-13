@@ -65,7 +65,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.current{background:var(--blue)}
 .mat-status-dot.unavailable{background:var(--red)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
-.mat-item-current{background:var(--lblue);border-color:var(--blue)}
 .mat-item-unavailable{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-picker{position:relative}
 .mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
@@ -150,6 +149,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .cal-cell.other-month .day-num{color:#ccc}
 .cal-cell.today{background:#eff6ff}
 .cal-cell.today .day-num{background:var(--blue);color:var(--white);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-cell.selected-day{background:#e8f1ff;box-shadow:inset 0 0 0 2px var(--blue)}
 .cal-cell.weekend .day-num{color:var(--red)}
 .day-num{font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center}
 .ev-chip{border-radius:3px;padding:1px 4px;font-size:9px;font-weight:600;margin-bottom:1px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--white);line-height:1.5}
@@ -2183,10 +2183,9 @@ function renderSidebarMat(){
   document.getElementById("s-mat-list").innerHTML=list.map(m=>{
     const i=sheetMat.indexOf(m);
     const assignments=date?materialAssignmentsOnDate(m.name,date):[];
-    const current=assignments.some(a=>a.id===editingEventId);
-    const busy=assignments.length>0&&!current;
-    const status=m.unavailable?"mat-item-unavailable":current?"mat-item-current":busy?"mat-item-busy":"";
-    const detail=m.unavailable?"Indisponible (en révision)":current?"Affecté à l’événement consulté":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
+    const busy=assignments.length>0;
+    const status=m.unavailable?"mat-item-unavailable":busy?"mat-item-busy":"";
+    const detail=m.unavailable?"Indisponible (en révision)":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
     const revision=m.lastRevision?` · Dernière révision : ${formatDateShort(m.lastRevision)}`:"";
     return `<div class="s-item ${status}" title="${detail}">
       <div style="font-size:18px">🔧</div>
@@ -2403,6 +2402,7 @@ function switchSTab(tab){
     document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
     document.getElementById("sp-"+t).classList.toggle("active",t===tab);
   });
+  buildCalendar();
   if(tab==="materiel")renderSidebarMat();
   if(tab==="vehicules")renderSidebarVehicles();
 }
@@ -2411,6 +2411,7 @@ function handleCalendarDayClick(ds){
   if(materielTab){
     selectedMaterielDate=ds;
     renderSidebarMat();
+    buildCalendar();
     return;
   }
   openModal(ds);
@@ -2544,6 +2545,8 @@ function buildCalendar(){
   const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
   const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
+  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
+  const selectedDate=materielTab?selectedMaterielDate:null;
   const maxShow=window.innerWidth<=768?2:6;
   const weekColWidth=window.innerWidth<=768?24:28;
 
@@ -2564,6 +2567,7 @@ function buildCalendar(){
     const y=dt.getFullYear(),m=dt.getMonth(),d=dt.getDate();
     const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+    const isSelected=ds===selectedDate;
     const isWeekend=dt.getDay()===0||dt.getDay()===6;
     const evs=byDate[ds]||[];
 
@@ -2571,6 +2575,7 @@ function buildCalendar(){
     if(i%cols===cols-1)cls+=" week-last";
     if(!inMonth)cls+=" other-month";
     if(isToday)cls+=" today";
+    if(isSelected)cls+=" selected-day";
     if(isWeekend&&!hideWeekend)cls+=" weekend";
 
     const chips=evs.slice(0,maxShow).map(ev=>{
