@@ -105,6 +105,23 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .vehicle-assignment button{border:1px solid var(--border);background:var(--white);border-radius:6px;padding:5px 7px;font-size:11px;cursor:pointer}
 .vehicle-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
 .vehicle-card{display:block}
+.vehicle-card-details{font-size:11px;color:var(--muted);margin:3px 0}
+.vehicle-card-collaborator{font-size:11px;color:var(--text);margin-top:5px}
+.vehicle-defects{margin-top:7px;padding-top:6px;border-top:1px solid var(--border)}
+.vehicle-defects-title{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
+.vehicle-defects-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.vehicle-defects-controls{display:flex;align-items:center;gap:4px}
+.vehicle-defects-toggle{border:1px solid var(--border);background:var(--white);border-radius:5px;padding:3px 6px;font-size:10px;cursor:pointer}
+.vehicle-defect{display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text);padding:3px 0;overflow-wrap:anywhere}
+.vehicle-defect-description{flex:1;min-width:0;overflow-wrap:anywhere}
+.vehicle-defect-date{font-size:10px;color:var(--muted);margin-left:5px}
+.vehicle-defect-delete{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer}
+.vehicle-defect-delete:hover{border-color:var(--red);color:var(--red)}
+.vehicle-defect-history{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border)}
+.vehicle-defect-history-title{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.vehicle-defect-archived{color:var(--muted)}
+.vehicle-defect-editor{display:flex;gap:5px;margin:6px 0}
+.vehicle-defect-editor input{min-width:0;flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px}
 .color-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
 .csw{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
 .csw.sel{border-color:var(--navy);box-shadow:0 0 0 2px var(--white),0 0 0 3px var(--navy)}
@@ -440,7 +457,16 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <div class="s-field"><label>Kilométrage actuel</label><input id="f-vehicle-mileage" type="number" min="0" step="1" placeholder="0"></div>
             <div class="s-field"><label>Mis à jour le</label><input id="f-vehicle-mileage-date" type="date"></div>
           </div>
-          <div class="s-field"><label>Notes</label><input id="f-vehicle-notes" placeholder="Informations complémentaires"></div>
+          <div class="s-field">
+            <label style="display:flex;align-items:center;justify-content:space-between">Défauts / désordres
+              <button type="button" class="btn-add-s" id="vehicle-defect-add-btn" onclick="toggleVehicleDefectFormEditor()" title="Ajouter un défaut" style="width:25px;height:25px;font-size:16px">＋</button>
+            </label>
+            <div id="vehicle-defects-form-list"></div>
+            <div id="vehicle-defect-editor" class="vehicle-defect-editor" style="display:none">
+              <input id="f-vehicle-defect" placeholder="Décrire le défaut…" maxlength="300" onkeydown="if(event.key==='Enter'){event.preventDefault();addVehicleDefect()}">
+              <button type="button" class="btn-add-s" onclick="addVehicleDefect()" title="Enregistrer le défaut" style="width:30px;height:30px;font-size:14px">✓</button>
+            </div>
+          </div>
           <div class="s-field"><label>Collaborateur attribué</label><select id="f-vehicle-collab"></select></div>
           <div class="s-field"><label>Début d’attribution</label><input id="f-vehicle-assignment-start" type="date"></div>
           <div class="s-form-btns">
@@ -672,13 +698,13 @@ function prestActive(di,code){
   return !!(field&&di[field]);
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules"};
+const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
-let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[];
+let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[], sheetVehicleDefects=[];
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
 let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
 let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
@@ -687,7 +713,8 @@ let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicl
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
-let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0;
+let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
+let openVehicleDefectEditors=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -896,8 +923,7 @@ async function sheetAppend(tab,values){
 }
 async function sheetUpdate(tab,sheetRow,values){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
-  const width=Math.max(1,...values.map(row=>row.length));
-  const r=encodeURIComponent(`${tab}!A${sheetRow}:${sheetColLetter(width)}${sheetRow}`);
+  const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -947,26 +973,6 @@ async function ensureSheetHeaders(tab,headerMap){
   });
   if(updated.length!==headers.length)await sheetUpdate(tab,1,[updated]);
 }
-async function ensureDossierPriceHeaders(){
-  const headers=(await sheetGet(SHEET_TABS.dos,"A1:ZZ1"))[0]||[];
-  for(const key of ["prixPrep","prixRap"]){
-    const label=DOS_HEADERS[key];
-    if(headers.some(header=>normHeader(header)===normHeader(label)))continue;
-    const firstCandidate=Math.max(DOS_FALLBACK[key],headers.length);
-    let target=-1;
-    for(let i=firstCandidate;i<702;i++){
-      if(String(headers[i]??"").trim())continue;
-      const col=sheetColLetter(i+1);
-      const cells=await sheetGet(SHEET_TABS.dos,`${col}2:${col}`);
-      if(cells.some(row=>String(row[0]??"").trim()))continue;
-      target=i;
-      break;
-    }
-    if(target<0)throw new Error(`Aucune colonne vide disponible pour ${label}`);
-    headers[target]=label;
-    await sheetUpdate(SHEET_TABS.dos,1,[headers]);
-  }
-}
 async function loadSheetVehicleTable(){
   await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
   return sheetGetTable(SHEET_TABS.vehicles,VEHICLE_HEADERS,VEHICLE_FALLBACK);
@@ -974,6 +980,10 @@ async function loadSheetVehicleTable(){
 async function loadSheetVehicleAssignmentTable(){
   await ensureSheetHeaders(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS);
   return sheetGetTable(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS,VEHICLE_ASSIGNMENT_FALLBACK);
+}
+async function loadSheetVehicleDefectTable(){
+  await ensureSheetHeaders(SHEET_TABS.vehicleDefects,VEHICLE_DEFECT_HEADERS);
+  return sheetGetTable(SHEET_TABS.vehicleDefects,VEHICLE_DEFECT_HEADERS,VEHICLE_DEFECT_FALLBACK);
 }
 async function loadSheetMatTable(){
   const headers=(await sheetGet(SHEET_TABS.mat,"A1:ZZ1"))[0]||[];
@@ -1042,10 +1052,13 @@ const POINTAGE_HEADERS = {
 };
 const VEHICLE_HEADERS = {
   registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
-  mileage:"Kilométrage", mileageDate:"Date kilométrage", notes:"Notes"
+  mileage:"Kilométrage", mileageDate:"Date kilométrage"
 };
 const VEHICLE_ASSIGNMENT_HEADERS = {
   registration:"Immatriculation", collaborator:"Collaborateur", startDate:"Date début", endDate:"Date fin"
+};
+const VEHICLE_DEFECT_HEADERS = {
+  registration:"Immatriculation", description:"Défaut", createdAt:"Date de création", deletedAt:"Date de suppression"
 };
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
@@ -1055,8 +1068,9 @@ const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
 const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
-const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5,notes:6};
+const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5};
 const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
+const VEHICLE_DEFECT_FALLBACK = {registration:0,description:1,createdAt:2,deletedAt:3};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
@@ -1078,6 +1092,7 @@ async function ensureRefTabs(){
     if(!existing.includes(SHEET_TABS.pointages))requests.push({addSheet:{properties:{title:SHEET_TABS.pointages}}});
     if(!existing.includes(SHEET_TABS.vehicles))requests.push({addSheet:{properties:{title:SHEET_TABS.vehicles}}});
     if(!existing.includes(SHEET_TABS.vehicleAssignments))requests.push({addSheet:{properties:{title:SHEET_TABS.vehicleAssignments}}});
+    if(!existing.includes(SHEET_TABS.vehicleDefects))requests.push({addSheet:{properties:{title:SHEET_TABS.vehicleDefects}}});
     if(requests.length){
       const createResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
         {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
@@ -1088,6 +1103,7 @@ async function ensureRefTabs(){
     }
     await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
     await ensureSheetHeaders(SHEET_TABS.vehicleAssignments,VEHICLE_ASSIGNMENT_HEADERS);
+    await ensureSheetHeaders(SHEET_TABS.vehicleDefects,VEHICLE_DEFECT_HEADERS);
     const pointageHeaders=Object.values(POINTAGE_HEADERS);
     const pointageHeader=(await sheetGet(SHEET_TABS.pointages,"A1:ZZ1"))[0]||[];
     const pointageRow=pointageHeader.slice();
@@ -1108,7 +1124,6 @@ async function loadSheetData(){
   await ensureRefTabs();
   try{
     // Dossiers
-    await ensureDossierPriceHeaders();
     const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
     dosCI=colIndex;dosHC=headerCount;
     const seenNums=new Set();
@@ -1199,7 +1214,6 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    await ensureDossierPriceHeaders();
     const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
     dosCI=colIndex;dosHC=headerCount;
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
@@ -1760,7 +1774,6 @@ async function loadSheetVehicles(){
     status:cellOf(row,vehicleCI,"status").trim()||"Disponible",
     mileage:cellOf(row,vehicleCI,"mileage").trim(),
     mileageDate:sheetDateToInput(cellOf(row,vehicleCI,"mileageDate")),
-    notes:cellOf(row,vehicleCI,"notes").trim(),
     _sheetRow:i+2,
   })).filter(vehicle=>vehicle.registration);
   const assignments=await loadSheetVehicleAssignmentTable();
@@ -1772,6 +1785,15 @@ async function loadSheetVehicles(){
     endDate:sheetDateToInput(cellOf(row,vehicleAssignmentCI,"endDate")),
     _sheetRow:i+2,
   })).filter(assignment=>assignment.registration);
+  const defects=await loadSheetVehicleDefectTable();
+  vehicleDefectCI=defects.colIndex;vehicleDefectHC=defects.headerCount;
+  sheetVehicleDefects=defects.rows.map((row,i)=>({
+    registration:cellOf(row,vehicleDefectCI,"registration").trim(),
+    description:cellOf(row,vehicleDefectCI,"description").trim(),
+    createdAt:sheetDateToInput(cellOf(row,vehicleDefectCI,"createdAt")),
+    deletedAt:sheetDateToInput(cellOf(row,vehicleDefectCI,"deletedAt")),
+    _sheetRow:i+2,
+  })).filter(defect=>defect.registration&&defect.description);
   updateVehicleCollabOptions();
   renderSidebarVehicles();
   updateEventVehicleOptions();
@@ -1835,7 +1857,8 @@ function renderSidebarVehicles(){
   const listEl=document.getElementById("s-vehicle-list");
   if(!listEl)return;
   const q=normalizeText(document.getElementById("s-search-vehicle")?.value||"");
-  const list=sheetVehicles.filter(v=>!q||normalizeText([v.registration,v.make,v.model,v.notes,activeVehicleAssignment(v)?.collaborator].join(" ")).includes(q));
+  const list=sheetVehicles.filter(v=>!q||normalizeText([v.registration,v.make,v.model,activeVehicleAssignment(v)?.collaborator,
+    ...sheetVehicleDefects.filter(d=>d.registration===v.registration).map(d=>d.description)].join(" ")).includes(q));
   listEl.innerHTML=list.map(vehicle=>{
     const index=sheetVehicles.indexOf(vehicle);
     const assignment=activeVehicleAssignment(vehicle);
@@ -1844,13 +1867,38 @@ function renderSidebarVehicles(){
     const history=sheetVehicleAssignments.filter(a=>a.registration===vehicle.registration)
       .sort((a,b)=>(b.startDate||"").localeCompare(a.startDate||""))
       .map(a=>`<div class="vehicle-history">${htmlEscape(a.collaborator)} · ${htmlEscape(formatDateShort(a.startDate)||"date inconnue")} → ${htmlEscape(a.endDate?formatDateShort(a.endDate):"En cours")}</div>`).join("");
+    const allDefects=vehicleDefectsFor(vehicle.registration);
+    const defects=allDefects.filter(defect=>!defect.deletedAt);
+    const archivedDefects=allDefects.filter(defect=>defect.deletedAt);
+    const editorOpen=openVehicleDefectEditors.has(vehicle.registration);
+    const historyOpen=expandedVehicleDefectHistory.has(vehicle.registration);
+    const activeDefectRows=defects.map(defect=>`<div class="vehicle-defect">
+      <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">${htmlEscape(formatDateShort(defect.createdAt)||"Date inconnue")}</span></span>
+      <button class="vehicle-defect-delete" onclick="softDeleteVehicleDefect(${index},${defect._sheetRow})" title="Retirer de la liste sans effacer l’historique">Supprimer</button>
+    </div>`).join("");
+    const archivedDefectRows=archivedDefects.map(defect=>`<div class="vehicle-defect vehicle-defect-archived">
+      <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
+    </div>`).join("");
     const collabOptions=`<option value="">— Choisir un collaborateur —</option>`+
       sheetCollabs.map(c=>`<option value="${htmlEscape(c.name)}"${assignment?.collaborator===c.name?" selected":""}>${htmlEscape(c.name)}</option>`).join("");
     return `<div class="s-item vehicle-card">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
         <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
-        <div class="s-sub">${htmlEscape(detail||"Marque / modèle non renseignés")} · ${htmlEscape(mileage)}${assignment?` · ${htmlEscape(assignment.collaborator)}`:""}${vehicle.notes?` · ${htmlEscape(vehicle.notes)}`:""}</div>
+        <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · ${htmlEscape(mileage)}</div>
+        ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
+        <div class="vehicle-defects">
+          <div class="vehicle-defects-heading">
+            <div class="vehicle-defects-title">⚠️ Défauts / désordres (${defects.length})</div>
+            <div class="vehicle-defects-controls">
+              ${archivedDefects.length?`<button class="vehicle-defects-toggle" onclick="toggleVehicleDefectHistory(${index})">${historyOpen?"Masquer":"Historique"} (${archivedDefects.length})</button>`:""}
+              <button class="vehicle-defects-toggle" onclick="toggleVehicleCardDefectEditor(${index})">${editorOpen?"Annuler":"＋ Ajouter"}</button>
+            </div>
+          </div>
+          ${defects.length?activeDefectRows:`<div class="s-sub">Aucun défaut actif</div>`}
+          ${editorOpen?`<div class="vehicle-defect-editor"><input id="vehicle-defect-input-${index}" placeholder="Décrire le défaut…" maxlength="300" onkeydown="if(event.key==='Enter'){event.preventDefault();addVehicleCardDefect(${index})}"><button type="button" class="btn-add-s" onclick="addVehicleCardDefect(${index})" title="Enregistrer le défaut" style="width:30px;height:30px;font-size:14px">✓</button></div>`:""}
+          ${historyOpen&&archivedDefects.length?`<div class="vehicle-defect-history"><div class="vehicle-defect-history-title">Historique des défauts masqués</div>${archivedDefectRows}</div>`:""}
+        </div>
         <div class="vehicle-assignment"><select id="vehicle-collab-${index}">${collabOptions}</select>
           <button onclick="assignVehicle(${index})">Attribuer</button>
           ${assignment?`<button onclick="releaseVehicle(${index})">Libérer</button>`:""}
@@ -1872,10 +1920,110 @@ function openVehicleForm(index){
   document.getElementById("f-vehicle-status").value=vehicle?.status||"Disponible";
   document.getElementById("f-vehicle-mileage").value=vehicle?.mileage||"";
   document.getElementById("f-vehicle-mileage-date").value=vehicle?.mileageDate||"";
-  document.getElementById("f-vehicle-notes").value=vehicle?.notes||"";
+  renderVehicleDefectsForm(vehicle?.registration||"");
+  document.getElementById("vehicle-defect-editor").style.display="none";
+  document.getElementById("f-vehicle-defect").value="";
+  document.getElementById("vehicle-defect-add-btn").disabled=!vehicle;
+  document.getElementById("vehicle-defect-add-btn").style.opacity=vehicle?"1":".45";
   const assignment=vehicle?activeVehicleAssignment(vehicle):null;
   updateVehicleCollabOptions(assignment?.collaborator||"");
   document.getElementById("f-vehicle-assignment-start").value=todayInputDate();
+}
+function vehicleDefectsFor(registration){
+  return sheetVehicleDefects.filter(defect=>defect.registration===registration)
+    .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+}
+function renderVehicleDefectsForm(registration){
+  const list=document.getElementById("vehicle-defects-form-list");
+  if(!list)return;
+  const defects=vehicleDefectsFor(registration).filter(defect=>!defect.deletedAt);
+  list.innerHTML=defects.length?defects.map(defect=>
+    `<div class="vehicle-defect">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">${htmlEscape(formatDateShort(defect.createdAt)||"Date inconnue")}</span></div>`
+  ).join(""):`<div class="s-sub">${registration?"Aucun défaut renseigné":"Enregistrez le véhicule avant d’ajouter un défaut."}</div>`;
+}
+function toggleVehicleDefectFormEditor(){
+  if(editingVehicleIdx==null)return;
+  const editor=document.getElementById("vehicle-defect-editor");
+  const visible=editor.style.display!=="none";
+  editor.style.display=visible?"none":"flex";
+  if(!visible)document.getElementById("f-vehicle-defect").focus();
+}
+async function addVehicleDefect(){
+  const vehicle=editingVehicleIdx!=null?sheetVehicles[editingVehicleIdx]:null;
+  const description=document.getElementById("f-vehicle-defect").value.trim();
+  if(!vehicle){showToast("Enregistre le véhicule avant d’ajouter un défaut",true);return;}
+  if(!description){document.getElementById("f-vehicle-defect").focus();return;}
+  const button=document.getElementById("vehicle-defect-add-btn");
+  button.disabled=true;
+  try{
+    if(await persistVehicleDefect(vehicle,description))document.getElementById("f-vehicle-defect").value="";
+  }finally{
+    button.disabled=false;
+  }
+}
+function toggleVehicleCardDefectEditor(index){
+  const registration=sheetVehicles[index]?.registration;
+  if(!registration)return;
+  if(openVehicleDefectEditors.has(registration))openVehicleDefectEditors.delete(registration);
+  else openVehicleDefectEditors.add(registration);
+  renderSidebarVehicles();
+  if(openVehicleDefectEditors.has(registration))document.getElementById(`vehicle-defect-input-${index}`)?.focus();
+}
+function toggleVehicleDefectHistory(index){
+  const registration=sheetVehicles[index]?.registration;
+  if(!registration)return;
+  if(expandedVehicleDefectHistory.has(registration))expandedVehicleDefectHistory.delete(registration);
+  else expandedVehicleDefectHistory.add(registration);
+  renderSidebarVehicles();
+}
+async function addVehicleCardDefect(index){
+  const vehicle=sheetVehicles[index];
+  const input=document.getElementById(`vehicle-defect-input-${index}`);
+  const description=input?.value.trim();
+  if(!vehicle||!description){input?.focus();return;}
+  if(await persistVehicleDefect(vehicle,description)){
+    openVehicleDefectEditors.delete(vehicle.registration);
+    renderSidebarVehicles();
+  }
+}
+async function persistVehicleDefect(vehicle,description){
+  if(savingVehicleDefects.has(vehicle.registration))return false;
+  savingVehicleDefects.add(vehicle.registration);
+  const defect={registration:vehicle.registration,description,createdAt:todayInputDate(),deletedAt:""};
+  try{
+    const range=await sheetAppend(SHEET_TABS.vehicleDefects,[buildRowFromMap(vehicleDefectCI,vehicleDefectHC,defect)]);
+    defect._sheetRow=sheetRowFromAppendRange(range);
+    sheetVehicleDefects.push(defect);
+    renderVehicleDefectsForm(vehicle.registration);
+    renderSidebarVehicles();
+    showToast("Défaut enregistré ✓");
+    return true;
+  }catch(e){
+    console.warn("Enregistrement du défaut véhicule impossible",e);
+    showToast("Erreur d’enregistrement du défaut",true);
+    return false;
+  }finally{
+    savingVehicleDefects.delete(vehicle.registration);
+  }
+}
+async function softDeleteVehicleDefect(vehicleIndex,sheetRow){
+  const vehicle=sheetVehicles[vehicleIndex];
+  const defect=sheetVehicleDefects.find(item=>item._sheetRow===sheetRow&&item.registration===vehicle?.registration);
+  if(!defect||defect.deletedAt||deletingVehicleDefects.has(sheetRow))return;
+  deletingVehicleDefects.add(sheetRow);
+  try{
+    const deletedAt=todayInputDate();
+    await sheetUpdateMerged(SHEET_TABS.vehicleDefects,defect._sheetRow,vehicleDefectCI,vehicleDefectHC,{deletedAt});
+    defect.deletedAt=deletedAt;
+    renderSidebarVehicles();
+    renderVehicleDefectsForm(defect.registration);
+    showToast("Défaut masqué · conservé dans l’historique");
+  }catch(e){
+    console.warn("Masquage du défaut véhicule impossible",e);
+    showToast("Erreur lors du masquage du défaut",true);
+  }finally{
+    deletingVehicleDefects.delete(sheetRow);
+  }
 }
 function onVehicleStatusChange(){
   const status=document.getElementById("f-vehicle-status").value;
@@ -1887,7 +2035,7 @@ function closeVehicleForm(){
 }
 async function writeVehicle(vehicle){
   const values={registration:vehicle.registration,make:vehicle.make,model:vehicle.model,status:vehicle.status,
-    mileage:vehicle.mileage,mileageDate:vehicle.mileageDate,notes:vehicle.notes};
+  mileage:vehicle.mileage,mileageDate:vehicle.mileageDate};
   if(vehicle._sheetRow)await sheetUpdateMerged(SHEET_TABS.vehicles,vehicle._sheetRow,vehicleCI,vehicleHC,values);
   else{
     const range=await sheetAppend(SHEET_TABS.vehicles,[buildRowFromMap(vehicleCI,vehicleHC,values)]);
@@ -1990,7 +2138,7 @@ async function saveVehicle(){
     registration,make:document.getElementById("f-vehicle-make").value.trim(),
     model:document.getElementById("f-vehicle-model").value.trim(),status,mileage,
     mileageDate:document.getElementById("f-vehicle-mileage-date").value||(mileage!==""?todayInputDate():""),
-    notes:document.getElementById("f-vehicle-notes").value.trim(),_sheetRow:existing?._sheetRow,
+    _sheetRow:existing?._sheetRow,
   };
   const startDate=document.getElementById("f-vehicle-assignment-start").value;
   const button=document.getElementById("vehicle-save-btn");
@@ -2007,6 +2155,10 @@ async function saveVehicle(){
       for(const assignment of sheetVehicleAssignments.filter(a=>a.registration===existing.registration)){
         await sheetUpdateMerged(SHEET_TABS.vehicleAssignments,assignment._sheetRow,vehicleAssignmentCI,vehicleAssignmentHC,{registration});
         assignment.registration=registration;
+      }
+      for(const defect of sheetVehicleDefects.filter(d=>d.registration===existing.registration)){
+        await sheetUpdateMerged(SHEET_TABS.vehicleDefects,defect._sheetRow,vehicleDefectCI,vehicleDefectHC,{registration});
+        defect.registration=registration;
       }
     }
     await setVehicleAssignment(vehicle,collaborator,startDate);
