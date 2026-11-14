@@ -3903,7 +3903,7 @@ function buildExpenseSummaryPDF(summary=expenseSummaryData){
     startY:metaY+6,
     head:[["Date","Immatriculation","Kilométrage véhicule","Montant TTC"]],
     body:summary.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>[
-      formatDateFr(expense.date),expense.registration,`${expense.mileage.toLocaleString("fr-FR")} km`,formatExpenseAmount(expense.amount)
+      formatDateFr(expense.date),expense.registration,`${expense.mileage.toLocaleString("fr-FR").replace(/[\u00a0\u202f]/g," ")} km`,formatExpenseAmount(expense.amount)
     ]),
     foot:[[{content:"Total TTC",colSpan:3,styles:{halign:"right"}},formatExpenseAmount(total)]],
     styles:{fontSize:9,cellPadding:3,font:"helvetica"},
