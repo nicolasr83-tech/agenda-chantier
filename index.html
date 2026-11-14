@@ -696,6 +696,9 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <span id="expenses-collaborator" class="recap-folder-badge"></span>
     <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="openExpenseForm()">+ Ajouter</button>
   </div>
+  <div id="expense-identity-action" style="display:none;padding:10px 14px;background:#FFF8E1;border-bottom:1px solid var(--border)">
+    <button class="rc-btn" onclick="authorizeExpenseIdentity()">Autoriser l’accès à mon adresse Google</button>
+  </div>
   <div class="expense-form-wrap" id="expense-form-wrap" style="display:none">
     <form class="expense-form" id="expense-form" onsubmit="saveExpense(event)">
       <div class="expense-form-title">Nouveau frais</div>
@@ -733,7 +736,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 const CLIENT_ID   = "437762143522-cpav4sobt0k0qjar7dctrm28tnqd2i6b.apps.googleusercontent.com";
 const CALENDAR_ID = "826a1e6b264172714a4fffdfb31441c9847b7d0f4fc22e27836a34c2014b64fe@group.calendar.google.com";
 const SHEET_ID    = "1LQ35QHro8DWAW6JS06qHf-kZgZ8xPxSszZumEPsD1RU";
-const SCOPES      = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets";
+const SCOPES      = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email";
 
 const GCAL_COLORS = [
   {id:"1",hex:"#7986CB"},{id:"2",hex:"#33B679"},{id:"3",hex:"#8E24AA"},
@@ -878,10 +881,12 @@ function initTokenClient(){
       localStorage.setItem("arr_token_expiry",expiry);
       sessionStorage.setItem("arr_token",accessToken);
       document.getElementById("login-overlay").classList.remove("visible");
-      fetchUserInfo();
+      const identityRequest=fetchUserInfo();
       try{
         await waitForGoogle();
         await loadAll();
+        await identityRequest;
+        if(document.getElementById("expenses-page").classList.contains("open"))await loadExpenseData();
         buildCalendar();
       }catch(e){
         console.warn("Chargement de l’application impossible",e);
@@ -890,10 +895,9 @@ function initTokenClient(){
     }
   });
 }
-function signIn(){
+function signIn(prompt=""){
   if(!tokenClient){setTimeout(signIn,400);return;}
-  // Ne demande le consentement que si pas de token valide
-  tokenClient.requestAccessToken({prompt:""});
+  tokenClient.requestAccessToken({prompt});
 }
 function signOut(){
   if(accessToken)google.accounts.oauth2.revoke(accessToken);
@@ -3686,8 +3690,13 @@ function closeExpensesPage(){
 async function openExpensesPage(){
   if(!accessToken){signIn();return;}
   document.getElementById("expenses-page").classList.add("open");
-  await fetchUserInfo();
+  document.getElementById("expense-identity-action").style.display="none";
+  currentUser=await fetchUserInfo();
   await loadExpenseData();
+}
+function authorizeExpenseIdentity(){
+  if(!tokenClient){showToast("Connexion Google en cours de chargement, réessaie dans un instant",true);return;}
+  signIn("consent");
 }
 function closeExpenseForm(){
   document.getElementById("expense-form-wrap").style.display="none";
@@ -3737,6 +3746,8 @@ function renderExpenseMessage(message){
     `<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">${htmlEscape(message)}</div>`;
   document.getElementById("expenses-total").textContent="";
   document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+  const identityAction=document.getElementById("expense-identity-action");
+  if(identityAction)identityAction.style.display=!currentUser?.email&&!!accessToken?"block":"none";
 }
 function parseExpenseAmount(value){
   const normalized=String(value??"").replace(/\s/g,"").replace(",",".");
@@ -3757,6 +3768,11 @@ function loadExpenseRow(row,index){
   };
 }
 async function loadExpenseData(){
+  if(accessToken&&!currentUser?.email){
+    currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage("Adresse Google non disponible. Autorise l’accès à ton adresse Google pour associer les frais au bon collaborateur.");
+    return;
+  }
   if(!accessToken||!currentUser?.email){
     currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
     renderExpenseMessage("Connecte-toi avec le compte Google associé à un collaborateur.");
