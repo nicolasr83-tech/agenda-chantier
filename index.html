@@ -108,13 +108,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .vehicle-defects-title.has-defects{color:var(--red)}
 .vehicle-defects-title.no-defects{color:var(--green)}
 .vehicle-defects-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.vehicle-defects-controls{display:flex;align-items:center;gap:4px}
+.vehicle-defects-controls{display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap}
 .vehicle-defects-toggle{border:1px solid var(--border);background:var(--white);border-radius:5px;padding:3px 6px;font-size:10px;cursor:pointer}
 .vehicle-defect{display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text);padding:3px 0;overflow-wrap:anywhere}
 .vehicle-defect-description{flex:1;min-width:0;overflow-wrap:anywhere}
 .vehicle-defect-date{font-size:10px;color:var(--muted);margin-left:5px}
 .vehicle-defect-delete{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer}
 .vehicle-defect-delete:hover{border-color:var(--red);color:var(--red)}
+.vehicle-defect-history-delete{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer}
+.vehicle-defect-history-delete:hover{border-color:var(--red);color:var(--red)}
 .vehicle-defect-history{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border)}
 .vehicle-defect-history-title{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
 .vehicle-defect-archived{color:var(--muted)}
@@ -1862,7 +1864,7 @@ function renderSidebarVehicles(){
     const index=sheetVehicles.indexOf(vehicle);
     const assignment=activeVehicleAssignment(vehicle);
     const detail=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
-    const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"Kilométrage non renseigné";
+    const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"...Km";
     const allDefects=vehicleDefectsFor(vehicle.registration);
     const defects=allDefects.filter(defect=>!defect.deletedAt);
     const archivedDefects=allDefects.filter(defect=>defect.deletedAt);
@@ -1875,16 +1877,17 @@ function renderSidebarVehicles(){
     </div>`).join("");
     const archivedDefectRows=archivedDefects.map(defect=>`<div class="vehicle-defect vehicle-defect-archived">
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
+      <button class="vehicle-defect-history-delete" onclick="deleteVehicleDefectHistory(${index},${defect._sheetRow})" title="Supprimer définitivement de l’historique">Supprimer</button>
     </div>`).join("");
     return `<div class="s-item vehicle-card">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
         <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
-        <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · ${htmlEscape(mileage)}</div>
+        <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · <span style="white-space:nowrap">${htmlEscape(mileage)}</span></div>
         ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
         <div class="vehicle-defects">
           <div class="vehicle-defects-heading">
-            <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts / désordres (${defects.length})</button>
+            <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts (${defects.length})</button>
             <div class="vehicle-defects-controls">
               ${archivedDefects.length?`<button class="vehicle-defects-toggle" onclick="toggleVehicleDefectHistory(${index})">${historyOpen?"Masquer":"Historique"} (${archivedDefects.length})</button>`:""}
               <button class="vehicle-defects-toggle" onclick="toggleVehicleCardDefectEditor(${index})">${editorOpen?"Annuler":"＋ Ajouter"}</button>
@@ -2018,6 +2021,26 @@ async function softDeleteVehicleDefect(vehicleIndex,sheetRow){
   }catch(e){
     console.warn("Masquage du défaut véhicule impossible",e);
     showToast("Erreur lors du masquage du défaut",true);
+  }finally{
+    deletingVehicleDefects.delete(sheetRow);
+  }
+}
+async function deleteVehicleDefectHistory(vehicleIndex,sheetRow){
+  const vehicle=sheetVehicles[vehicleIndex];
+  const defect=sheetVehicleDefects.find(item=>item._sheetRow===sheetRow&&item.registration===vehicle?.registration);
+  if(!defect?.deletedAt||deletingVehicleDefects.has(sheetRow))return;
+  if(!confirm("Supprimer définitivement ce défaut de l’historique ?"))return;
+  deletingVehicleDefects.add(sheetRow);
+  try{
+    await sheetUpdateMerged(SHEET_TABS.vehicleDefects,defect._sheetRow,vehicleDefectCI,vehicleDefectHC,{
+      registration:"",description:"",createdAt:"",deletedAt:"",
+    });
+    sheetVehicleDefects=sheetVehicleDefects.filter(item=>item!==defect);
+    renderSidebarVehicles();
+    showToast("Défaut supprimé définitivement ✓");
+  }catch(e){
+    console.warn("Suppression du défaut de l’historique impossible",e);
+    showToast("Erreur lors de la suppression du défaut",true);
   }finally{
     deletingVehicleDefects.delete(sheetRow);
   }
