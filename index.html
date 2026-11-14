@@ -291,6 +291,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .expense-table input{width:16px;height:16px}
 .expense-summary{background:var(--white);margin:16px;padding:24px;border:1px solid var(--border);border-radius:10px}
 .expense-summary h2{margin:0 0 16px;color:var(--navy);font-size:21px}
+.expense-batch-header td{padding:10px 8px;background:var(--lblue);font-size:12px;font-weight:700;color:var(--navy)}
+.expense-batch-header input,.expense-table .expense-reimbursed{width:16px;height:16px}
+.expense-batch-total td{padding:9px 12px;text-align:right;font-size:12px;font-weight:700;background:#F7F8FA;border-top:1px solid var(--border)}
+.expense-table td.expense-date-cell{white-space:nowrap}
+.expense-history{margin-top:16px;background:var(--white);border:1px solid var(--border);border-radius:8px}
+.expense-history>summary,.expense-history-month>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--navy)}
+.expense-history-month{margin:0 12px 8px;border:1px solid var(--border);border-radius:7px}
+.expense-history-month>summary{display:flex;justify-content:space-between;gap:12px;background:#F7F8FA;font-size:12px}
+.expense-history-month .expense-table{margin-bottom:6px}
 .expense-summary-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:13px}
 .expense-summary-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .expense-summary table{width:100%;border-collapse:collapse;font-size:12px}
@@ -718,7 +727,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <div class="expense-list-toolbar">
     <strong id="expenses-total"></strong>
     <span style="flex:1"></span>
-    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="createExpenseSummary()">Créer la fiche récap de la sélection</button>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="createExpenseBatch()">Assembler et générer le PDF</button>
   </div>
   <div class="recap-content" id="expenses-list"></div>
   <section class="expense-summary" id="expense-summary" style="display:none"></section>
@@ -1029,6 +1038,16 @@ async function sheetUpdate(tab,sheetRow,values,spreadsheetId=SHEET_ID){
      body:JSON.stringify({values})});
   if(!resp.ok)throw new Error("Sheet update "+resp.status);
 }
+async function sheetBatchUpdateValues(data,spreadsheetId=SHEET_ID){
+  if(!data.length)return;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`;
+  const response=await fetch(url,{
+    method:"POST",
+    headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+    body:JSON.stringify({valueInputOption:"USER_ENTERED",data})
+  });
+  if(!response.ok)throw new Error(`Sheet batch update ${response.status}`);
+}
 
 // ═════════════════════════════════════════════════════════════════════════
 // LECTURE / ÉCRITURE PAR EN-TÊTE (colonne trouvée par son nom, pas sa position)
@@ -1150,7 +1169,11 @@ const POINTAGE_HEADERS = {
   num:"N° Dossier", year:"Année", month:"Mois", sent:"Pointage envoyé",
   sentAt:"Date d'envoi", sentBy:"Envoyé par"
 };
-const EXPENSE_HEADERS = {date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",updateMileage:"Mise à jour kilométrage"};
+const EXPENSE_HEADERS = {
+  date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",
+  updateMileage:"Mise à jour kilométrage",batchId:"ID assemblage",submittedAt:"Date demande remboursement",
+  reimbursed:"Remboursé"
+};
 const VEHICLE_HEADERS = {
   registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
   mileage:"Kilométrage", mileageDate:"Date kilométrage"
@@ -1172,7 +1195,7 @@ const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
 const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5};
 const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
 const VEHICLE_DEFECT_FALLBACK = {registration:0,description:1,createdAt:2,deletedAt:3};
-const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4};
+const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4,batchId:5,submittedAt:6,reimbursed:7};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
@@ -3711,6 +3734,8 @@ function openExpenseForm(){
   const registration=document.getElementById("expense-registration");
   registration.innerHTML=`<option value="">— Choisir un véhicule —</option>`+sheetVehicles.map(vehicle=>
     `<option value="${htmlEscape(vehicle.registration)}">${htmlEscape(vehicle.registration)}</option>`).join("");
+  const assignedVehicle=assignedVehicleForCollaborator(currentCollaborator.name);
+  if(assignedVehicle)registration.value=assignedVehicle.registration;
   document.getElementById("expense-form-wrap").style.display="block";
   onExpenseVehicleChange();
   document.getElementById("expense-date").focus();
@@ -3764,6 +3789,9 @@ function loadExpenseRow(row,index){
     mileage:parseInt(cellOf(row,expenseCI,"mileage"),10)||0,
     amount:parseExpenseAmount(cellOf(row,expenseCI,"amount")),
     updateMileage:parseBool(cellOf(row,expenseCI,"updateMileage")),
+    batchId:cellOf(row,expenseCI,"batchId").trim(),
+    submittedAt:sheetDateToInput(cellOf(row,expenseCI,"submittedAt")),
+    reimbursed:parseBool(cellOf(row,expenseCI,"reimbursed")),
     _sheetRow:index+2,
   };
 }
@@ -3799,7 +3827,7 @@ async function loadExpenseData(){
     expenseCI=table.colIndex;expenseHC=table.headerCount;
     sheetExpenses=table.rows.map(loadExpenseRow).filter(expense=>expense.date||expense.registration||expense.amount);
     selectedExpenseRows.clear();
-    renderExpensesList();
+    renderExpenseTrackingList();
   }catch(error){
     console.warn("Chargement des frais impossible",error);
     sheetExpenses=[];selectedExpenseRows.clear();
@@ -3891,7 +3919,7 @@ async function saveExpense(event){
     return;
   }
   sheetExpenses.push(expense);
-  closeExpenseForm();renderExpensesList();
+  closeExpenseForm();renderExpenseTrackingList();
   if(updateMileage){
     try{
       await sheetUpdateMerged(SHEET_TABS.vehicles,vehicle._sheetRow,vehicleCI,vehicleHC,
@@ -3907,6 +3935,184 @@ async function saveExpense(event){
     showToast("Frais enregistré ✓");
   }
   button.disabled=false;button.textContent="Enregistrer le frais";
+}
+
+function expenseRowMarkup(expense,allowAssembly){
+  return `<tr>
+    <td><input type="checkbox" aria-label="Assembler le frais du ${htmlEscape(expense.date)}"
+      data-expense-row="${expense._sheetRow}" ${allowAssembly?"":"disabled"}
+      ${selectedExpenseRows.has(expense._sheetRow)?"checked":""} onchange="toggleExpenseSelection(this)"></td>
+    <td class="expense-date-cell">${htmlEscape(formatDateFr(expense.date))}</td>
+    <td>${htmlEscape(expense.registration)}</td>
+    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td>
+    <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td>
+    <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer remboursé le frais du ${htmlEscape(expense.date)}"
+      data-expense-reimbursed="${expense._sheetRow}" ${expense.reimbursed?"checked":""}
+      onchange="toggleExpenseReimbursement(this)"></td>
+  </tr>`;
+}
+function expenseTableMarkup(expenses,allowAssembly){
+  const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>expenseRowMarkup(expense,allowAssembly)).join("");
+  return `<div class="rc-table-wrap"><table class="expense-table">
+    <thead><tr><th>Assembler</th><th>Date</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+function expenseBatchToggleState(input,batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  const reimbursed=expenses.filter(expense=>expense.reimbursed).length;
+  input.checked=expenses.length>0&&reimbursed===expenses.length;
+  input.indeterminate=reimbursed>0&&reimbursed<expenses.length;
+}
+function renderExpenseTrackingList(){
+  const list=document.getElementById("expenses-list");
+  const activeExpenses=sheetExpenses.filter(expense=>!expense.reimbursed);
+  const historyExpenses=sheetExpenses.filter(expense=>expense.reimbursed);
+  const total=activeExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+  document.getElementById("expenses-total").textContent=`Total des frais actifs : ${formatExpenseAmount(total)}`;
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+  const batches=new Map();
+  activeExpenses.filter(expense=>expense.batchId).forEach(expense=>{
+    if(!batches.has(expense.batchId))batches.set(expense.batchId,[]);
+    batches.get(expense.batchId).push(expense);
+  });
+  const entries=[
+    ...activeExpenses.filter(expense=>!expense.batchId).map(expense=>({date:expense.date,expense})),
+    ...Array.from(batches,([batchId,expenses])=>({
+      date:expenses.map(expense=>expense.date).sort().pop()||"",
+      batchId,expenses
+    }))
+  ].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=entries.map(entry=>{
+    if(entry.expense)return expenseRowMarkup(entry.expense,true);
+    const expenses=entry.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const allBatchExpenses=sheetExpenses.filter(expense=>expense.batchId===entry.batchId);
+    const refundedCount=allBatchExpenses.filter(expense=>expense.reimbursed).length;
+    const submittedAt=allBatchExpenses.map(expense=>expense.submittedAt).sort().pop()||"";
+    const batchTotal=allBatchExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+    return `<tr class="expense-batch-header">
+      <td></td><td colspan="3"><strong>Demande du ${htmlEscape(formatDateFr(submittedAt))} · ${allBatchExpenses.length} frais, ${expenses.length} actifs</strong></td>
+      <td><button class="rc-btn" onclick="printExpenseBatch('${htmlEscape(entry.batchId)}')">Voir / imprimer le PDF</button></td>
+      <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer toute la demande comme remboursée"
+        data-batch-toggle="${htmlEscape(entry.batchId)}" ${refundedCount===allBatchExpenses.length?"checked":""}
+        onchange="toggleExpenseBatchReimbursement(this)"></td>
+    </tr>${expenses.map(expense=>expenseRowMarkup(expense,false)).join("")}
+    <tr class="expense-batch-total"><td colspan="4">Total de la demande</td><td>${htmlEscape(formatExpenseAmount(batchTotal))}</td><td></td></tr>`;
+  }).join("");
+  const activeTable=rows?`<div class="rc-table-wrap"><table class="expense-table">
+    <thead><tr><th>Assembler</th><th>Date</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`:`<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Aucun frais actif.</div>`;
+  list.innerHTML=activeTable+renderExpenseHistoryByMonth(historyExpenses);
+  list.querySelectorAll("[data-batch-toggle]").forEach(input=>expenseBatchToggleState(input,input.dataset.batchToggle));
+}
+function renderExpenseHistoryByMonth(expenses){
+  if(!expenses.length)return"";
+  const months=new Map();
+  expenses.forEach(expense=>{
+    const key=expense.date.slice(0,7)||"date-inconnue";
+    if(!months.has(key))months.set(key,[]);
+    months.get(key).push(expense);
+  });
+  const monthSections=Array.from(months).sort(([a],[b])=>b.localeCompare(a)).map(([month,items])=>{
+    const monthTotal=items.reduce((sum,expense)=>sum+expense.amount,0);
+    const label=month==="date-inconnue"?"Date inconnue":
+      new Date(`${month}-01T12:00:00`).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<details class="expense-history-month">
+      <summary><span>${htmlEscape(label)} · ${items.length} frais</span><strong>${htmlEscape(formatExpenseAmount(monthTotal))}</strong></summary>
+      ${expenseTableMarkup(items,false)}
+    </details>`;
+  }).join("");
+  const historyTotal=expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  return `<details class="expense-history">
+    <summary>Historique remboursé · ${expenses.length} frais · ${htmlEscape(formatExpenseAmount(historyTotal))}</summary>
+    ${monthSections}
+  </details>`;
+}
+async function updateExpenseReimbursement(sheetRows,reimbursed){
+  const expenses=sheetExpenses.filter(expense=>sheetRows.includes(expense._sheetRow));
+  const column=expenseCI.reimbursed;
+  if(column===undefined)throw new Error("Colonne de remboursement absente de la feuille.");
+  const data=expenses.map(expense=>({
+    range:`${SHEET_TABS.expenses}!${sheetColLetter(column+1)}${expense._sheetRow}`,
+    values:[[reimbursed?"Oui":"Non"]]
+  }));
+  await sheetBatchUpdateValues(data,expenseSheetId);
+  expenses.forEach(expense=>{expense.reimbursed=reimbursed;});
+  renderExpenseTrackingList();
+}
+async function toggleExpenseReimbursement(input){
+  const sheetRow=Number(input.dataset.expenseReimbursed);
+  try{
+    await updateExpenseReimbursement([sheetRow],input.checked);
+  }catch(error){
+    console.warn("Mise à jour du remboursement impossible",error);
+    showToast("Impossible d’enregistrer le statut du remboursement",true);
+    renderExpenseTrackingList();
+  }
+}
+async function toggleExpenseBatchReimbursement(input){
+  const batchId=input.dataset.batchToggle;
+  const sheetRows=sheetExpenses.filter(expense=>expense.batchId===batchId).map(expense=>expense._sheetRow);
+  try{
+    await updateExpenseReimbursement(sheetRows,input.checked);
+  }catch(error){
+    console.warn("Mise à jour du remboursement de l’assemblage impossible",error);
+    showToast("Impossible d’enregistrer le statut du remboursement",true);
+    renderExpenseTrackingList();
+  }
+}
+function createExpenseBatchId(){
+  return window.crypto?.randomUUID?window.crypto.randomUUID():`frais-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
+}
+async function createExpenseBatch(){
+  const expenses=sheetExpenses.filter(expense=>
+    selectedExpenseRows.has(expense._sheetRow)&&!expense.reimbursed&&!expense.batchId);
+  if(!expenses.length){showToast("Sélectionne au moins un frais actif non encore envoyé",true);return;}
+  const batchId=createExpenseBatchId();
+  const submittedAt=todayInputDate();
+  const button=document.querySelector(".expense-list-toolbar button");
+  if(button){button.disabled=true;button.textContent="Assemblage…";}
+  try{
+    const data=[];
+    expenses.forEach(expense=>{
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.batchId+1)}${expense._sheetRow}`,values:[[batchId]]});
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.submittedAt+1)}${expense._sheetRow}`,values:[[submittedAt]]});
+    });
+    await sheetBatchUpdateValues(data,expenseSheetId);
+    expenses.forEach(expense=>{expense.batchId=batchId;expense.submittedAt=submittedAt;});
+    selectedExpenseRows.clear();
+    renderExpenseTrackingList();
+    showExpenseBatchSummary(expenses,batchId,submittedAt);
+  }catch(error){
+    console.warn("Assemblage des frais impossible",error);
+    showToast("Impossible d’enregistrer la demande de remboursement dans Google Sheets",true);
+  }finally{
+    if(button){button.disabled=false;button.textContent="Assembler et générer le PDF";}
+  }
+}
+function showExpenseBatchSummary(expenses,batchId,submittedAt){
+  const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>`
+    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
+    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td><td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
+  document.getElementById("expense-summary").innerHTML=`
+    <h2>Fiche récapitulative des frais</h2>
+    <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
+    <span>Demande du ${htmlEscape(formatDateFr(submittedAt))} · Éditée le ${htmlEscape(new Date().toLocaleDateString("fr-FR"))}</span></div>
+    <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
+    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="printExpenseSummary()">Imprimer / Enregistrer en PDF</button>
+    <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
+  document.getElementById("expense-summary").dataset.batchId=batchId;
+  document.getElementById("expense-summary").style.display="block";
+  showToast("Demande assemblée. Le PDF peut être imprimé ou enregistré.");
+}
+function printExpenseBatch(batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  if(!expenses.length){showToast("Aucun frais trouvé pour cette demande",true);return;}
+  const submittedAt=expenses.map(expense=>expense.submittedAt).sort().pop()||"";
+  showExpenseBatchSummary(expenses,batchId,submittedAt);
 }
 
 renderSidebarDos();renderSidebarCollabs();renderSidebarMat();
