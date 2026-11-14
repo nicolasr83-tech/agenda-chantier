@@ -65,7 +65,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.current{background:var(--blue)}
 .mat-status-dot.unavailable{background:var(--red)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
-.mat-item-current{background:var(--lblue);border-color:var(--blue)}
 .mat-item-unavailable{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-picker{position:relative}
 .mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
@@ -100,23 +99,24 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .vehicle-status.assigned{background:var(--lblue);color:var(--blue)}
 .vehicle-status.repair,.vehicle-status.out{background:#FDECEC;color:var(--red)}
 .vehicle-history{font-size:10px;color:var(--muted);padding:3px 0 3px 30px}
-.vehicle-assignment{display:flex;gap:5px;align-items:center;margin-top:5px}
-.vehicle-assignment select{min-width:0;flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:11px}
-.vehicle-assignment button{border:1px solid var(--border);background:var(--white);border-radius:6px;padding:5px 7px;font-size:11px;cursor:pointer}
 .vehicle-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
-.vehicle-card{display:block}
+.vehicle-card{display:flex;align-items:flex-start}
 .vehicle-card-details{font-size:11px;color:var(--muted);margin:3px 0}
 .vehicle-card-collaborator{font-size:11px;color:var(--text);margin-top:5px}
 .vehicle-defects{margin-top:7px;padding-top:6px;border-top:1px solid var(--border)}
-.vehicle-defects-title{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
+.vehicle-defects-title{font-family:inherit;font-size:10px;font-weight:700;margin-bottom:3px;background:none;border:0;padding:0;text-align:left;cursor:pointer}
+.vehicle-defects-title.has-defects{color:var(--red)}
+.vehicle-defects-title.no-defects{color:var(--green)}
 .vehicle-defects-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.vehicle-defects-controls{display:flex;align-items:center;gap:4px}
+.vehicle-defects-controls{display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap}
 .vehicle-defects-toggle{border:1px solid var(--border);background:var(--white);border-radius:5px;padding:3px 6px;font-size:10px;cursor:pointer}
 .vehicle-defect{display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text);padding:3px 0;overflow-wrap:anywhere}
 .vehicle-defect-description{flex:1;min-width:0;overflow-wrap:anywhere}
 .vehicle-defect-date{font-size:10px;color:var(--muted);margin-left:5px}
 .vehicle-defect-delete{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer}
 .vehicle-defect-delete:hover{border-color:var(--red);color:var(--red)}
+.vehicle-defect-history-delete{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer}
+.vehicle-defect-history-delete:hover{border-color:var(--red);color:var(--red)}
 .vehicle-defect-history{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border)}
 .vehicle-defect-history-title{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
 .vehicle-defect-archived{color:var(--muted)}
@@ -150,6 +150,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .cal-cell.other-month .day-num{color:#ccc}
 .cal-cell.today{background:#eff6ff}
 .cal-cell.today .day-num{background:var(--blue);color:var(--white);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-cell.selected-day{background:#e8f1ff;box-shadow:inset 0 0 0 2px var(--blue)}
 .cal-cell.weekend .day-num{color:var(--red)}
 .day-num{font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center}
 .ev-chip{border-radius:3px;padding:1px 4px;font-size:9px;font-weight:600;margin-bottom:1px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--white);line-height:1.5}
@@ -273,6 +274,43 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .rc-price-field{display:flex;flex-direction:column;gap:3px}
 .rc-price-field label{font-size:10px;color:var(--muted);font-weight:600}
 .rc-price-field input{width:80px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px}
+.expense-form-wrap{padding:14px;background:var(--white);border-bottom:1px solid var(--border)}
+.expense-form{max-width:900px;margin:0 auto}
+.expense-form-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px}
+.expense-form-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}
+.expense-form-grid label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
+.expense-form-grid input,.expense-form-grid select{width:100%;padding:9px;border:1px solid var(--border);border-radius:7px;background:var(--white);color:var(--text);font-size:13px}
+.expense-mileage-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text)}
+.expense-mileage-toggle input{width:16px;height:16px}
+.expense-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.expense-list-toolbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--white);border-bottom:1px solid var(--border);font-size:12px}
+.expense-table{width:100%;border-collapse:collapse;background:var(--white);font-size:12px}
+.expense-table th,.expense-table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left}
+.expense-table th{background:var(--navy);color:var(--white);font-size:11px;white-space:nowrap}
+.expense-table td:last-child,.expense-table th:last-child{text-align:right}
+.expense-table input{width:16px;height:16px}
+.expense-summary{background:var(--white);margin:16px;padding:24px;border:1px solid var(--border);border-radius:10px}
+.expense-summary h2{margin:0 0 16px;color:var(--navy);font-size:21px}
+.expense-summary-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:13px}
+.expense-summary-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.expense-summary table{width:100%;border-collapse:collapse;font-size:12px}
+.expense-summary th,.expense-summary td{padding:9px 8px;border:1px solid var(--border);text-align:left}
+.expense-summary th{background:var(--navy);color:var(--white)}
+.expense-summary tfoot td{font-weight:700;background:var(--lblue)}
+@media(max-width:768px){
+  .expense-form-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
+  .expense-list-toolbar{align-items:flex-start;flex-wrap:wrap}
+  .expense-table{min-width:640px}
+}
+@media print{
+  body.expense-print-mode *{visibility:hidden!important}
+  body.expense-print-mode #expenses-page{display:block!important;position:static!important;inset:auto!important;overflow:visible!important;background:#fff!important}
+  body.expense-print-mode #expense-summary,body.expense-print-mode #expense-summary *{visibility:visible!important}
+  body.expense-print-mode #expense-summary{display:block!important;position:absolute;left:0;top:0;width:100%;margin:0;padding:0;border:0;border-radius:0}
+  body.expense-print-mode #expense-summary h2{font-size:20pt}
+  body.expense-print-mode #expense-summary table{font-size:10pt}
+  body.expense-print-mode .expense-summary-actions{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -291,6 +329,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <button class="btn-icon" onclick="toggleSidebar()" title="Panneau">☰</button>
   <h1>Arragon Planning</h1>
   <button class="btn-pill" onclick="openRecapPage()" title="Récap pointage par chantier">📊 Pointage</button>
+  <button class="btn-pill" onclick="openExpensesPage()" title="Gestion des frais">Frais</button>
   <div id="user-bar"><button class="btn-signin-h" onclick="signIn()">Se connecter</button></div>
   <button id="btn-signout" class="btn-pill" onclick="signOut()" style="margin-left:8px;">🔌 Déconnexion</button>
 </div>
@@ -366,6 +405,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-form-title" id="collab-form-title">Nouveau collaborateur</div>
           <div class="s-field"><label>Prénom Nom *</label><input id="f-collab-name" placeholder="Marie Dupont" autocomplete="off"></div>
           <div class="s-field"><label>Pseudo agenda</label><input id="f-collab-pseudo" placeholder="Micka (utilisé dans le titre)" autocomplete="off"></div>
+          <div class="s-field"><label>Adresse mail Google</label><input id="f-collab-email" type="email" placeholder="prenom@entreprise.fr" autocomplete="off"></div>
+          <div class="s-field"><label>ID de la feuille Google Sheets pour ses frais</label><input id="f-collab-expense-sheet-id" placeholder="ID ou URL de la feuille" autocomplete="off"></div>
           <div class="s-field"><label>Couleur agenda</label><div class="color-row" id="collab-color-row"></div></div>
           <div class="s-form-btns">
             <button class="s-btn-cancel" onclick="closeCollabForm()">Annuler</button>
@@ -646,6 +687,40 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <div class="recap-content" id="recap-content"></div>
 </div>
 
+<!-- Page Frais collaborateurs -->
+<div class="recap-page expenses-page" id="expenses-page">
+  <div class="recap-toolbar">
+    <button class="rc-back" onclick="closeExpensesPage()" title="Retour au planning">&larr; Calendrier</button>
+    <span class="recap-title">Frais collaborateurs</span>
+    <span style="flex:1"></span>
+    <span id="expenses-collaborator" class="recap-folder-badge"></span>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="openExpenseForm()">+ Ajouter</button>
+  </div>
+  <div class="expense-form-wrap" id="expense-form-wrap" style="display:none">
+    <form class="expense-form" id="expense-form" onsubmit="saveExpense(event)">
+      <div class="expense-form-title">Nouveau frais</div>
+      <div class="expense-form-grid">
+        <label>Date<input type="date" id="expense-date" required></label>
+        <label>Immatriculation<select id="expense-registration" required onchange="onExpenseVehicleChange()"></select></label>
+        <label>Kilométrage véhicule<input type="number" id="expense-mileage" min="0" step="1" required></label>
+        <label>Montant TTC (€)<input type="number" id="expense-amount" min="0.01" step="0.01" required></label>
+      </div>
+      <label class="expense-mileage-toggle"><input type="checkbox" id="expense-update-mileage"> Mettre à jour le kilométrage de ce véhicule après l’enregistrement</label>
+      <div class="expense-form-actions">
+        <button type="button" class="rc-btn" onclick="closeExpenseForm()">Annuler</button>
+        <button type="submit" class="btn-modal-save" id="expense-save-btn">Enregistrer le frais</button>
+      </div>
+    </form>
+  </div>
+  <div class="expense-list-toolbar">
+    <strong id="expenses-total"></strong>
+    <span style="flex:1"></span>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="createExpenseSummary()">Créer la fiche récap de la sélection</button>
+  </div>
+  <div class="recap-content" id="expenses-list"></div>
+  <section class="expense-summary" id="expense-summary" style="display:none"></section>
+</div>
+
 <div class="status-toast" id="toast"></div>
 <div class="loading-bar" id="loading-bar"></div>
 
@@ -658,7 +733,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 const CLIENT_ID   = "437762143522-cpav4sobt0k0qjar7dctrm28tnqd2i6b.apps.googleusercontent.com";
 const CALENDAR_ID = "826a1e6b264172714a4fffdfb31441c9847b7d0f4fc22e27836a34c2014b64fe@group.calendar.google.com";
 const SHEET_ID    = "1LQ35QHro8DWAW6JS06qHf-kZgZ8xPxSszZumEPsD1RU";
-const SCOPES      = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets";
+const SCOPES      = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email";
 
 const GCAL_COLORS = [
   {id:"1",hex:"#7986CB"},{id:"2",hex:"#33B679"},{id:"3",hex:"#8E24AA"},
@@ -699,6 +774,7 @@ function prestActive(di,code){
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
+SHEET_TABS.expenses="Frais";
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 
@@ -714,7 +790,8 @@ let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
 let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
-let openVehicleDefectEditors=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
+let openVehicleDefectEditors=new Set(),expandedVehicleDefectLists=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
+let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set();
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -781,6 +858,7 @@ window.addEventListener("load", async ()=>{
     await waitForGoogle();
     // Laisser le navigateur finir le rendu
     await new Promise(r=>setTimeout(r,300));
+    await fetchUserInfo();
     await loadAll();
     buildCalendar();
   } else {
@@ -791,7 +869,7 @@ function initTokenClient(){
   if(!window.google){setTimeout(initTokenClient,300);return;}
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
-    callback:(resp)=>{
+    callback:async (resp)=>{
       if(resp.error){showToast("Connexion annulée",true);return;}
       accessToken=resp.access_token;
       // Stocker avec expiration (1h)
@@ -799,9 +877,16 @@ function initTokenClient(){
       localStorage.setItem("arr_token",accessToken);
       localStorage.setItem("arr_token_expiry",expiry);
       sessionStorage.setItem("arr_token",accessToken);
-      fetchUserInfo();
       document.getElementById("login-overlay").classList.remove("visible");
-      waitForGoogle().then(()=>loadAll().then(buildCalendar));
+      try{
+        await fetchUserInfo();
+        await waitForGoogle();
+        await loadAll();
+        buildCalendar();
+      }catch(e){
+        console.warn("Chargement de l’application impossible",e);
+        showToast("Impossible de vérifier le compte Google connecté",true);
+      }
     }
   });
 }
@@ -818,11 +903,16 @@ function signOut(){
   localStorage.removeItem("arr_token_expiry");
   lsSet("arr_user",null);
   calEvents=[];buildCalendar();renderUserBar();
+  currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+  closeExpensesPage();
   document.getElementById("login-overlay").classList.add("visible");
 }
-function fetchUserInfo(){
-  fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}})
-    .then(r=>r.json()).then(u=>{currentUser=u;lsSet("arr_user",u);renderUserBar();});
+async function fetchUserInfo(){
+  const response=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}});
+  if(!response.ok)throw new Error(`Google user info ${response.status}`);
+  const user=await response.json();
+  if(!user.email)throw new Error("Le compte Google connecté ne fournit pas d’adresse mail.");
+  currentUser=user;lsSet("arr_user",user);renderUserBar();
 }
 
 // Met à jour tous les événements du calendrier qui référencent un N° de dossier donné
@@ -906,25 +996,25 @@ function renderUserBar(){
 }
 
 
-async function sheetGet(tab,range){
+async function sheetGet(tab,range,spreadsheetId=SHEET_ID){
   const r=encodeURIComponent(`${tab}!${range}`);
-  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}`,
+  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}`,
     {headers:{Authorization:"Bearer "+accessToken}});
   if(!resp.ok)throw new Error("Sheet read "+resp.status);
   return (await resp.json()).values||[];
 }
-async function sheetAppend(tab,values){
+async function sheetAppend(tab,values,spreadsheetId=SHEET_ID){
   const r=encodeURIComponent(`${tab}!A:Z`);
-  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
   if(!resp.ok)throw new Error("Sheet append "+resp.status);
   return (await resp.json()).updates?.updatedRange||"";
 }
-async function sheetUpdate(tab,sheetRow,values){
+async function sheetUpdate(tab,sheetRow,values,spreadsheetId=SHEET_ID){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
   const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
-  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${r}?valueInputOption=USER_ENTERED`,
+  const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
   if(!resp.ok)throw new Error("Sheet update "+resp.status);
@@ -950,8 +1040,8 @@ function parseBool(v){
 // trouvé via le NOM de l'en-tête en ligne 1 — plus par position fixe.
 // fallbackMap = position historique utilisée UNIQUEMENT si l'en-tête n'est pas trouvé
 // par son nom (garantit zéro casse si les en-têtes du Sheet ne correspondent pas encore).
-async function sheetGetTable(tab,headerMap,fallbackMap){
-  const headerRow=(await sheetGet(tab,"A1:ZZ1"))[0]||[];
+async function sheetGetTable(tab,headerMap,fallbackMap,spreadsheetId=SHEET_ID){
+  const headerRow=(await sheetGet(tab,"A1:ZZ1",spreadsheetId))[0]||[];
   const norm2idx={};
   headerRow.forEach((h,i)=>{const n=normHeader(h);if(n&&norm2idx[n]===undefined)norm2idx[n]=i;});
   const colIndex={};
@@ -962,16 +1052,16 @@ async function sheetGetTable(tab,headerMap,fallbackMap){
   });
   const headerCount=Math.max(headerRow.length,Object.values(colIndex).reduce((m,i)=>Math.max(m,i+1),0));
   const lastCol=sheetColLetter(Math.max(headerCount,1));
-  const rows=headerCount>0?await sheetGet(tab,`A2:${lastCol}1000`):[];
+  const rows=headerCount>0?await sheetGet(tab,`A2:${lastCol}1000`,spreadsheetId):[];
   return {colIndex,headerCount,rows};
 }
-async function ensureSheetHeaders(tab,headerMap){
-  const headers=(await sheetGet(tab,"A1:ZZ1"))[0]||[];
+async function ensureSheetHeaders(tab,headerMap,spreadsheetId=SHEET_ID){
+  const headers=(await sheetGet(tab,"A1:ZZ1",spreadsheetId))[0]||[];
   const updated=headers.slice();
   Object.values(headerMap).forEach(label=>{
     if(!updated.some(header=>normHeader(header)===normHeader(label)))updated.push(label);
   });
-  if(updated.length!==headers.length)await sheetUpdate(tab,1,[updated]);
+  if(updated.length!==headers.length)await sheetUpdate(tab,1,[updated],spreadsheetId);
 }
 async function loadSheetVehicleTable(){
   await ensureSheetHeaders(SHEET_TABS.vehicles,VEHICLE_HEADERS);
@@ -1022,16 +1112,16 @@ function buildRowFromMap(colIndex,headerCount,values){
 }
 // Met à jour une ligne existante en ne touchant QUE les colonnes connues,
 // pour ne jamais écraser une colonne perso ajoutée par l'utilisateur.
-async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values){
+async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values,spreadsheetId=SHEET_ID){
   const lastCol=sheetColLetter(Math.max(headerCount,1));
-  const current=(await sheetGet(tab,`A${sheetRow}:${lastCol}${sheetRow}`))[0]||[];
+  const current=(await sheetGet(tab,`A${sheetRow}:${lastCol}${sheetRow}`,spreadsheetId))[0]||[];
   const row=current.slice();
   while(row.length<headerCount)row.push("");
   Object.entries(values).forEach(([key,val])=>{
     const i=colIndex[key];
     if(i!==undefined)row[i]=val??"";
   });
-  await sheetUpdate(tab,sheetRow,[row]);
+  await sheetUpdate(tab,sheetRow,[row],spreadsheetId);
 }
 
 // Correspondance clé logique → intitulé attendu en ligne 1 de chaque onglet
@@ -1042,7 +1132,7 @@ const DOS_HEADERS = {
   prixN:"Prix Nuit", prixS3D:"Prix Scan 3D", email:"Email", tel:"Telephone", archive:"Archive",
   prixPrep:"Prix Preparation", prixRap:"Prix Rapport",
 };
-const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur"};
+const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur",email:"Adresse mail Google",expenseSheetId:"ID Sheet frais"};
 const MAT_HEADERS = {name:"Nom", cat:"Catégorie", unavailable:"Indisponible", lastRevision:"Dernière révision"};
 const CLIENT_HEADERS = {nom:"Nom du client"};
 const INTERLOC_HEADERS = {name:"Nom", client:"Client", email:"Email", tel:"Telephone"};
@@ -1050,6 +1140,7 @@ const POINTAGE_HEADERS = {
   num:"N° Dossier", year:"Année", month:"Mois", sent:"Pointage envoyé",
   sentAt:"Date d'envoi", sentBy:"Envoyé par"
 };
+const EXPENSE_HEADERS = {date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",updateMileage:"Mise à jour kilométrage"};
 const VEHICLE_HEADERS = {
   registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
   mileage:"Kilométrage", mileageDate:"Date kilométrage"
@@ -1064,13 +1155,14 @@ const VEHICLE_DEFECT_HEADERS = {
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
 const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11,archive:12,prixPrep:13,prixRap:14};
-const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2};
+const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2,email:3,expenseSheetId:4};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
 const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
 const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5};
 const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
 const VEHICLE_DEFECT_FALLBACK = {registration:0,description:1,createdAt:2,deletedAt:3};
+const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
@@ -1155,12 +1247,15 @@ async function loadSheetData(){
     renderSidebarDos();filterModalDos();
 
     // Collabs
+    await ensureSheetHeaders(SHEET_TABS.collabs,COLLAB_HEADERS);
     const ct=await sheetGetTable(SHEET_TABS.collabs,COLLAB_HEADERS,COLLAB_FALLBACK);
     collabCI=ct.colIndex;collabHC=ct.headerCount;
     sheetCollabs=ct.rows.filter(r=>cellOf(r,collabCI,"name")?.trim()).map((r,i)=>({
       name:cellOf(r,collabCI,"name")?.trim(),
       pseudo:cellOf(r,collabCI,"pseudo")?.trim()||"",
       colorId:cellOf(r,collabCI,"colorId")?.trim()||"7",
+      email:cellOf(r,collabCI,"email")?.trim()||"",
+      expenseSheetId:cellOf(r,collabCI,"expenseSheetId")?.trim()||"",
       _sheetRow:i+2,
     }));
     renderSidebarCollabs();updateModalCollab();updateVehicleCollabOptions();
@@ -1709,13 +1804,25 @@ function openCollabForm(idx){
   const c=idx!=null?sheetCollabs[idx]:null;
   document.getElementById("f-collab-name").value=c?.name||"";
   document.getElementById("f-collab-pseudo").value=c?.pseudo||"";
+  document.getElementById("f-collab-email").value=c?.email||"";
+  document.getElementById("f-collab-expense-sheet-id").value=c?.expenseSheetId||"";
   buildCollabColorPicker(c?.colorId||"7");
 }
 function closeCollabForm(){document.getElementById("collab-form").classList.remove("visible");editingCollabIdx=null;}
 async function saveCollab(){
   const name=document.getElementById("f-collab-name").value.trim();
   if(!name){document.getElementById("f-collab-name").focus();return;}
-  const c={name,pseudo:document.getElementById("f-collab-pseudo").value.trim(),colorId:selectedCollabColorId};
+  const emailField=document.getElementById("f-collab-email");
+  if(emailField.value.trim()&&!emailField.checkValidity()){
+    showToast("Adresse mail Google invalide",true);emailField.focus();return;
+  }
+  const c={
+    name,
+    pseudo:document.getElementById("f-collab-pseudo").value.trim(),
+    colorId:selectedCollabColorId,
+    email:document.getElementById("f-collab-email").value.trim(),
+    expenseSheetId:document.getElementById("f-collab-expense-sheet-id").value.trim(),
+  };
   const btn=document.getElementById("collab-save-btn");btn.textContent="⏳";
   if(editingCollabIdx!=null){
     const existing=sheetCollabs[editingCollabIdx];
@@ -1863,14 +1970,12 @@ function renderSidebarVehicles(){
     const index=sheetVehicles.indexOf(vehicle);
     const assignment=activeVehicleAssignment(vehicle);
     const detail=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
-    const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"Kilométrage non renseigné";
-    const history=sheetVehicleAssignments.filter(a=>a.registration===vehicle.registration)
-      .sort((a,b)=>(b.startDate||"").localeCompare(a.startDate||""))
-      .map(a=>`<div class="vehicle-history">${htmlEscape(a.collaborator)} · ${htmlEscape(formatDateShort(a.startDate)||"date inconnue")} → ${htmlEscape(a.endDate?formatDateShort(a.endDate):"En cours")}</div>`).join("");
+    const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"...Km";
     const allDefects=vehicleDefectsFor(vehicle.registration);
     const defects=allDefects.filter(defect=>!defect.deletedAt);
     const archivedDefects=allDefects.filter(defect=>defect.deletedAt);
     const editorOpen=openVehicleDefectEditors.has(vehicle.registration);
+    const defectsExpanded=expandedVehicleDefectLists.has(vehicle.registration);
     const historyOpen=expandedVehicleDefectHistory.has(vehicle.registration);
     const activeDefectRows=defects.map(defect=>`<div class="vehicle-defect">
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">${htmlEscape(formatDateShort(defect.createdAt)||"Date inconnue")}</span></span>
@@ -1878,34 +1983,28 @@ function renderSidebarVehicles(){
     </div>`).join("");
     const archivedDefectRows=archivedDefects.map(defect=>`<div class="vehicle-defect vehicle-defect-archived">
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
+      <button class="vehicle-defect-history-delete" onclick="deleteVehicleDefectHistory(${index},${defect._sheetRow})" title="Supprimer définitivement de l’historique">Supprimer</button>
     </div>`).join("");
-    const collabOptions=`<option value="">— Choisir un collaborateur —</option>`+
-      sheetCollabs.map(c=>`<option value="${htmlEscape(c.name)}"${assignment?.collaborator===c.name?" selected":""}>${htmlEscape(c.name)}</option>`).join("");
     return `<div class="s-item vehicle-card">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
         <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
-        <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · ${htmlEscape(mileage)}</div>
+        <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · <span style="white-space:nowrap">${htmlEscape(mileage)}</span></div>
         ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
         <div class="vehicle-defects">
           <div class="vehicle-defects-heading">
-            <div class="vehicle-defects-title">⚠️ Défauts / désordres (${defects.length})</div>
+            <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts (${defects.length})</button>
             <div class="vehicle-defects-controls">
               ${archivedDefects.length?`<button class="vehicle-defects-toggle" onclick="toggleVehicleDefectHistory(${index})">${historyOpen?"Masquer":"Historique"} (${archivedDefects.length})</button>`:""}
               <button class="vehicle-defects-toggle" onclick="toggleVehicleCardDefectEditor(${index})">${editorOpen?"Annuler":"＋ Ajouter"}</button>
             </div>
           </div>
-          ${defects.length?activeDefectRows:`<div class="s-sub">Aucun défaut actif</div>`}
+          ${defectsExpanded?(defects.length?activeDefectRows:`<div class="s-sub">Aucun défaut actif</div>`):""}
           ${editorOpen?`<div class="vehicle-defect-editor"><input id="vehicle-defect-input-${index}" placeholder="Décrire le défaut…" maxlength="300" onkeydown="if(event.key==='Enter'){event.preventDefault();addVehicleCardDefect(${index})}"><button type="button" class="btn-add-s" onclick="addVehicleCardDefect(${index})" title="Enregistrer le défaut" style="width:30px;height:30px;font-size:14px">✓</button></div>`:""}
           ${historyOpen&&archivedDefects.length?`<div class="vehicle-defect-history"><div class="vehicle-defect-history-title">Historique des défauts masqués</div>${archivedDefectRows}</div>`:""}
         </div>
-        <div class="vehicle-assignment"><select id="vehicle-collab-${index}">${collabOptions}</select>
-          <button onclick="assignVehicle(${index})">Attribuer</button>
-          ${assignment?`<button onclick="releaseVehicle(${index})">Libérer</button>`:""}
-        </div>
       </div>
       <div class="vehicle-actions"><button class="s-edit" onclick="openVehicleForm(${index})" title="Modifier">✏️</button></div>
-      ${history}
     </div>`;
   }).join("");
 }
@@ -1960,6 +2059,13 @@ async function addVehicleDefect(){
   }finally{
     button.disabled=false;
   }
+}
+function toggleVehicleDefectList(index){
+  const registration=sheetVehicles[index]?.registration;
+  if(!registration)return;
+  if(expandedVehicleDefectLists.has(registration))expandedVehicleDefectLists.delete(registration);
+  else expandedVehicleDefectLists.add(registration);
+  renderSidebarVehicles();
 }
 function toggleVehicleCardDefectEditor(index){
   const registration=sheetVehicles[index]?.registration;
@@ -2021,6 +2127,26 @@ async function softDeleteVehicleDefect(vehicleIndex,sheetRow){
   }catch(e){
     console.warn("Masquage du défaut véhicule impossible",e);
     showToast("Erreur lors du masquage du défaut",true);
+  }finally{
+    deletingVehicleDefects.delete(sheetRow);
+  }
+}
+async function deleteVehicleDefectHistory(vehicleIndex,sheetRow){
+  const vehicle=sheetVehicles[vehicleIndex];
+  const defect=sheetVehicleDefects.find(item=>item._sheetRow===sheetRow&&item.registration===vehicle?.registration);
+  if(!defect?.deletedAt||deletingVehicleDefects.has(sheetRow))return;
+  if(!confirm("Supprimer définitivement ce défaut de l’historique ?"))return;
+  deletingVehicleDefects.add(sheetRow);
+  try{
+    await sheetUpdateMerged(SHEET_TABS.vehicleDefects,defect._sheetRow,vehicleDefectCI,vehicleDefectHC,{
+      registration:"",description:"",createdAt:"",deletedAt:"",
+    });
+    sheetVehicleDefects=sheetVehicleDefects.filter(item=>item!==defect);
+    renderSidebarVehicles();
+    showToast("Défaut supprimé définitivement ✓");
+  }catch(e){
+    console.warn("Suppression du défaut de l’historique impossible",e);
+    showToast("Erreur lors de la suppression du défaut",true);
   }finally{
     deletingVehicleDefects.delete(sheetRow);
   }
@@ -2090,31 +2216,6 @@ async function setVehicleAssignment(vehicle,collaborator,startDate){
   }
   await writeVehicle(vehicle);
 }
-async function assignVehicle(index){
-  const vehicle=sheetVehicles[index];
-  const collaborator=document.getElementById(`vehicle-collab-${index}`)?.value||"";
-  if(!vehicle)return;
-  try{
-    await setVehicleAssignment(vehicle,collaborator,todayInputDate());
-    renderSidebarVehicles();updateEventVehicleOptions();
-    showToast(collaborator?`Véhicule attribué à ${collaborator} ✓`:"Attribution mise à jour ✓");
-  }catch(e){
-    console.warn("Attribution du véhicule impossible",e);
-    showToast(e.message||"Erreur d’attribution du véhicule",true);
-  }
-}
-async function releaseVehicle(index){
-  const vehicle=sheetVehicles[index];
-  if(!vehicle)return;
-  try{
-    await setVehicleAssignment(vehicle,"",todayInputDate());
-    renderSidebarVehicles();updateEventVehicleOptions();
-    showToast("Véhicule libéré ✓");
-  }catch(e){
-    console.warn("Libération du véhicule impossible",e);
-    showToast(e.message||"Erreur de libération du véhicule",true);
-  }
-}
 async function saveVehicle(){
   const registration=document.getElementById("f-vehicle-registration").value.trim().toUpperCase();
   if(!registration){document.getElementById("f-vehicle-registration").focus();return;}
@@ -2183,10 +2284,9 @@ function renderSidebarMat(){
   document.getElementById("s-mat-list").innerHTML=list.map(m=>{
     const i=sheetMat.indexOf(m);
     const assignments=date?materialAssignmentsOnDate(m.name,date):[];
-    const current=assignments.some(a=>a.id===editingEventId);
-    const busy=assignments.length>0&&!current;
-    const status=m.unavailable?"mat-item-unavailable":current?"mat-item-current":busy?"mat-item-busy":"";
-    const detail=m.unavailable?"Indisponible (en révision)":current?"Affecté à l’événement consulté":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
+    const busy=assignments.length>0;
+    const status=m.unavailable?"mat-item-unavailable":busy?"mat-item-busy":"";
+    const detail=m.unavailable?"Indisponible (en révision)":busy?`Déjà affecté : ${assignments.map(a=>eventDisplayName(a)).join(", ")}`:"Disponible";
     const revision=m.lastRevision?` · Dernière révision : ${formatDateShort(m.lastRevision)}`:"";
     return `<div class="s-item ${status}" title="${detail}">
       <div style="font-size:18px">🔧</div>
@@ -2403,6 +2503,7 @@ function switchSTab(tab){
     document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
     document.getElementById("sp-"+t).classList.toggle("active",t===tab);
   });
+  buildCalendar();
   if(tab==="materiel")renderSidebarMat();
   if(tab==="vehicules")renderSidebarVehicles();
 }
@@ -2411,6 +2512,7 @@ function handleCalendarDayClick(ds){
   if(materielTab){
     selectedMaterielDate=ds;
     renderSidebarMat();
+    buildCalendar();
     return;
   }
   openModal(ds);
@@ -2544,6 +2646,8 @@ function buildCalendar(){
   const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
   const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
+  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
+  const selectedDate=materielTab?selectedMaterielDate:null;
   const maxShow=window.innerWidth<=768?2:6;
   const weekColWidth=window.innerWidth<=768?24:28;
 
@@ -2564,6 +2668,7 @@ function buildCalendar(){
     const y=dt.getFullYear(),m=dt.getMonth(),d=dt.getDate();
     const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+    const isSelected=ds===selectedDate;
     const isWeekend=dt.getDay()===0||dt.getDay()===6;
     const evs=byDate[ds]||[];
 
@@ -2571,6 +2676,7 @@ function buildCalendar(){
     if(i%cols===cols-1)cls+=" week-last";
     if(!inMonth)cls+=" other-month";
     if(isToday)cls+=" today";
+    if(isSelected)cls+=" selected-day";
     if(isWeekend&&!hideWeekend)cls+=" weekend";
 
     const chips=evs.slice(0,maxShow).map(ev=>{
@@ -3566,6 +3672,219 @@ function prepareRecapEmail(dos){
   showToast("Brouillon d'email ouvert — pense à joindre le fichier généré avant d'envoyer");
 }
 
+
+function closeExpensesPage(){
+  document.getElementById("expenses-page").classList.remove("open");
+  closeExpenseSummary();
+}
+async function openExpensesPage(){
+  if(!accessToken){signIn();return;}
+  document.getElementById("expenses-page").classList.add("open");
+  await loadExpenseData();
+}
+function closeExpenseForm(){
+  document.getElementById("expense-form-wrap").style.display="none";
+  document.getElementById("expense-form").reset();
+}
+function openExpenseForm(){
+  if(!currentCollaborator||!expenseSheetId){showToast("Configure d’abord l’adresse mail Google et l’ID Sheet frais du collaborateur",true);return;}
+  if(!sheetVehicles.length){showToast("Aucun véhicule disponible pour saisir ce frais",true);return;}
+  const form=document.getElementById("expense-form");
+  form.reset();
+  document.getElementById("expense-date").value=todayInputDate();
+  const registration=document.getElementById("expense-registration");
+  registration.innerHTML=`<option value="">— Choisir un véhicule —</option>`+sheetVehicles.map(vehicle=>
+    `<option value="${htmlEscape(vehicle.registration)}">${htmlEscape(vehicle.registration)}</option>`).join("");
+  document.getElementById("expense-form-wrap").style.display="block";
+  onExpenseVehicleChange();
+  document.getElementById("expense-date").focus();
+}
+function onExpenseVehicleChange(){
+  const registration=document.getElementById("expense-registration").value;
+  const vehicle=sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration));
+  document.getElementById("expense-mileage").value=vehicle&&vehicle.mileage!==""?vehicle.mileage:"";
+}
+function normalizeExpenseSheetId(value){
+  const source=String(value||"").trim();
+  const match=source.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/);
+  return match?match[1]:source;
+}
+async function ensureExpenseTab(spreadsheetId){
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets.properties.title`;
+  const response=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
+  if(!response.ok)throw new Error(`Lecture des onglets de frais impossible (${response.status})`);
+  const metadata=await response.json();
+  const exists=(metadata.sheets||[]).some(sheet=>sheet.properties?.title===SHEET_TABS.expenses);
+  if(!exists){
+    const createResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`,{
+      method:"POST",
+      headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+      body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_TABS.expenses}}}]})
+    });
+    if(!createResponse.ok)throw new Error(`Création de l’onglet Frais impossible (${createResponse.status})`);
+  }
+  await ensureSheetHeaders(SHEET_TABS.expenses,EXPENSE_HEADERS,spreadsheetId);
+}
+function renderExpenseMessage(message){
+  document.getElementById("expenses-list").innerHTML=
+    `<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">${htmlEscape(message)}</div>`;
+  document.getElementById("expenses-total").textContent="";
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+}
+function parseExpenseAmount(value){
+  const normalized=String(value??"").replace(/\s/g,"").replace(",",".");
+  const amount=Number(normalized);
+  return Number.isFinite(amount)?amount:0;
+}
+function formatExpenseAmount(value){
+  return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(value||0);
+}
+function loadExpenseRow(row,index){
+  return {
+    date:sheetDateToInput(cellOf(row,expenseCI,"date")),
+    registration:cellOf(row,expenseCI,"registration").trim(),
+    mileage:parseInt(cellOf(row,expenseCI,"mileage"),10)||0,
+    amount:parseExpenseAmount(cellOf(row,expenseCI,"amount")),
+    updateMileage:parseBool(cellOf(row,expenseCI,"updateMileage")),
+    _sheetRow:index+2,
+  };
+}
+async function loadExpenseData(){
+  if(!accessToken||!currentUser?.email){
+    currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage("Connecte-toi avec le compte Google associé à un collaborateur.");
+    return;
+  }
+  const email=currentUser.email.trim().toLocaleLowerCase();
+  const matches=sheetCollabs.filter(collaborator=>collaborator.email?.trim().toLocaleLowerCase()===email);
+  if(matches.length!==1){
+    currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage(matches.length?"Plusieurs collaborateurs utilisent cette adresse mail. Corrige le mapping dans l’onglet Collaborateurs.":"Aucun collaborateur ne correspond à ce compte Google. Renseigne son adresse mail et son ID Sheet frais dans l’onglet Collaborateurs.");
+    return;
+  }
+  currentCollaborator=matches[0];
+  expenseSheetId=normalizeExpenseSheetId(currentCollaborator.expenseSheetId);
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator.name;
+  if(!expenseSheetId){
+    sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage("L’ID de feuille Google Sheets des frais n’est pas encore renseigné pour ce collaborateur.");
+    return;
+  }
+  try{
+    await ensureExpenseTab(expenseSheetId);
+    const table=await sheetGetTable(SHEET_TABS.expenses,EXPENSE_HEADERS,EXPENSE_FALLBACK,expenseSheetId);
+    expenseCI=table.colIndex;expenseHC=table.headerCount;
+    sheetExpenses=table.rows.map(loadExpenseRow).filter(expense=>expense.date||expense.registration||expense.amount);
+    selectedExpenseRows.clear();
+    renderExpensesList();
+  }catch(error){
+    console.warn("Chargement des frais impossible",error);
+    sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage("Impossible d’accéder à la feuille de frais. Vérifie son ID et son partage Google Drive avec ce compte.");
+  }
+}
+function renderExpensesList(){
+  const list=document.getElementById("expenses-list");
+  const total=sheetExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+  document.getElementById("expenses-total").textContent=`Total des frais : ${formatExpenseAmount(total)}`;
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+  if(!sheetExpenses.length){
+    list.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Aucun frais enregistré.</div>`;
+    return;
+  }
+  const rows=sheetExpenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>`
+    <tr>
+      <td><input type="checkbox" aria-label="Sélectionner le frais du ${htmlEscape(expense.date)}" data-expense-row="${expense._sheetRow}" ${selectedExpenseRows.has(expense._sheetRow)?"checked":""} onchange="toggleExpenseSelection(this)"></td>
+      <td>${htmlEscape(formatDateFr(expense.date))}</td>
+      <td>${htmlEscape(expense.registration)}</td>
+      <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td>
+      <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td>
+    </tr>`).join("");
+  list.innerHTML=`<div class="rc-table-wrap"><table class="expense-table">
+    <thead><tr><th>Sélection</th><th>Date</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+function toggleExpenseSelection(input){
+  const row=Number(input.dataset.expenseRow);
+  if(input.checked)selectedExpenseRows.add(row);
+  else selectedExpenseRows.delete(row);
+}
+function createExpenseSummary(){
+  const expenses=sheetExpenses.filter(expense=>selectedExpenseRows.has(expense._sheetRow));
+  if(!expenses.length){showToast("Sélectionne au moins un frais pour créer la fiche récap",true);return;}
+  const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  const rows=expenses.map(expense=>`
+    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
+    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td><td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
+  document.getElementById("expense-summary").innerHTML=`
+    <h2>Fiche récapitulative des frais</h2>
+    <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
+    <span>Date d’édition : ${htmlEscape(new Date().toLocaleDateString("fr-FR"))}</span></div>
+    <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
+    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="printExpenseSummary()">Imprimer / Enregistrer en PDF</button>
+    <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
+  document.getElementById("expense-summary").style.display="block";
+  showToast("Fiche récap prête à imprimer ou enregistrer en PDF");
+}
+function closeExpenseSummary(){
+  const summary=document.getElementById("expense-summary");
+  if(summary)summary.style.display="none";
+  document.body.classList.remove("expense-print-mode");
+}
+function printExpenseSummary(){
+  if(document.getElementById("expense-summary").style.display==="none")return;
+  document.body.classList.add("expense-print-mode");
+  window.print();
+  window.setTimeout(()=>document.body.classList.remove("expense-print-mode"),1000);
+}
+window.addEventListener("afterprint",()=>document.body.classList.remove("expense-print-mode"));
+async function saveExpense(event){
+  event.preventDefault();
+  const form=document.getElementById("expense-form");
+  if(!form.reportValidity())return;
+  const date=document.getElementById("expense-date").value;
+  const registration=document.getElementById("expense-registration").value;
+  const mileage=Number(document.getElementById("expense-mileage").value);
+  const amount=Number(document.getElementById("expense-amount").value);
+  const updateMileage=document.getElementById("expense-update-mileage").checked;
+  const vehicle=sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration));
+  if(!vehicle){showToast("Choisis un véhicule enregistré",true);return;}
+  if(!Number.isInteger(mileage)||mileage<0){showToast("Saisis un kilométrage entier positif",true);return;}
+  if(!Number.isFinite(amount)||amount<=0){showToast("Saisis un montant TTC supérieur à zéro",true);return;}
+  if(updateMileage&&!vehicle._sheetRow){showToast("La fiche de ce véhicule est introuvable dans Google Sheets",true);return;}
+  if(!expenseSheetId||!currentCollaborator){showToast("La feuille de frais du collaborateur n’est pas configurée",true);return;}
+  const expense={date,registration:vehicle.registration,mileage,amount,updateMileage:updateMileage?"Oui":"Non"};
+  const button=document.getElementById("expense-save-btn");
+  button.disabled=true;button.textContent="Enregistrement…";
+  try{
+    const range=await sheetAppend(SHEET_TABS.expenses,[buildRowFromMap(expenseCI,expenseHC,expense)],expenseSheetId);
+    expense._sheetRow=sheetRowFromAppendRange(range);
+  }catch(error){
+    console.warn("Enregistrement du frais impossible",error);
+    showToast("Impossible d’enregistrer le frais dans Google Sheets",true);
+    button.disabled=false;button.textContent="Enregistrer le frais";
+    return;
+  }
+  sheetExpenses.push(expense);
+  closeExpenseForm();renderExpensesList();
+  if(updateMileage){
+    try{
+      await sheetUpdateMerged(SHEET_TABS.vehicles,vehicle._sheetRow,vehicleCI,vehicleHC,
+        {mileage,mileageDate:date},SHEET_ID);
+      vehicle.mileage=mileage;vehicle.mileageDate=date;
+      renderSidebarVehicles();
+      showToast("Frais enregistré et kilométrage du véhicule mis à jour");
+    }catch(error){
+      console.warn("Mise à jour du kilométrage impossible",error);
+      showToast("Frais enregistré, mais mise à jour du kilométrage impossible",true);
+    }
+  }else{
+    showToast("Frais enregistré ✓");
+  }
+  button.disabled=false;button.textContent="Enregistrer le frais";
+}
 
 renderSidebarDos();renderSidebarCollabs();renderSidebarMat();
 if(window.innerWidth>768)applySidebar();
