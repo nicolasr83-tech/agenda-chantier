@@ -803,7 +803,7 @@ let hideWeekend=true;
 let selectedMaterielDate=null;
 let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
 let openVehicleDefectEditors=new Set(),expandedVehicleDefectLists=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
-let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set();
+let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set(),expenseSummaryData=null;
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -3864,24 +3864,12 @@ function toggleExpenseSelection(input){
 function createExpenseSummary(){
   const expenses=sheetExpenses.filter(expense=>selectedExpenseRows.has(expense._sheetRow));
   if(!expenses.length){showToast("Sélectionne au moins un frais pour créer la fiche récap",true);return;}
-  const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
-  const rows=expenses.map(expense=>`
-    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
-    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td><td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
-  document.getElementById("expense-summary").innerHTML=`
-    <h2>Fiche récapitulative des frais</h2>
-    <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
-    <span>Date d’édition : ${htmlEscape(new Date().toLocaleDateString("fr-FR"))}</span></div>
-    <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
-    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="printExpenseSummary()">Imprimer / Enregistrer en PDF</button>
-    <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
-  document.getElementById("expense-summary").style.display="block";
-  showToast("Fiche récap prête à imprimer ou enregistrer en PDF");
+  showExpenseBatchSummary(expenses,"","");
 }
 function closeExpenseSummary(){
   const summary=document.getElementById("expense-summary");
   if(summary)summary.style.display="none";
+  expenseSummaryData=null;
   document.body.classList.remove("expense-print-mode");
 }
 function printExpenseSummary(){
@@ -3889,6 +3877,63 @@ function printExpenseSummary(){
   document.body.classList.add("expense-print-mode");
   window.print();
   window.setTimeout(()=>document.body.classList.remove("expense-print-mode"),1000);
+}
+function expenseSummaryFilename(summary=expenseSummaryData){
+  if(!summary)return"";
+  const safeName=(currentCollaborator?.name||"Collaborateur").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"_");
+  const batchSuffix=summary.batchId?`_${summary.batchId.slice(0,8)}`:"";
+  return`Frais_${safeName}_${summary.submittedAt||todayInputDate()}${batchSuffix}.pdf`;
+}
+function buildExpenseSummaryPDF(summary=expenseSummaryData){
+  if(!summary)throw new Error("Aucune fiche récapitulative à télécharger.");
+  if(!window.jspdf?.jsPDF)throw new Error("La bibliothèque PDF n’est pas disponible.");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const width=doc.internal.pageSize.getWidth();
+  const total=summary.expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  doc.setFillColor(31,56,100);doc.rect(0,0,width,19,"F");
+  doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(15);
+  doc.text("FICHE RÉCAPITULATIVE DES FRAIS",12,12);
+  doc.setTextColor(0,0,0);doc.setFont("helvetica","normal");doc.setFontSize(10);
+  doc.text(`Collaborateur : ${currentCollaborator?.name||""}`,12,29);
+  let metaY=35;
+  if(summary.submittedAt){doc.text(`Demande du : ${formatDateFr(summary.submittedAt)}`,12,metaY);metaY+=6;}
+  doc.text(`Date d’édition : ${summary.editedAt}`,12,metaY);
+  doc.autoTable({
+    startY:metaY+6,
+    head:[["Date","Immatriculation","Kilométrage véhicule","Montant TTC"]],
+    body:summary.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>[
+      formatDateFr(expense.date),expense.registration,`${expense.mileage.toLocaleString("fr-FR")} km`,formatExpenseAmount(expense.amount)
+    ]),
+    foot:[[{content:"Total TTC",colSpan:3,styles:{halign:"right"}},formatExpenseAmount(total)]],
+    styles:{fontSize:9,cellPadding:3,font:"helvetica"},
+    headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold"},
+    footStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontStyle:"bold"},
+    columnStyles:{0:{cellWidth:34},1:{cellWidth:42},2:{cellWidth:55},3:{halign:"right"}}
+  });
+  const finalY=doc.lastAutoTable.finalY||metaY+12;
+  doc.setFontSize(8);doc.setTextColor(140);
+  doc.text(`Généré via Arragon Planning le ${summary.editedAt}`,12,Math.min(finalY+8,285));
+  return doc;
+}
+function downloadExpenseSummaryPDF(){
+  try{
+    buildExpenseSummaryPDF().save(expenseSummaryFilename());
+    showToast("Fiche PDF téléchargée");
+  }catch(error){
+    console.warn("Téléchargement de la fiche PDF impossible",error);
+    showToast("Impossible de générer ou télécharger la fiche PDF",true);
+  }
+}
+function prepareExpenseSummaryEmail(){
+  const email=currentCollaborator?.email?.trim();
+  if(!email){showToast("Aucune adresse Google renseignée pour ce collaborateur",true);return;}
+  if(!expenseSummaryData){showToast("Aucune fiche récapitulative à envoyer",true);return;}
+  const total=expenseSummaryData.expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  const subject=`Demande de remboursement de frais – ${currentCollaborator.name} – ${formatDateFr(expenseSummaryData.submittedAt||todayInputDate())}`;
+  const body=`Bonjour,\n\nVeuillez trouver ci-joint ma demande de remboursement de frais professionnels, pour un montant total de ${formatExpenseAmount(total)}.\n\nLa fiche récapitulative PDF a été téléchargée sous le nom « ${expenseSummaryFilename()} ». Merci de la joindre à ce courriel avant envoi.\n\nCordialement,\n${currentCollaborator.name}`;
+  window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  showToast("Brouillon d’email ouvert — pense à joindre le PDF téléchargé avant l’envoi");
 }
 window.addEventListener("afterprint",()=>document.body.classList.remove("expense-print-mode"));
 async function saveExpense(event){
@@ -4083,7 +4128,7 @@ async function createExpenseBatch(){
     expenses.forEach(expense=>{expense.batchId=batchId;expense.submittedAt=submittedAt;});
     selectedExpenseRows.clear();
     renderExpenseTrackingList();
-    showExpenseBatchSummary(expenses,batchId,submittedAt);
+    showExpenseBatchSummary(expenses,batchId,submittedAt,true);
   }catch(error){
     console.warn("Assemblage des frais impossible",error);
     showToast("Impossible d’enregistrer la demande de remboursement dans Google Sheets",true);
@@ -4091,7 +4136,9 @@ async function createExpenseBatch(){
     if(button){button.disabled=false;button.textContent="Assembler et générer le PDF";}
   }
 }
-function showExpenseBatchSummary(expenses,batchId,submittedAt){
+function showExpenseBatchSummary(expenses,batchId,submittedAt,downloadPDF=false){
+  const summary={expenses:expenses.slice(),batchId,submittedAt,editedAt:new Date().toLocaleDateString("fr-FR")};
+  expenseSummaryData=summary;
   const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
   const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>`
     <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
@@ -4099,14 +4146,17 @@ function showExpenseBatchSummary(expenses,batchId,submittedAt){
   document.getElementById("expense-summary").innerHTML=`
     <h2>Fiche récapitulative des frais</h2>
     <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
-    <span>Demande du ${htmlEscape(formatDateFr(submittedAt))} · Éditée le ${htmlEscape(new Date().toLocaleDateString("fr-FR"))}</span></div>
+    <span>Demande du ${htmlEscape(formatDateFr(submittedAt))} · Éditée le ${htmlEscape(summary.editedAt)}</span></div>
     <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
     <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
-    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="printExpenseSummary()">Imprimer / Enregistrer en PDF</button>
+    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="downloadExpenseSummaryPDF()">Télécharger le PDF</button>
+    <button class="rc-btn" onclick="printExpenseSummary()">Imprimer</button>
+    <button class="rc-btn" ${currentCollaborator?.email?"":"disabled"} onclick="prepareExpenseSummaryEmail()">Préparer l’email</button>
     <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
   document.getElementById("expense-summary").dataset.batchId=batchId;
   document.getElementById("expense-summary").style.display="block";
-  showToast("Demande assemblée. Le PDF peut être imprimé ou enregistré.");
+  if(downloadPDF)downloadExpenseSummaryPDF();
+  else showToast("Fiche récap prête à télécharger, imprimer ou envoyer par email");
 }
 function printExpenseBatch(batchId){
   const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
