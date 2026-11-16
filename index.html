@@ -277,9 +277,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .expense-form-wrap{padding:14px;background:var(--white);border-bottom:1px solid var(--border)}
 .expense-form{max-width:900px;margin:0 auto}
 .expense-form-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px}
-.expense-form-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}
+.expense-form-grid{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:10px}
 .expense-form-grid label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
 .expense-form-grid input,.expense-form-grid select{width:100%;padding:9px;border:1px solid var(--border);border-radius:7px;background:var(--white);color:var(--text);font-size:13px}
+.expense-vehicle-fields{display:contents}
 .expense-mileage-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text)}
 .expense-mileage-toggle input{width:16px;height:16px}
 .expense-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
@@ -291,10 +292,18 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .expense-table input{width:16px;height:16px}
 .expense-summary{background:var(--white);margin:16px;padding:24px;border:1px solid var(--border);border-radius:10px}
 .expense-summary h2{margin:0 0 16px;color:var(--navy);font-size:21px}
-.expense-batch-header td{padding:10px 8px;background:var(--lblue);font-size:12px;font-weight:700;color:var(--navy)}
+.expense-batch-header td{padding:10px 8px;background:#DCE8F8;font-size:12px;font-weight:700;color:var(--navy);border-top:3px solid #4774AA}
+.expense-batch-item td{background:#F3F7FD;border-left:2px solid #8CA9D0;border-right:2px solid #8CA9D0}
+.expense-batch-item-last td{border-bottom:2px solid #8CA9D0}
+.expense-batch-total td{background:#E7EEF8;border-top:2px solid #8CA9D0;border-bottom:3px solid #4774AA}
+.expense-batch-header td:first-child,.expense-batch-item td:first-child,.expense-batch-total td:first-child{border-left:3px solid #4774AA}
+.expense-batch-header td:last-child,.expense-batch-item td:last-child,.expense-batch-total td:last-child{border-right:3px solid #4774AA}
 .expense-batch-header input,.expense-table .expense-reimbursed{width:16px;height:16px}
-.expense-batch-total td{padding:9px 12px;text-align:right;font-size:12px;font-weight:700;background:#F7F8FA;border-top:1px solid var(--border)}
+.expense-batch-total td{padding:9px 12px;text-align:right;font-size:12px;font-weight:700;background:#E7EEF8;border-top:2px solid #8CA9D0;border-bottom:3px solid #4774AA}
 .expense-table td.expense-date-cell{white-space:nowrap}
+.expense-table td.expense-comment-cell{min-width:120px;max-width:240px;white-space:normal}
+.expense-row-actions{white-space:nowrap;text-align:right!important}
+.expense-row-actions button{padding:5px 8px;font-size:11px}
 .expense-history{margin-top:16px;background:var(--white);border:1px solid var(--border);border-radius:8px}
 .expense-history>summary,.expense-history-month>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--navy)}
 .expense-history-month{margin:0 12px 8px;border:1px solid var(--border);border-radius:7px}
@@ -713,11 +722,15 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="expense-form-title">Nouveau frais</div>
       <div class="expense-form-grid">
         <label>Date<input type="date" id="expense-date" required></label>
-        <label>Immatriculation<select id="expense-registration" required onchange="onExpenseVehicleChange()"></select></label>
-        <label>Kilométrage véhicule<input type="number" id="expense-mileage" min="0" step="1" required></label>
+        <label>Type de frais<select id="expense-type" onchange="onExpenseTypeChange()"><option>Carburant</option><option>Hôtel</option><option>Péage</option><option>Divers</option></select></label>
         <label>Montant TTC (€)<input type="number" id="expense-amount" min="0.01" step="0.01" required></label>
+        <label>Commentaire<input type="text" id="expense-comment" maxlength="500" placeholder="Commentaire (facultatif)"></label>
+        <div class="expense-vehicle-fields" id="expense-vehicle-fields">
+          <label>Immatriculation<select id="expense-registration" onchange="onExpenseVehicleChange()"></select></label>
+          <label>Kilométrage véhicule<input type="number" id="expense-mileage" min="0" step="1"></label>
+        </div>
       </div>
-      <label class="expense-mileage-toggle"><input type="checkbox" id="expense-update-mileage"> Mettre à jour le kilométrage de ce véhicule après l’enregistrement</label>
+      <label class="expense-mileage-toggle" id="expense-update-mileage-wrap"><input type="checkbox" id="expense-update-mileage"> Mettre à jour le kilométrage de ce véhicule après l’enregistrement</label>
       <div class="expense-form-actions">
         <button type="button" class="rc-btn" onclick="closeExpenseForm()">Annuler</button>
         <button type="submit" class="btn-modal-save" id="expense-save-btn">Enregistrer le frais</button>
@@ -1172,8 +1185,9 @@ const POINTAGE_HEADERS = {
 const EXPENSE_HEADERS = {
   date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",
   updateMileage:"Mise à jour kilométrage",batchId:"ID assemblage",submittedAt:"Date demande remboursement",
-  reimbursed:"Remboursé"
+  reimbursed:"Remboursé",type:"Type de frais",comment:"Commentaire"
 };
+const EXPENSE_TYPES = ["Carburant","Hôtel","Péage","Divers"];
 const VEHICLE_HEADERS = {
   registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
   mileage:"Kilométrage", mileageDate:"Date kilométrage"
@@ -1195,7 +1209,7 @@ const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
 const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5};
 const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
 const VEHICLE_DEFECT_FALLBACK = {registration:0,description:1,createdAt:2,deletedAt:3};
-const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4,batchId:5,submittedAt:6,reimbursed:7};
+const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4,batchId:5,submittedAt:6,reimbursed:7,type:8,comment:9};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
@@ -3727,7 +3741,6 @@ function closeExpenseForm(){
 }
 function openExpenseForm(){
   if(!currentCollaborator||!expenseSheetId){showToast("Configure d’abord l’adresse mail Google et l’ID Sheet frais du collaborateur",true);return;}
-  if(!sheetVehicles.length){showToast("Aucun véhicule disponible pour saisir ce frais",true);return;}
   const form=document.getElementById("expense-form");
   form.reset();
   document.getElementById("expense-date").value=todayInputDate();
@@ -3737,8 +3750,27 @@ function openExpenseForm(){
   const assignedVehicle=assignedVehicleForCollaborator(currentCollaborator.name);
   if(assignedVehicle)registration.value=assignedVehicle.registration;
   document.getElementById("expense-form-wrap").style.display="block";
+  onExpenseTypeChange();
   onExpenseVehicleChange();
   document.getElementById("expense-date").focus();
+}
+function onExpenseTypeChange(){
+  const isFuel=document.getElementById("expense-type").value==="Carburant";
+  const vehicleFields=document.getElementById("expense-vehicle-fields");
+  const registration=document.getElementById("expense-registration");
+  const mileage=document.getElementById("expense-mileage");
+  const updateMileage=document.getElementById("expense-update-mileage");
+  vehicleFields.style.display=isFuel?"contents":"none";
+  document.getElementById("expense-update-mileage-wrap").style.display=isFuel?"flex":"none";
+  registration.required=isFuel;
+  mileage.required=isFuel;
+  if(!isFuel){
+    registration.value="";
+    mileage.value="";
+    updateMileage.checked=false;
+  }else{
+    onExpenseVehicleChange();
+  }
 }
 function onExpenseVehicleChange(){
   const registration=document.getElementById("expense-registration").value;
@@ -3788,6 +3820,8 @@ function loadExpenseRow(row,index){
     registration:cellOf(row,expenseCI,"registration").trim(),
     mileage:parseInt(cellOf(row,expenseCI,"mileage"),10)||0,
     amount:parseExpenseAmount(cellOf(row,expenseCI,"amount")),
+    type:cellOf(row,expenseCI,"type").trim(),
+    comment:cellOf(row,expenseCI,"comment").trim(),
     updateMileage:parseBool(cellOf(row,expenseCI,"updateMileage")),
     batchId:cellOf(row,expenseCI,"batchId").trim(),
     submittedAt:sheetDateToInput(cellOf(row,expenseCI,"submittedAt")),
@@ -3901,15 +3935,18 @@ function buildExpenseSummaryPDF(summary=expenseSummaryData){
   doc.text(`Date d’édition : ${summary.editedAt}`,12,metaY);
   doc.autoTable({
     startY:metaY+6,
-    head:[["Date","Immatriculation","Kilométrage véhicule","Montant TTC"]],
+    head:[["Date","Type","Commentaire","Immatriculation","Kilométrage véhicule","Montant TTC"]],
     body:summary.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>[
-      formatDateFr(expense.date),expense.registration,`${expense.mileage.toLocaleString("fr-FR").replace(/[\u00a0\u202f]/g," ")} km`,formatExpenseAmount(expense.amount)
+      formatDateFr(expense.date),expense.type||"",expense.comment||"",
+      expense.type==="Carburant"?expense.registration:"",
+      expense.type==="Carburant"?`${expense.mileage.toLocaleString("fr-FR").replace(/[\u00a0\u202f]/g," ")} km`:"",
+      formatExpenseAmount(expense.amount)
     ]),
-    foot:[[{content:"Total TTC",colSpan:3,styles:{halign:"right"}},formatExpenseAmount(total)]],
+    foot:[[{content:"Total TTC",colSpan:5,styles:{halign:"right"}},formatExpenseAmount(total)]],
     styles:{fontSize:9,cellPadding:3,font:"helvetica"},
     headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold"},
     footStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontStyle:"bold"},
-    columnStyles:{0:{cellWidth:34},1:{cellWidth:42},2:{cellWidth:55},3:{halign:"right"}}
+    columnStyles:{0:{cellWidth:25},1:{cellWidth:23},2:{cellWidth:48},3:{cellWidth:35},4:{cellWidth:35},5:{halign:"right"}}
   });
   const finalY=doc.lastAutoTable.finalY||metaY+12;
   doc.setFontSize(8);doc.setTextColor(140);
@@ -3941,17 +3978,23 @@ async function saveExpense(event){
   const form=document.getElementById("expense-form");
   if(!form.reportValidity())return;
   const date=document.getElementById("expense-date").value;
+  const type=document.getElementById("expense-type").value;
+  const isFuel=type==="Carburant";
   const registration=document.getElementById("expense-registration").value;
-  const mileage=Number(document.getElementById("expense-mileage").value);
+  const mileageValue=document.getElementById("expense-mileage").value;
+  const mileage=isFuel?Number(mileageValue):"";
   const amount=Number(document.getElementById("expense-amount").value);
-  const updateMileage=document.getElementById("expense-update-mileage").checked;
-  const vehicle=sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration));
-  if(!vehicle){showToast("Choisis un véhicule enregistré",true);return;}
-  if(!Number.isInteger(mileage)||mileage<0){showToast("Saisis un kilométrage entier positif",true);return;}
+  const comment=document.getElementById("expense-comment").value.trim();
+  const updateMileage=isFuel&&document.getElementById("expense-update-mileage").checked;
+  const vehicle=isFuel?sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration)):null;
+  if(!EXPENSE_TYPES.includes(type)){showToast("Choisis un type de frais valide",true);return;}
+  if(isFuel&&!vehicle){showToast("Choisis un véhicule enregistré pour le carburant",true);return;}
+  if(isFuel&&(!mileageValue||!Number.isInteger(mileage)||mileage<0)){showToast("Saisis un kilométrage entier positif",true);return;}
   if(!Number.isFinite(amount)||amount<=0){showToast("Saisis un montant TTC supérieur à zéro",true);return;}
   if(updateMileage&&!vehicle._sheetRow){showToast("La fiche de ce véhicule est introuvable dans Google Sheets",true);return;}
   if(!expenseSheetId||!currentCollaborator){showToast("La feuille de frais du collaborateur n’est pas configurée",true);return;}
-  const expense={date,registration:vehicle.registration,mileage,amount,updateMileage:updateMileage?"Oui":"Non"};
+  const expense={date,registration:isFuel?vehicle.registration:"",mileage,amount,
+    updateMileage:updateMileage?"Oui":"Non",type,comment};
   const button=document.getElementById("expense-save-btn");
   button.disabled=true;button.textContent="Enregistrement…";
   try{
@@ -3982,24 +4025,28 @@ async function saveExpense(event){
   button.disabled=false;button.textContent="Enregistrer le frais";
 }
 
-function expenseRowMarkup(expense,allowAssembly){
-  return `<tr>
+function expenseRowMarkup(expense,allowAssembly,grouped=false,isGroupLast=false){
+  const fuel=expense.type==="Carburant";
+  return `<tr class="${grouped?`expense-batch-item${isGroupLast?" expense-batch-item-last":""}`:""}">
     <td><input type="checkbox" aria-label="Assembler le frais du ${htmlEscape(expense.date)}"
       data-expense-row="${expense._sheetRow}" ${allowAssembly?"":"disabled"}
       ${selectedExpenseRows.has(expense._sheetRow)?"checked":""} onchange="toggleExpenseSelection(this)"></td>
     <td class="expense-date-cell">${htmlEscape(formatDateFr(expense.date))}</td>
-    <td>${htmlEscape(expense.registration)}</td>
-    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td>
+    <td>${htmlEscape(expense.type||"")}</td>
+    <td class="expense-comment-cell">${htmlEscape(expense.comment||"")}</td>
+    <td>${fuel?htmlEscape(expense.registration):""}</td>
+    <td>${fuel?`${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km`:""}</td>
     <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td>
     <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer remboursé le frais du ${htmlEscape(expense.date)}"
       data-expense-reimbursed="${expense._sheetRow}" ${expense.reimbursed?"checked":""}
       onchange="toggleExpenseReimbursement(this)"></td>
+    <td class="expense-row-actions"><button class="rc-btn" onclick="deleteExpense(${expense._sheetRow})">Supprimer</button></td>
   </tr>`;
 }
 function expenseTableMarkup(expenses,allowAssembly){
   const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>expenseRowMarkup(expense,allowAssembly)).join("");
   return `<div class="rc-table-wrap"><table class="expense-table">
-    <thead><tr><th>Assembler</th><th>Date</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th></tr></thead>
+    <thead><tr><th>Assembler</th><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -4035,17 +4082,19 @@ function renderExpenseTrackingList(){
     const refundedCount=allBatchExpenses.filter(expense=>expense.reimbursed).length;
     const submittedAt=allBatchExpenses.map(expense=>expense.submittedAt).sort().pop()||"";
     const batchTotal=allBatchExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+    const groupedRows=expenses.map((expense,index)=>expenseRowMarkup(expense,false,true,index===expenses.length-1)).join("");
     return `<tr class="expense-batch-header">
-      <td></td><td colspan="3"><strong>Demande du ${htmlEscape(formatDateFr(submittedAt))} · ${allBatchExpenses.length} frais, ${expenses.length} actifs</strong></td>
+      <td></td><td colspan="5"><strong>Demande du ${htmlEscape(formatDateFr(submittedAt))} · ${allBatchExpenses.length} frais, ${expenses.length} actifs</strong></td>
       <td><button class="rc-btn" onclick="printExpenseBatch('${htmlEscape(entry.batchId)}')">Voir / imprimer le PDF</button></td>
       <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer toute la demande comme remboursée"
         data-batch-toggle="${htmlEscape(entry.batchId)}" ${refundedCount===allBatchExpenses.length?"checked":""}
         onchange="toggleExpenseBatchReimbursement(this)"></td>
-    </tr>${expenses.map(expense=>expenseRowMarkup(expense,false)).join("")}
-    <tr class="expense-batch-total"><td colspan="4">Total de la demande</td><td>${htmlEscape(formatExpenseAmount(batchTotal))}</td><td></td></tr>`;
+      <td class="expense-row-actions"><button class="rc-btn" onclick="explodeExpenseBatch('${htmlEscape(entry.batchId)}')">Dégrouper</button></td>
+    </tr>${groupedRows}
+    <tr class="expense-batch-total"><td colspan="6">Total de la demande</td><td>${htmlEscape(formatExpenseAmount(batchTotal))}</td><td></td><td></td></tr>`;
   }).join("");
   const activeTable=rows?`<div class="rc-table-wrap"><table class="expense-table">
-    <thead><tr><th>Assembler</th><th>Date</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th></tr></thead>
+    <thead><tr><th>Assembler</th><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`:`<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Aucun frais actif.</div>`;
   list.innerHTML=activeTable+renderExpenseHistoryByMonth(historyExpenses);
@@ -4107,6 +4156,59 @@ async function toggleExpenseBatchReimbursement(input){
     renderExpenseTrackingList();
   }
 }
+async function deleteExpense(sheetRow){
+  const expense=sheetExpenses.find(item=>item._sheetRow===sheetRow);
+  if(!expense)return;
+  if(!window.confirm(`Supprimer définitivement le frais du ${formatDateFr(expense.date)} (${formatExpenseAmount(expense.amount)}) ?`))return;
+  try{
+    const metadataResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(expenseSheetId)}?fields=sheets.properties(sheetId,title)`,
+      {headers:{Authorization:"Bearer "+accessToken}});
+    if(!metadataResponse.ok)throw new Error(`Lecture de la feuille des frais impossible (${metadataResponse.status})`);
+    const metadata=await metadataResponse.json();
+    const sheet=(metadata.sheets||[]).find(item=>item.properties?.title===SHEET_TABS.expenses);
+    if(!sheet)throw new Error("Onglet Frais introuvable.");
+    const response=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(expenseSheetId)}:batchUpdate`,{
+      method:"POST",
+      headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+      body:JSON.stringify({requests:[{deleteDimension:{range:{
+        sheetId:sheet.properties.sheetId,dimension:"ROWS",startIndex:sheetRow-1,endIndex:sheetRow
+      }}}]})
+    });
+    if(!response.ok)throw new Error(`Suppression du frais impossible (${response.status})`);
+    sheetExpenses=sheetExpenses.filter(item=>item!==expense);
+    const shiftedSelections=Array.from(selectedExpenseRows,row=>row===sheetRow?null:row>sheetRow?row-1:row).filter(row=>row!==null);
+    selectedExpenseRows.clear();
+    shiftedSelections.forEach(row=>selectedExpenseRows.add(row));
+    sheetExpenses.forEach(item=>{if(item._sheetRow>sheetRow)item._sheetRow--;});
+    renderExpenseTrackingList();
+    showToast("Frais supprimé");
+  }catch(error){
+    console.warn("Suppression du frais impossible",error);
+    showToast("Impossible de supprimer le frais dans Google Sheets",true);
+  }
+}
+async function explodeExpenseBatch(batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  if(!expenses.length)return;
+  if(!window.confirm(`Dégrouper cette demande ? Ses ${expenses.length} frais resteront dans la liste et pourront être assemblés à nouveau.`))return;
+  if(expenseCI.batchId===undefined||expenseCI.submittedAt===undefined){
+    showToast("Colonnes de regroupement absentes de la feuille",true);return;
+  }
+  try{
+    const data=[];
+    expenses.forEach(expense=>{
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.batchId+1)}${expense._sheetRow}`,values:[[""]]});
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.submittedAt+1)}${expense._sheetRow}`,values:[[""]]});
+    });
+    await sheetBatchUpdateValues(data,expenseSheetId);
+    expenses.forEach(expense=>{expense.batchId="";expense.submittedAt="";});
+    renderExpenseTrackingList();
+    showToast("Demande dégroupée : les frais sont de nouveau individuels et assemblables");
+  }catch(error){
+    console.warn("Dégroupage de la demande impossible",error);
+    showToast("Impossible de dégrouper la demande dans Google Sheets",true);
+  }
+}
 function createExpenseBatchId(){
   return window.crypto?.randomUUID?window.crypto.randomUUID():`frais-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
 }
@@ -4141,14 +4243,16 @@ function showExpenseBatchSummary(expenses,batchId,submittedAt,downloadPDF=false)
   expenseSummaryData=summary;
   const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
   const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>`
-    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
-    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td><td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
+    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.type||"")}</td>
+    <td>${htmlEscape(expense.comment||"")}</td><td>${expense.type==="Carburant"?htmlEscape(expense.registration):""}</td>
+    <td>${expense.type==="Carburant"?`${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km`:""}</td>
+    <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
   document.getElementById("expense-summary").innerHTML=`
     <h2>Fiche récapitulative des frais</h2>
     <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
     <span>Demande du ${htmlEscape(formatDateFr(submittedAt))} · Éditée le ${htmlEscape(summary.editedAt)}</span></div>
-    <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="5">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
     <div class="expense-summary-actions"><button class="btn-modal-save" onclick="downloadExpenseSummaryPDF()">Télécharger le PDF</button>
     <button class="rc-btn" onclick="printExpenseSummary()">Imprimer</button>
     <button class="rc-btn" ${currentCollaborator?.email?"":"disabled"} onclick="prepareExpenseSummaryEmail()">Préparer l’email</button>
