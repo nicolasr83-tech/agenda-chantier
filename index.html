@@ -814,6 +814,7 @@ let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicl
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
+let selectedVehicleDate=null;
 let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
 let openVehicleDefectEditors=new Set(),expandedVehicleDefectLists=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
 let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set(),expenseSummaryData=null,pendingExpenseSpreadsheet=null;
@@ -2556,10 +2557,16 @@ function switchSTab(tab){
   if(tab==="vehicules")renderSidebarVehicles();
 }
 function handleCalendarDayClick(ds){
-  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
-  if(materielTab){
+  const activeTab=document.querySelector(".stab.active")?.textContent||"";
+  if(activeTab.includes("Matériel")){
     selectedMaterielDate=ds;
     renderSidebarMat();
+    buildCalendar();
+    return;
+  }
+  if(activeTab.includes("Véhicules")){
+    selectedVehicleDate=ds;
+    renderSidebarVehicles();
     buildCalendar();
     return;
   }
@@ -2694,8 +2701,9 @@ function buildCalendar(){
   const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
   const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
-  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
-  const selectedDate=materielTab?selectedMaterielDate:null;
+  const activeTab=document.querySelector(".stab.active")?.textContent||"";
+  const selectedDate=activeTab.includes("Matériel")?selectedMaterielDate:
+    activeTab.includes("Véhicules")?selectedVehicleDate:null;
   const maxShow=window.innerWidth<=768?2:6;
   const weekColWidth=window.innerWidth<=768?24:28;
 
