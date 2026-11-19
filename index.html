@@ -66,6 +66,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.unavailable{background:var(--red)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-item-unavailable{background:#fff5f5;border-color:#fecaca;color:var(--red)}
+.vehicle-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
+.vehicle-item-busy .vehicle-event-assignment{font-size:11px;color:var(--red);font-weight:600;margin-top:5px}
 .mat-picker{position:relative}
 .mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
 .mat-picker-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:230;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
@@ -2015,9 +2017,12 @@ function renderSidebarVehicles(){
   const q=normalizeText(document.getElementById("s-search-vehicle")?.value||"");
   const list=sheetVehicles.filter(v=>!q||normalizeText([v.registration,v.make,v.model,activeVehicleAssignment(v)?.collaborator,
     ...sheetVehicleDefects.filter(d=>d.registration===v.registration).map(d=>d.description)].join(" ")).includes(q));
+  const date=selectedVehicleDate;
   listEl.innerHTML=list.map(vehicle=>{
     const index=sheetVehicles.indexOf(vehicle);
     const assignment=activeVehicleAssignment(vehicle);
+    const eventAssignments=date?vehicleAssignmentsOnDate(vehicle.registration,date):[];
+    const busy=eventAssignments.length>0;
     const detail=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
     const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"...Km";
     const allDefects=vehicleDefectsFor(vehicle.registration);
@@ -2034,12 +2039,13 @@ function renderSidebarVehicles(){
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
       <button class="vehicle-defect-history-delete" onclick="deleteVehicleDefectHistory(${index},${defect._sheetRow})" title="Supprimer définitivement de l’historique">Supprimer</button>
     </div>`).join("");
-    return `<div class="s-item vehicle-card">
+    return `<div class="s-item vehicle-card ${busy?"vehicle-item-busy":""}">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
         <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
         <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · <span style="white-space:nowrap">${htmlEscape(mileage)}</span></div>
         ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
+        ${busy?`<div class="vehicle-event-assignment">⚠️ Déjà affecté : ${[...new Set(eventAssignments.map(eventDisplayName))].map(htmlEscape).join(", ")}</div>`:""}
         <div class="vehicle-defects">
           <div class="vehicle-defects-heading">
             <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts (${defects.length})</button>
@@ -2350,7 +2356,7 @@ function eventMaterialNames(ev){
   if(!line)return [];
   return line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").split(/\s*,\s*/).map(v=>v.trim()).filter(Boolean);
 }
-function eventMaterialDateRange(ev){
+function eventDateRange(ev){
   const start=ev.start?.date||ev.start?.dateTime?.slice(0,10);
   let end=ev.end?.date||ev.end?.dateTime?.slice(0,10)||start;
   if(!start)return null;
@@ -2361,12 +2367,20 @@ function materialAssignmentsInRange(name,startDate,endDate){
   if(!startDate||!endDate||endDate<startDate)return [];
   return calEvents.filter(ev=>{
     if(!eventMaterialNames(ev).includes(name))return false;
-    const range=eventMaterialDateRange(ev);
+    const range=eventDateRange(ev);
     return range&&range.start<=endDate&&range.end>=startDate;
   });
 }
 function materialAssignmentsOnDate(name,date){
   return materialAssignmentsInRange(name,date,date);
+}
+function vehicleAssignmentsOnDate(registration,date){
+  const normalized=normalizedRegistration(registration);
+  return calEvents.filter(ev=>{
+    if(normalizedRegistration(eventVehicleName(ev))!==normalized)return false;
+    const range=eventDateRange(ev);
+    return range&&range.start<=date&&range.end>=date;
+  });
 }
 function openMatForm(idx){
   editingMatIdx=idx;
@@ -2598,6 +2612,7 @@ async function loadCalendar(silent){
       calEvents=newEvents;
       requestAnimationFrame(buildCalendar);
       if(selectedMaterielDate)renderSidebarMat();
+      if(selectedVehicleDate)renderSidebarVehicles();
       if(document.getElementById("modal-bg")?.classList.contains("open"))checkMatConflict();
       else updateModalMatAvailability();
     }
