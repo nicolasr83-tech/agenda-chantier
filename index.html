@@ -66,6 +66,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .mat-status-dot.unavailable{background:var(--red)}
 .mat-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
 .mat-item-unavailable{background:#fff5f5;border-color:#fecaca;color:var(--red)}
+.vehicle-item-busy{background:#fff5f5;border-color:#fecaca;color:var(--red)}
+.vehicle-item-busy .vehicle-event-assignment{font-size:11px;color:var(--red);font-weight:600;margin-top:5px}
 .mat-picker{position:relative}
 .mat-picker-btn{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;text-align:left;cursor:pointer}
 .mat-picker-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:230;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
@@ -277,9 +279,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .expense-form-wrap{padding:14px;background:var(--white);border-bottom:1px solid var(--border)}
 .expense-form{max-width:900px;margin:0 auto}
 .expense-form-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px}
-.expense-form-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}
+.expense-form-grid{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:10px}
 .expense-form-grid label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
 .expense-form-grid input,.expense-form-grid select{width:100%;padding:9px;border:1px solid var(--border);border-radius:7px;background:var(--white);color:var(--text);font-size:13px}
+.expense-vehicle-fields{display:contents}
 .expense-mileage-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text)}
 .expense-mileage-toggle input{width:16px;height:16px}
 .expense-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
@@ -291,6 +294,23 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .expense-table input{width:16px;height:16px}
 .expense-summary{background:var(--white);margin:16px;padding:24px;border:1px solid var(--border);border-radius:10px}
 .expense-summary h2{margin:0 0 16px;color:var(--navy);font-size:21px}
+.expense-batch-header td{padding:10px 8px;background:#DCE8F8;font-size:12px;font-weight:700;color:var(--navy);border-top:3px solid #4774AA}
+.expense-batch-item td{background:#F3F7FD;border-left:2px solid #8CA9D0;border-right:2px solid #8CA9D0}
+.expense-batch-item-last td{border-bottom:2px solid #8CA9D0}
+.expense-batch-total td{background:#E7EEF8;border-top:2px solid #8CA9D0;border-bottom:3px solid #4774AA}
+.expense-batch-header td:first-child,.expense-batch-item td:first-child,.expense-batch-total td:first-child{border-left:3px solid #4774AA}
+.expense-batch-header td:last-child,.expense-batch-item td:last-child,.expense-batch-total td:last-child{border-right:3px solid #4774AA}
+.expense-batch-header input,.expense-table .expense-reimbursed{width:16px;height:16px}
+.expense-batch-total td{padding:9px 12px;text-align:right;font-size:12px;font-weight:700;background:#E7EEF8;border-top:2px solid #8CA9D0;border-bottom:3px solid #4774AA}
+.expense-table td.expense-date-cell{white-space:nowrap}
+.expense-table td.expense-comment-cell{min-width:120px;max-width:240px;white-space:normal}
+.expense-row-actions{white-space:nowrap;text-align:right!important}
+.expense-row-actions button{padding:5px 8px;font-size:11px}
+.expense-history{margin-top:16px;background:var(--white);border:1px solid var(--border);border-radius:8px}
+.expense-history>summary,.expense-history-month>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--navy)}
+.expense-history-month{margin:0 12px 8px;border:1px solid var(--border);border-radius:7px}
+.expense-history-month>summary{display:flex;justify-content:space-between;gap:12px;background:#F7F8FA;font-size:12px}
+.expense-history-month .expense-table{margin-bottom:6px}
 .expense-summary-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:13px}
 .expense-summary-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .expense-summary table{width:100%;border-collapse:collapse;font-size:12px}
@@ -340,7 +360,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <div class="sidebar-tabs">
       <div class="stab active" onclick="switchSTab('dossiers')">📁 Dossiers</div>
       <div class="stab" onclick="switchSTab('collabs')">👤 Collabs</div>
-      <div class="stab" onclick="switchSTab('contacts')">📇 Contacts</div>
       <div class="stab" onclick="switchSTab('materiel')">🔧 Matériel</div>
       <div class="stab" onclick="switchSTab('vehicules')">🚗 Véhicules</div>
     </div>
@@ -361,24 +380,14 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Interlocuteur(s)</label>
             <div style="display:flex;gap:6px;align-items:center">
               <select class="m-select" id="f-dos-interloc-input" multiple size="5" style="flex:1;min-height:92px;max-height:240px" onchange="onDosInterlocInputChange()"></select>
-              <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
+              <button type="button" class="btn-add-s" onclick="openContactsManager();openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
             </div>
           </div>
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
           <div class="s-field"><label>Téléphone interlocuteur</label><input id="f-dos-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="off"></div>
           <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="12 Rue de la Paix, 83000" autocomplete="off"></div>
-          <div class="s-grid2">
-            <div class="s-field"><label>Prix 1J Terrain</label><input id="f-dos-p1t" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix ½J Terrain</label><input id="f-dos-pht" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Bureau</label><input id="f-dos-pb" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Nuit</label><input id="f-dos-pn" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Scan 3D</label><input id="f-dos-ps3d" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Préparation</label><input id="f-dos-pprep" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Rapport</label><input id="f-dos-prap" type="number" placeholder="0"></div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin:-2px 0 8px;padding:6px 9px;background:var(--grey);border-radius:7px">
-            ℹ️ Le prix "½ Bureau" n'a pas de champ dédié : il est toujours calculé automatiquement comme la moitié du prix Bureau ci-dessus.
-          </div>
+          <div class="s-grid2" id="f-dos-prices"></div>
+          <button type="button" class="rc-btn" onclick="openPrestationManager('dossier')" style="margin:-2px 0 8px">Gérer les prestations</button>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:4px">
             <input type="checkbox" id="f-dos-archive" style="width:15px;height:15px"> Dossier archivé (masqué de la liste et des nouveaux pointages)
           </label>
@@ -386,6 +395,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <button class="s-btn-cancel" onclick="closeDosForm()">Annuler</button>
             <button class="s-btn-save" id="dos-save-btn" onclick="saveDos()">Enregistrer</button>
           </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button type="button" class="rc-btn" onclick="openPrestationManager('dossiers')" style="flex:1">Prestations</button>
+          <button type="button" class="rc-btn" onclick="openContactsManager()" style="flex:1">Contacts</button>
         </div>
         <div class="search-row-s">
           <input type="search" id="s-search-dos" placeholder="Rechercher…" oninput="renderSidebarDos()">
@@ -423,6 +436,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 
       <!-- CONTACTS -->
       <div class="sidebar-panel" id="sp-contacts">
+        <button type="button" class="rc-btn" onclick="returnToDossiersPanel()" style="margin-bottom:8px">‹ Retour aux dossiers</button>
         <div class="s-form" id="interloc-form">
           <div class="s-form-title" id="interloc-form-title">Nouveau contact</div>
           <div class="s-field"><label>Nom *</label><input id="f-interloc-name" placeholder="Jean Martin" autocomplete="off"></div>
@@ -443,6 +457,31 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="btn-add-s" onclick="openInterlocForm(null)" title="Nouveau contact">＋</button>
         </div>
         <div id="s-interloc-list"></div>
+      </div>
+
+      <!-- PRESTATIONS -->
+      <div class="sidebar-panel" id="sp-prestations">
+        <button type="button" class="rc-btn" onclick="returnFromPrestationManager()" style="margin-bottom:8px">‹ Retour</button>
+        <div class="s-form" id="prestation-form">
+          <div class="s-form-title" id="prestation-form-title">Nouvelle prestation</div>
+          <div class="s-field"><label>Code *</label><input id="f-prestation-code" placeholder="EX : 1T" autocomplete="off"></div>
+          <div class="s-field"><label>Libellé *</label><input id="f-prestation-label" placeholder="Nom de la prestation" autocomplete="off"></div>
+          <div class="m-row">
+            <div class="s-field"><label>Heure début</label><input id="f-prestation-start" type="time"></div>
+            <div class="s-field"><label>Durée (h)</label><input id="f-prestation-duration" type="number" min="0.25" step="0.25" placeholder="8"></div>
+          </div>
+          <div class="s-form-btns">
+            <button type="button" class="s-btn-cancel" onclick="closePrestationForm()">Annuler</button>
+            <button type="button" class="s-btn-save" id="prestation-save-btn" onclick="savePrestation()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="search-row-s">
+          <input type="search" id="s-search-prestation" placeholder="Rechercher…" oninput="renderSidebarPrestations()">
+          <button class="btn-add-s" onclick="reloadPrestations()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
+          <button class="btn-add-s" onclick="openPrestationForm(null)" title="Nouvelle prestation">＋</button>
+        </div>
+        <div id="s-prestation-list"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Les codes existants ne sont pas supprimables ni modifiables pour préserver la lecture des événements déjà créés.</div>
       </div>
 
       <!-- MATERIEL -->
@@ -578,15 +617,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="m-field">
         <label>Prestation</label>
         <div class="m-toggle" id="m-prest-toggle">
-          <button class="active" data-code="1T" onclick="setPrest('1T',this)">1J Terrain</button>
-          <button data-code="HT" onclick="setPrest('HT',this)">½J Terrain</button>
-          <button data-code="B" onclick="setPrest('B',this)">Bureau</button>
-          <button data-code="B2" onclick="setPrest('B2',this)">½ Bureau</button>
-          <button data-code="N" onclick="setPrest('N',this)">Nuit</button>
-          <button data-code="S3D" onclick="setPrest('S3D',this)">Scan 3D</button>
-          <button data-code="PREP" onclick="setPrest('PREP',this)">Préparation</button>
-          <button data-code="RAP" onclick="setPrest('RAP',this)">Rapport</button>
         </div>
+        <button type="button" class="rc-btn" onclick="addPrestationFromEvent()" style="margin-top:6px">＋ Nouvelle prestation</button>
         <div class="half-day-toggle" id="half-day-toggle">
           <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
           <button class="hd-btn" id="hd-aprem" onclick="setHalfDay('aprem',this)">🌇 Après-midi<br><span style="font-size:10px;font-weight:400">14h – 17h</span></button>
@@ -696,16 +728,23 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <span id="expenses-collaborator" class="recap-folder-badge"></span>
     <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="openExpenseForm()">+ Ajouter</button>
   </div>
+  <div id="expense-identity-action" style="display:none;padding:10px 14px;background:#FFF8E1;border-bottom:1px solid var(--border)">
+    <button class="rc-btn" onclick="authorizeExpenseIdentity()">Autoriser l’accès à mon adresse Google</button>
+  </div>
   <div class="expense-form-wrap" id="expense-form-wrap" style="display:none">
     <form class="expense-form" id="expense-form" onsubmit="saveExpense(event)">
       <div class="expense-form-title">Nouveau frais</div>
       <div class="expense-form-grid">
         <label>Date<input type="date" id="expense-date" required></label>
-        <label>Immatriculation<select id="expense-registration" required onchange="onExpenseVehicleChange()"></select></label>
-        <label>Kilométrage véhicule<input type="number" id="expense-mileage" min="0" step="1" required></label>
+        <label>Type de frais<select id="expense-type" onchange="onExpenseTypeChange()"><option>Carburant</option><option>Hôtel</option><option>Péage</option><option>Divers</option></select></label>
         <label>Montant TTC (€)<input type="number" id="expense-amount" min="0.01" step="0.01" required></label>
+        <label>Commentaire<input type="text" id="expense-comment" maxlength="500" placeholder="Commentaire (facultatif)"></label>
+        <div class="expense-vehicle-fields" id="expense-vehicle-fields">
+          <label>Immatriculation<select id="expense-registration" onchange="onExpenseVehicleChange()"></select></label>
+          <label>Kilométrage véhicule<input type="number" id="expense-mileage" min="0" step="1"></label>
+        </div>
       </div>
-      <label class="expense-mileage-toggle"><input type="checkbox" id="expense-update-mileage"> Mettre à jour le kilométrage de ce véhicule après l’enregistrement</label>
+      <label class="expense-mileage-toggle" id="expense-update-mileage-wrap"><input type="checkbox" id="expense-update-mileage"> Mettre à jour le kilométrage de ce véhicule après l’enregistrement</label>
       <div class="expense-form-actions">
         <button type="button" class="rc-btn" onclick="closeExpenseForm()">Annuler</button>
         <button type="submit" class="btn-modal-save" id="expense-save-btn">Enregistrer le frais</button>
@@ -715,7 +754,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <div class="expense-list-toolbar">
     <strong id="expenses-total"></strong>
     <span style="flex:1"></span>
-    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="createExpenseSummary()">Créer la fiche récap de la sélection</button>
+    <button class="btn-modal-save" style="flex:none;padding:9px 16px" onclick="createExpenseBatch()">Assembler et générer le PDF</button>
   </div>
   <div class="recap-content" id="expenses-list"></div>
   <section class="expense-summary" id="expense-summary" style="display:none"></section>
@@ -742,38 +781,21 @@ const GCAL_COLORS = [
   {id:"10",hex:"#0B8043"},{id:"11",hex:"#D50000"},
 ];
 const PREST_HOURS = {"1T":{s:8,d:8},"HT":{s:8,d:4},"B":{s:8,d:8},"B2":{s:8,d:4},"N":{s:21,d:8},"S3D":{s:7,d:10},"PREP":{s:8,d:2},"RAP":{s:8,d:2}};
-const PREST_KEYS  = ["1T","HT","B","B2","N","S3D","PREP","RAP"];
-const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau","½ Bureau","Nuit","Scan 3D","Préparation","Rapport"];
-// PRIX_KEYS/PRIX_DEFAULT restent alignés sur PREST_KEYS par index. "B2" (½ Bureau)
-// n'a PAS de champ prix propre : son prix est toujours calculé comme Bureau ÷ 2
-// (voir prestPrice ci-dessous) — pas de colonne Sheet à créer, ni de saisie séparée.
-const PRIX_KEYS   = ["prix1T","prixHT","prixB",null,"prixN","prixS3D","prixPrep","prixRap"];
-const PRIX_DEFAULT= [0,0,0,0,0,0,0,0];
+let PRESTATIONS=[], PREST_KEYS=[], PREST_LABELS=[];
+const PREST_LEGACY_PRICE_KEYS = {"1T":"prix1T",HT:"prixHT",B:"prixB",B2:"prixB2",N:"prixN",S3D:"prixS3D",PREP:"prixPrep",RAP:"prixRap"};
+const PREST_LEGACY_FALLBACK = {"1T":5,HT:6,B:7,N:8,S3D:9,PREP:13,RAP:14};
 // Retourne le prix jour applicable pour un dossier (di) et un code de prestation.
 function prestPrice(di,code){
-  if(code==="B2"){
-    const idxB=PREST_KEYS.indexOf("B");
-    const bPrice=(di&&di.prixB)||PRIX_DEFAULT[idxB];
-    return bPrice/2; // toujours la moitié du prix Bureau courant, jamais stocké séparément
-  }
-  const idx=PREST_KEYS.indexOf(code);
-  if(idx<0)return 0;
-  const field=PRIX_KEYS[idx];
-  return (field&&di&&di[field])||PRIX_DEFAULT[idx]||0;
+  const service=PRESTATIONS.find(item=>item.code===code);
+  return service&&di?parseFloat(di[service.priceKey])||0:0;
 }
-// Un type de prestation est "actif" pour un dossier seulement si son prix est
-// réellement renseigné dans le Sheet (>0). Sert à masquer, dans les exports et
-// le récap, les prestations qui ne font pas partie du bordereau de prix du
-// client (chaque client peut avoir un bordereau différent).
 function prestActive(di,code){
   if(!di)return true; // dossier inconnu → comportement par défaut (tout affiché)
-  if(code==="B2")return !!di.prixB;
-  const idx=PREST_KEYS.indexOf(code);
-  const field=PRIX_KEYS[idx];
-  return !!(field&&di[field]);
+  const service=PRESTATIONS.find(item=>item.code===code);
+  return !!(service&&parseFloat(di[service.priceKey])>0);
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
+const SHEET_TABS  = {dos:"Dossiers", prestations:"Prestations", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
 SHEET_TABS.expenses="Frais";
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
@@ -781,6 +803,7 @@ const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[], sheetVehicleDefects=[];
+let prestationsCI={},prestationsHC=0;
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
 let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
 let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
@@ -789,9 +812,10 @@ let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicl
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
+let selectedVehicleDate=null;
 let vehicleCI={},vehicleHC=0,vehicleAssignmentCI={},vehicleAssignmentHC=0,vehicleDefectCI={},vehicleDefectHC=0;
 let openVehicleDefectEditors=new Set(),expandedVehicleDefectLists=new Set(),expandedVehicleDefectHistory=new Set(),savingVehicleDefects=new Set(),deletingVehicleDefects=new Set();
-let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set();
+let currentCollaborator=null,expenseSheetId="",expenseCI={},expenseHC=0,sheetExpenses=[],selectedExpenseRows=new Set(),expenseSummaryData=null,pendingExpenseSpreadsheet=null;
 
 function ls(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -801,7 +825,7 @@ function collabColor(c){return(GCAL_COLORS.find(x=>x.id===(c&&c.colorId))||GCAL_
 function collabInit(name){return(name||"").trim().split(/\s+/).map(w=>w[0]||"").join("").toUpperCase().slice(0,2);}
 function collabTag(c){return c?(c.pseudo||collabInit(c.name)):"";}
 function dosById(num){return sheetDossiers.find(d=>d.num===num);}
-function colLetter(i){return String.fromCharCode(65+i);}
+function colLetter(i){return sheetColLetter(i+1);}
 function xlsCell(r,c){return colLetter(c)+(r+1);}
 function formatDateFr(d){if(!d)return"";const dt=new Date(d+"T12:00:00");return dt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
 
@@ -858,9 +882,14 @@ window.addEventListener("load", async ()=>{
     await waitForGoogle();
     // Laisser le navigateur finir le rendu
     await new Promise(r=>setTimeout(r,300));
-    await fetchUserInfo();
-    await loadAll();
-    buildCalendar();
+    fetchUserInfo();
+    try{
+      await loadAll();
+      buildCalendar();
+    }catch(error){
+      console.warn("Chargement de l’application impossible",error);
+      showToast(`Impossible de charger les données Google : ${error.message}`,true);
+    }
   } else {
     document.getElementById("login-overlay").classList.add("visible");
   }
@@ -878,22 +907,23 @@ function initTokenClient(){
       localStorage.setItem("arr_token_expiry",expiry);
       sessionStorage.setItem("arr_token",accessToken);
       document.getElementById("login-overlay").classList.remove("visible");
+      const identityRequest=fetchUserInfo();
       try{
-        await fetchUserInfo();
         await waitForGoogle();
         await loadAll();
+        await identityRequest;
+        if(document.getElementById("expenses-page").classList.contains("open"))await loadExpenseData();
         buildCalendar();
       }catch(e){
         console.warn("Chargement de l’application impossible",e);
-        showToast("Impossible de vérifier le compte Google connecté",true);
+        showToast(`Impossible de charger les données Google : ${e.message}`,true);
       }
     }
   });
 }
-function signIn(){
+function signIn(prompt=""){
   if(!tokenClient){setTimeout(signIn,400);return;}
-  // Ne demande le consentement que si pas de token valide
-  tokenClient.requestAccessToken({prompt:""});
+  tokenClient.requestAccessToken({prompt});
 }
 function signOut(){
   if(accessToken)google.accounts.oauth2.revoke(accessToken);
@@ -904,15 +934,22 @@ function signOut(){
   lsSet("arr_user",null);
   calEvents=[];buildCalendar();renderUserBar();
   currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+  pendingExpenseSpreadsheet=null;
   closeExpensesPage();
   document.getElementById("login-overlay").classList.add("visible");
 }
 async function fetchUserInfo(){
-  const response=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}});
-  if(!response.ok)throw new Error(`Google user info ${response.status}`);
-  const user=await response.json();
-  if(!user.email)throw new Error("Le compte Google connecté ne fournit pas d’adresse mail.");
-  currentUser=user;lsSet("arr_user",user);renderUserBar();
+  try{
+    const response=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}});
+    if(!response.ok)throw new Error(`Google user info ${response.status}`);
+    const user=await response.json();
+    if(!user.email)throw new Error("Le compte Google connecté ne fournit pas d’adresse mail.");
+    currentUser=user;lsSet("arr_user",user);renderUserBar();
+    return user;
+  }catch(error){
+    console.warn("Récupération de l’identité Google impossible",error);
+    return null;
+  }
 }
 
 // Met à jour tous les événements du calendrier qui référencent un N° de dossier donné
@@ -1004,7 +1041,7 @@ async function sheetGet(tab,range,spreadsheetId=SHEET_ID){
   return (await resp.json()).values||[];
 }
 async function sheetAppend(tab,values,spreadsheetId=SHEET_ID){
-  const r=encodeURIComponent(`${tab}!A:Z`);
+  const r=encodeURIComponent(`${tab}!A:ZZ`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -1013,11 +1050,22 @@ async function sheetAppend(tab,values,spreadsheetId=SHEET_ID){
 }
 async function sheetUpdate(tab,sheetRow,values,spreadsheetId=SHEET_ID){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
-  const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
+  const width=Math.max(26,...values.map(row=>row.length));
+  const r=encodeURIComponent(`${tab}!A${sheetRow}:${sheetColLetter(width)}${sheetRow}`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
   if(!resp.ok)throw new Error("Sheet update "+resp.status);
+}
+async function sheetBatchUpdateValues(data,spreadsheetId=SHEET_ID){
+  if(!data.length)return;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`;
+  const response=await fetch(url,{
+    method:"POST",
+    headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+    body:JSON.stringify({valueInputOption:"USER_ENTERED",data})
+  });
+  if(!response.ok)throw new Error(`Sheet batch update ${response.status}`);
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -1126,11 +1174,10 @@ async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values,spread
 
 // Correspondance clé logique → intitulé attendu en ligne 1 de chaque onglet
 // (la casse / les accents n'ont pas d'importance, seul le texte compte)
+const PRESTATION_HEADERS = {code:"Code",label:"Prestation",start:"Heure début",duration:"Durée (h)"};
 const DOS_HEADERS = {
   num:"N° Dossier", client:"Client", lieu:"Lieu", interlocuteur:"Interlocuteur",
-  adresse:"Adresse", prix1T:"Prix Terrain 1J", prixHT:"Prix Terrain 1/2J", prixB:"Prix Bureau",
-  prixN:"Prix Nuit", prixS3D:"Prix Scan 3D", email:"Email", tel:"Telephone", archive:"Archive",
-  prixPrep:"Prix Preparation", prixRap:"Prix Rapport",
+  adresse:"Adresse", email:"Email", tel:"Telephone", archive:"Archive",
 };
 const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur",email:"Adresse mail Google",expenseSheetId:"ID Sheet frais"};
 const MAT_HEADERS = {name:"Nom", cat:"Catégorie", unavailable:"Indisponible", lastRevision:"Dernière révision"};
@@ -1140,7 +1187,12 @@ const POINTAGE_HEADERS = {
   num:"N° Dossier", year:"Année", month:"Mois", sent:"Pointage envoyé",
   sentAt:"Date d'envoi", sentBy:"Envoyé par"
 };
-const EXPENSE_HEADERS = {date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",updateMileage:"Mise à jour kilométrage"};
+const EXPENSE_HEADERS = {
+  date:"Date",registration:"Immatriculation",mileage:"Kilométrage",amount:"Montant TTC",
+  updateMileage:"Mise à jour kilométrage",batchId:"ID assemblage",submittedAt:"Date demande remboursement",
+  reimbursed:"Remboursé",type:"Type de frais",comment:"Commentaire"
+};
+const EXPENSE_TYPES = ["Carburant","Hôtel","Péage","Divers"];
 const VEHICLE_HEADERS = {
   registration:"Immatriculation", make:"Marque", model:"Modèle", status:"Statut",
   mileage:"Kilométrage", mileageDate:"Date kilométrage"
@@ -1154,7 +1206,7 @@ const VEHICLE_DEFECT_HEADERS = {
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
-const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11,archive:12,prixPrep:13,prixRap:14};
+const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,email:10,tel:11,archive:12};
 const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2,email:3,expenseSheetId:4};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
@@ -1162,13 +1214,222 @@ const INTERLOC_FALLBACK = {name:0,client:1,email:2,tel:3};
 const VEHICLE_FALLBACK = {registration:0,make:1,model:2,status:3,mileage:4,mileageDate:5};
 const VEHICLE_ASSIGNMENT_FALLBACK = {registration:0,collaborator:1,startDate:2,endDate:3};
 const VEHICLE_DEFECT_FALLBACK = {registration:0,description:1,createdAt:2,deletedAt:3};
-const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4};
+const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage:4,batchId:5,submittedAt:6,reimbursed:7,type:8,comment:9};
 
 // colIndex/headerCount de chaque onglet, mis en cache après le premier chargement
 // (nécessaires pour reconstruire une ligne au bon endroit lors d'un enregistrement)
 let dosCI={},dosHC=0, collabCI={},collabHC=0, matCI={},matHC=0, clientCI={},clientHC=0, interlocCI={},interlocHC=0;
 
 let _refTabsChecked=false;
+function prestationPriceKey(code){
+  return PREST_LEGACY_PRICE_KEYS[code]||`prix_${code}`;
+}
+function dossierHeaders(){
+  const headers={...DOS_HEADERS};
+  PRESTATIONS.forEach(service=>{headers[service.priceKey]=`Prix ${service.label}`;});
+  return headers;
+}
+function dossierFallback(){
+  const fallback={...DOS_FALLBACK};
+  PRESTATIONS.forEach(service=>{
+    const column=PREST_LEGACY_FALLBACK[service.code];
+    if(column!==undefined)fallback[service.priceKey]=column;
+  });
+  return fallback;
+}
+function escapeHtml(value){
+  return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+function renderPrestations(){
+  const toggle=document.getElementById("m-prest-toggle");
+  if(toggle){
+    toggle.innerHTML=PRESTATIONS.map(service=>`<button data-code="${service.code}" onclick="setPrest('${service.code}',this)">${escapeHtml(service.label)}</button>`).join("");
+    const selected=toggle.querySelector(`[data-code="${selectedPrest}"]`);
+    if(selected)selected.classList.add("active");
+    else if(PRESTATIONS.length)setPrest(PRESTATIONS[0].code,toggle.querySelector("button"));
+  }
+  renderDosPriceFields();
+}
+function renderDosPriceFields(){
+  const fields=document.getElementById("f-dos-prices");
+  if(!fields)return;
+  const previousValues=Object.fromEntries(PRESTATIONS.map(service=>[
+    service.code,document.getElementById(`f-dos-price-${service.code}`)?.value||""
+  ]));
+  fields.innerHTML=PRESTATIONS.map(service=>`<div class="s-field"><label>Prix ${escapeHtml(service.label)}</label><input id="f-dos-price-${service.code}" type="number" placeholder="0"></div>`).join("");
+  PRESTATIONS.forEach(service=>{
+    const input=document.getElementById(`f-dos-price-${service.code}`);
+    if(input)input.value=previousValues[service.code]||"";
+  });
+}
+function mapDossierRow(row,index){
+  const dossier={
+    num:cellOf(row,dosCI,"num")?.trim(),
+    client:cellOf(row,dosCI,"client")?.trim()||"—",
+    lieu:cellOf(row,dosCI,"lieu")?.trim()||"—",
+    interlocuteur:cellOf(row,dosCI,"interlocuteur")?.trim()||"",
+    adresse:cellOf(row,dosCI,"adresse")?.trim()||"",
+    email:cellOf(row,dosCI,"email")?.trim()||"",
+    tel:cellOf(row,dosCI,"tel")?.trim()||"",
+    archive:parseBool(cellOf(row,dosCI,"archive")),
+    _sheetRow:index+2,
+  };
+  PRESTATIONS.forEach(service=>{dossier[service.priceKey]=parseFloat(cellOf(row,dosCI,service.priceKey))||0;});
+  return dossier;
+}
+async function loadPrestations(){
+  const table=await sheetGetTable(SHEET_TABS.prestations,PRESTATION_HEADERS,{});
+  for(const key of Object.keys(PRESTATION_HEADERS)){
+    if(table.colIndex[key]===undefined)throw new Error(`Colonne "${PRESTATION_HEADERS[key]}" manquante dans l’onglet Prestations.`);
+  }
+  const seenCodes=new Set(),seenLabels=new Set();
+  const services=table.rows.map((row,index)=>({row,index})).filter(({row})=>row.some(value=>String(value||"").trim())).map(({row,index})=>{
+    const code=String(cellOf(row,table.colIndex,"code")||"").trim();
+    const label=String(cellOf(row,table.colIndex,"label")||"").trim();
+    if(!code||!label)throw new Error(`Ligne ${index+2} de Prestations : Code et Prestation sont obligatoires.`);
+    if(!/^[A-Za-z0-9-]+$/.test(code))throw new Error(`Code de prestation invalide "${code}" : utiliser uniquement lettres, chiffres et tirets.`);
+    const normalizedCode=code.toUpperCase(),normalizedLabel=normHeader(label);
+    if(seenCodes.has(normalizedCode))throw new Error(`Code de prestation en double : ${code}.`);
+    if(seenLabels.has(normalizedLabel))throw new Error(`Libellé de prestation en double : ${label}.`);
+    seenCodes.add(normalizedCode);seenLabels.add(normalizedLabel);
+    const defaults=PREST_HOURS[normalizedCode]||{s:8,d:8};
+    const startValue=String(cellOf(row,table.colIndex,"start")||"").trim();
+    const startMatch=startValue.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?\s*(am|pm)?$/i);
+    const numericStart=Number(startValue.replace(",","."));
+    const startHour=startMatch?parseInt(startMatch[1],10):0;
+    const startMinute=startMatch?parseInt(startMatch[2]||"0",10):0;
+    const meridiem=startMatch?.[3]?.toLowerCase();
+    const validClock=!!startMatch&&startMinute<=59&&
+      (meridiem?startHour>=1&&startHour<=12:startHour<=23);
+    const validNumericStart=!startMatch&&Number.isFinite(numericStart)&&numericStart>=0&&numericStart<24;
+    if(startValue&&!validClock&&!validNumericStart)
+      throw new Error(`Heure de début invalide pour la prestation ${code} (ligne ${index+2}).`);
+    const start=startMatch?((meridiem?(startHour%12)+(meridiem==="pm"?12:0):startHour)+startMinute/60):
+      startValue?(numericStart<1?numericStart*24:numericStart):defaults.s;
+    const rawDuration=String(cellOf(row,table.colIndex,"duration")||"").trim().replace(",",".");
+    if(rawDuration&&(!Number.isFinite(Number(rawDuration))||Number(rawDuration)<=0))
+      throw new Error(`Durée invalide pour la prestation ${code} (ligne ${index+2}).`);
+    const duration=rawDuration?Number(rawDuration):defaults.d;
+    return {code:normalizedCode,label,start,duration,priceKey:prestationPriceKey(normalizedCode),_sheetRow:index+2};
+  });
+  if(!services.length)throw new Error("L’onglet Prestations ne contient aucune prestation.");
+  prestationsCI=table.colIndex;prestationsHC=table.headerCount;
+  PRESTATIONS=services;PREST_KEYS=services.map(service=>service.code);PREST_LABELS=services.map(service=>service.label);
+  renderPrestations();
+}
+async function ensureDossierPrestHeaders(){
+  const headers={};
+  PRESTATIONS.forEach(service=>{
+    if(PREST_LEGACY_FALLBACK[service.code]===undefined)headers[service.priceKey]=`Prix ${service.label}`;
+  });
+  if(Object.keys(headers).length)await ensureSheetHeaders(SHEET_TABS.dos,headers);
+}
+async function reloadDossierColumnMap(){
+  const table=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
+  dosCI=table.colIndex;dosHC=table.headerCount;
+}
+let prestationReturnContext="dossiers",editingPrestationIdx=null;
+function showSidebarPanel(name){
+  document.querySelectorAll(".sidebar-panel").forEach(panel=>panel.classList.toggle("active",panel.id==="sp-"+name));
+  buildCalendar();
+}
+function openContactsManager(){
+  renderSidebarInterlocs();
+  showSidebarPanel("contacts");
+}
+function returnToDossiersPanel(){showSidebarPanel("dossiers");}
+async function openPrestationManager(returnContext="dossiers"){
+  if(!accessToken){showToast("Connecte-toi pour gérer les prestations",true);return;}
+  prestationReturnContext=returnContext;
+  try{
+    await reloadPrestations();
+    showSidebarPanel("prestations");
+  }catch(error){
+    console.warn("Chargement des prestations impossible",error);
+    showToast(`Chargement des prestations impossible : ${error.message}`,true);
+  }
+}
+async function reloadPrestations(){
+  await loadPrestations();
+  await ensureDossierPrestHeaders();
+  await reloadDossierColumnMap();
+  renderSidebarPrestations();
+}
+function renderSidebarPrestations(){
+  const query=normalizeText(document.getElementById("s-search-prestation")?.value||"");
+  const list=document.getElementById("s-prestation-list");
+  if(!list)return;
+  const matches=PRESTATIONS.filter(service=>!query||normalizeText(`${service.code} ${service.label}`).includes(query));
+  list.innerHTML=matches.map(service=>{
+    const idx=PRESTATIONS.indexOf(service);
+    return `<div class="s-item"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">${escapeHtml(service.code)} · ${escapeHtml(service.label)}</div><div style="font-size:11px;color:var(--muted)">${String(Math.floor(service.start)).padStart(2,"0")}:${String(Math.round(service.start%1*60)).padStart(2,"0")} · ${service.duration} h</div></div><button class="s-edit" onclick="openPrestationForm(${idx})" title="Modifier les horaires">✏️</button></div>`;
+  }).join("")||`<div style="padding:12px;color:var(--muted);font-size:12px">Aucune prestation trouvée.</div>`;
+}
+function openPrestationForm(idx){
+  editingPrestationIdx=idx;
+  const service=idx===null?null:PRESTATIONS[idx];
+  const form=document.getElementById("prestation-form");
+  form.classList.add("visible");
+  document.getElementById("prestation-form-title").textContent=service?"Modifier les horaires":"Nouvelle prestation";
+  const code=document.getElementById("f-prestation-code");
+  const label=document.getElementById("f-prestation-label");
+  code.value=service?.code||"";
+  label.value=service?.label||"";
+  code.disabled=!!service;
+  label.disabled=!!service;
+  const minutes=service?Math.round(service.start*60):NaN;
+  document.getElementById("f-prestation-start").value=Number.isFinite(minutes)?`${String(Math.floor(minutes/60)).padStart(2,"0")}:${String(minutes%60).padStart(2,"0")}`:"";
+  document.getElementById("f-prestation-duration").value=service?service.duration:"";
+}
+function closePrestationForm(){
+  editingPrestationIdx=null;
+  document.getElementById("prestation-form").classList.remove("visible");
+}
+function returnFromPrestationManager(){
+  const context=prestationReturnContext;
+  closePrestationForm();
+  showSidebarPanel(context==="contacts"?"contacts":"dossiers");
+}
+async function savePrestation(){
+  const code=document.getElementById("f-prestation-code").value.trim().toUpperCase();
+  const label=document.getElementById("f-prestation-label").value.trim();
+  const start=document.getElementById("f-prestation-start").value;
+  const duration=document.getElementById("f-prestation-duration").value.trim();
+  if(!code||!label){showToast("Code et libellé obligatoires",true);return;}
+  if(!/^[A-Z0-9-]+$/.test(code)){showToast("Code invalide : lettres, chiffres et tirets uniquement",true);return;}
+  if(PRESTATIONS.some((service,index)=>index!==editingPrestationIdx&&service.code===code)){
+    showToast(`Le code ${code} existe déjà`,true);return;
+  }
+  if(PRESTATIONS.some((service,index)=>index!==editingPrestationIdx&&normHeader(service.label)===normHeader(label))){
+    showToast(`Le libellé "${label}" existe déjà`,true);return;
+  }
+  if(duration&&(!Number.isFinite(Number(duration.replace(",",".")))||Number(duration.replace(",","."))<=0)){
+    showToast("La durée doit être un nombre positif",true);return;
+  }
+  const service=editingPrestationIdx===null?null:PRESTATIONS[editingPrestationIdx];
+  const values={code:service?.code||code,label:service?.label||label,start,duration};
+  const button=document.getElementById("prestation-save-btn");
+  button.textContent="⏳";button.disabled=true;
+  try{
+    if(service){
+      await sheetUpdateMerged(SHEET_TABS.prestations,service._sheetRow,prestationsCI,prestationsHC,values);
+    }else{
+      await sheetAppend(SHEET_TABS.prestations,[buildRowFromMap(prestationsCI,prestationsHC,values)]);
+    }
+    await reloadPrestations();
+    closePrestationForm();
+    showToast(service?"Horaires mis à jour ✓":`Prestation ${label} ajoutée ✓`);
+    if(!service&&(prestationReturnContext==="event"||prestationReturnContext==="dossier")){
+      if(prestationReturnContext==="event")setPrest(code,document.querySelector(`#m-prest-toggle [data-code="${code}"]`));
+      returnFromPrestationManager();
+    }
+  }catch(error){
+    console.warn("Enregistrement de la prestation impossible",error);
+    showToast(`Enregistrement de la prestation impossible : ${error.message}`,true);
+  }finally{
+    button.textContent="Enregistrer";button.disabled=false;
+  }
+}
 async function ensureRefTabs(){
   // Crée les onglets de référentiels et de suivi s'ils n'existent pas encore.
   if(_refTabsChecked)return;
@@ -1213,30 +1474,15 @@ async function ensureRefTabs(){
 
 async function loadSheetData(){
   if(!accessToken)return;
-  await ensureRefTabs();
   try{
+    await loadPrestations();
+    await ensureDossierPrestHeaders();
+    await ensureRefTabs();
     // Dossiers
-    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
     dosCI=colIndex;dosHC=headerCount;
     const seenNums=new Set();
-    sheetDossiers=drows.map((r,i)=>({
-      num:cellOf(r,dosCI,"num")?.trim(),
-      client:cellOf(r,dosCI,"client")?.trim()||"—",
-      lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
-      interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
-      adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
-      prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
-      prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
-      prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
-      prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
-      prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
-      email:cellOf(r,dosCI,"email")?.trim()||"",
-      tel:cellOf(r,dosCI,"tel")?.trim()||"",
-      archive:parseBool(cellOf(r,dosCI,"archive")),
-      prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
-      prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
-      _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
-    })).filter(d=>{
+    sheetDossiers=drows.map((r,i)=>mapDossierRow(r,i)).filter(d=>{
       if(!d.num)return false;
       if(seenNums.has(d.num))return false;
       seenNums.add(d.num);return true;
@@ -1250,14 +1496,14 @@ async function loadSheetData(){
     await ensureSheetHeaders(SHEET_TABS.collabs,COLLAB_HEADERS);
     const ct=await sheetGetTable(SHEET_TABS.collabs,COLLAB_HEADERS,COLLAB_FALLBACK);
     collabCI=ct.colIndex;collabHC=ct.headerCount;
-    sheetCollabs=ct.rows.filter(r=>cellOf(r,collabCI,"name")?.trim()).map((r,i)=>({
+    sheetCollabs=ct.rows.map((r,i)=>({
       name:cellOf(r,collabCI,"name")?.trim(),
       pseudo:cellOf(r,collabCI,"pseudo")?.trim()||"",
       colorId:cellOf(r,collabCI,"colorId")?.trim()||"7",
       email:cellOf(r,collabCI,"email")?.trim()||"",
       expenseSheetId:cellOf(r,collabCI,"expenseSheetId")?.trim()||"",
       _sheetRow:i+2,
-    }));
+    })).filter(c=>c.name);
     renderSidebarCollabs();updateModalCollab();updateVehicleCollabOptions();
 
     // Matériel
@@ -1275,7 +1521,7 @@ async function loadSheetData(){
     // Véhicules et historique d'attribution
     try{await loadSheetVehicles();}
     catch(e){console.warn("Chargement des véhicules impossible",e);showToast("Chargement des véhicules impossible",true);}
-  }catch(e){console.warn("Sheet load error",e);}
+  }catch(e){console.warn("Sheet load error",e);showToast(`Chargement des données impossible : ${e.message}`,true);throw e;}
 
   // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
   // empêcher le chargement des dossiers/collaborateurs/matériel ci-dessus)
@@ -1309,32 +1555,17 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    await loadPrestations();
+    await ensureDossierPrestHeaders();
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
     dosCI=colIndex;dosHC=headerCount;
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
     const seen=new Set();
     const duplicates=[];
     sheetDossiers=drows
-      .filter(r=>cellOf(r,dosCI,"num")?.trim())
-      .map((r,i)=>({
-        num:cellOf(r,dosCI,"num")?.trim(),
-        client:cellOf(r,dosCI,"client")?.trim()||"—",
-        lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
-        interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
-        adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
-        prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
-        prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
-        prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
-        prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
-        prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
-        email:cellOf(r,dosCI,"email")?.trim()||"",
-        tel:cellOf(r,dosCI,"tel")?.trim()||"",
-        archive:parseBool(cellOf(r,dosCI,"archive")),
-        prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
-        prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
-        _sheetRow:i+2,
-      }))
+      .map((r,i)=>mapDossierRow(r,i))
       .filter(d=>{
+        if(!d.num)return false;
         if(seen.has(d.num)){duplicates.push(d.num);return false;}
         seen.add(d.num);return true;
       })
@@ -1582,6 +1813,7 @@ function openDosForm(idx){
   const f=document.getElementById("dos-form");f.classList.add("visible");
   document.getElementById("dos-form-title").textContent=idx!=null?"Modifier le dossier":"Nouveau dossier";
   const d=idx!=null?sheetDossiers[idx]:null;
+  renderDosPriceFields();
   document.getElementById("f-dos-num").value=d?.num||"";
   populateDosClientSelect(d?.client||"");
   document.getElementById("f-dos-lieu").value=d?.lieu||"";
@@ -1589,13 +1821,10 @@ function openDosForm(idx){
   document.getElementById("f-dos-email").value=d?.email||"";
   document.getElementById("f-dos-tel").value=d?.tel||"";
   document.getElementById("f-dos-adresse").value=d?.adresse||"";
-  document.getElementById("f-dos-p1t").value=d?.prix1T||"";
-  document.getElementById("f-dos-pht").value=d?.prixHT||"";
-  document.getElementById("f-dos-pb").value=d?.prixB||"";
-  document.getElementById("f-dos-pn").value=d?.prixN||"";
-  document.getElementById("f-dos-ps3d").value=d?.prixS3D||"";
-  document.getElementById("f-dos-pprep").value=d?.prixPrep||"";
-  document.getElementById("f-dos-prap").value=d?.prixRap||"";
+  PRESTATIONS.forEach(service=>{
+    const input=document.getElementById(`f-dos-price-${service.code}`);
+    if(input)input.value=d?.[service.priceKey]||"";
+  });
   document.getElementById("f-dos-archive").checked=d?.archive||false;
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
@@ -1631,20 +1860,16 @@ async function saveDos(){
     email:document.getElementById("f-dos-email").value.trim(),
     tel:document.getElementById("f-dos-tel").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
-    prix1T:parseFloat(document.getElementById("f-dos-p1t").value)||0,
-    prixHT:parseFloat(document.getElementById("f-dos-pht").value)||0,
-    prixB:parseFloat(document.getElementById("f-dos-pb").value)||0,
-    prixN:parseFloat(document.getElementById("f-dos-pn").value)||0,
-    prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
-    prixPrep:parseFloat(document.getElementById("f-dos-pprep").value)||0,
-    prixRap:parseFloat(document.getElementById("f-dos-prap").value)||0,
     archive:document.getElementById("f-dos-archive")?.checked||false,
   };
+  PRESTATIONS.forEach(service=>{
+    d[service.priceKey]=parseFloat(document.getElementById(`f-dos-price-${service.code}`)?.value)||0;
+  });
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
   const values={num:d.num,client:d.client,lieu:d.lieu,interlocuteur:d.interlocuteur,adresse:d.adresse,
-    prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
     email:d.email||"",tel:d.tel||"",archive:d.archive?"OUI":"",
-    prixPrep:d.prixPrep||"",prixRap:d.prixRap||""};
+  };
+  PRESTATIONS.forEach(service=>{values[service.priceKey]=d[service.priceKey]||"";});
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     const oldNum = existing.num;
@@ -1966,9 +2191,12 @@ function renderSidebarVehicles(){
   const q=normalizeText(document.getElementById("s-search-vehicle")?.value||"");
   const list=sheetVehicles.filter(v=>!q||normalizeText([v.registration,v.make,v.model,activeVehicleAssignment(v)?.collaborator,
     ...sheetVehicleDefects.filter(d=>d.registration===v.registration).map(d=>d.description)].join(" ")).includes(q));
+  const date=selectedVehicleDate;
   listEl.innerHTML=list.map(vehicle=>{
     const index=sheetVehicles.indexOf(vehicle);
     const assignment=activeVehicleAssignment(vehicle);
+    const eventAssignments=date?vehicleAssignmentsOnDate(vehicle.registration,date):[];
+    const busy=eventAssignments.length>0;
     const detail=[vehicle.make,vehicle.model].filter(Boolean).join(" ");
     const mileage=vehicle.mileage!==""&&vehicle.mileage!=null?`${Number(vehicle.mileage).toLocaleString("fr-FR")} km${vehicle.mileageDate?` · ${formatDateShort(vehicle.mileageDate)}`:""}`:"...Km";
     const allDefects=vehicleDefectsFor(vehicle.registration);
@@ -1985,12 +2213,13 @@ function renderSidebarVehicles(){
       <span class="vehicle-defect-description">• ${htmlEscape(defect.description)}<span class="vehicle-defect-date">Créé le ${htmlEscape(formatDateShort(defect.createdAt)||"date inconnue")} · Masqué le ${htmlEscape(formatDateShort(defect.deletedAt))}</span></span>
       <button class="vehicle-defect-history-delete" onclick="deleteVehicleDefectHistory(${index},${defect._sheetRow})" title="Supprimer définitivement de l’historique">Supprimer</button>
     </div>`).join("");
-    return `<div class="s-item vehicle-card">
+    return `<div class="s-item vehicle-card ${busy?"vehicle-item-busy":""}">
       <div style="font-size:18px">🚗</div>
       <div style="flex:1;min-width:0">
         <div class="s-name">${htmlEscape(vehicle.registration)} <span class="vehicle-status ${vehicleStatusClass(vehicle.status)}">${htmlEscape(vehicle.status)}</span></div>
         <div class="vehicle-card-details">${htmlEscape(detail||"Marque / modèle non renseignés")} · <span style="white-space:nowrap">${htmlEscape(mileage)}</span></div>
         ${assignment?`<div class="vehicle-card-collaborator">👤 ${htmlEscape(assignment.collaborator)}</div>`:""}
+        ${busy?`<div class="vehicle-event-assignment">⚠️ Déjà affecté : ${[...new Set(eventAssignments.map(eventDisplayName))].map(htmlEscape).join(", ")}</div>`:""}
         <div class="vehicle-defects">
           <div class="vehicle-defects-heading">
             <button type="button" class="vehicle-defects-title ${defects.length?"has-defects":"no-defects"}" onclick="toggleVehicleDefectList(${index})" aria-expanded="${defectsExpanded}">⚠️ Défauts (${defects.length})</button>
@@ -2301,7 +2530,7 @@ function eventMaterialNames(ev){
   if(!line)return [];
   return line.replace(/^\s*Mat(?:é|e)riel(?:s)?\s*:\s*/i,"").split(/\s*,\s*/).map(v=>v.trim()).filter(Boolean);
 }
-function eventMaterialDateRange(ev){
+function eventDateRange(ev){
   const start=ev.start?.date||ev.start?.dateTime?.slice(0,10);
   let end=ev.end?.date||ev.end?.dateTime?.slice(0,10)||start;
   if(!start)return null;
@@ -2312,12 +2541,20 @@ function materialAssignmentsInRange(name,startDate,endDate){
   if(!startDate||!endDate||endDate<startDate)return [];
   return calEvents.filter(ev=>{
     if(!eventMaterialNames(ev).includes(name))return false;
-    const range=eventMaterialDateRange(ev);
+    const range=eventDateRange(ev);
     return range&&range.start<=endDate&&range.end>=startDate;
   });
 }
 function materialAssignmentsOnDate(name,date){
   return materialAssignmentsInRange(name,date,date);
+}
+function vehicleAssignmentsOnDate(registration,date){
+  const normalized=normalizedRegistration(registration);
+  return calEvents.filter(ev=>{
+    if(normalizedRegistration(eventVehicleName(ev))!==normalized)return false;
+    const range=eventDateRange(ev);
+    return range&&range.start<=date&&range.end>=date;
+  });
 }
 function openMatForm(idx){
   editingMatIdx=idx;
@@ -2499,19 +2736,23 @@ function applySidebar(){
   document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 function switchSTab(tab){
-  ["dossiers","collabs","contacts","materiel","vehicules"].forEach((t,i)=>{
-    document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
-    document.getElementById("sp-"+t).classList.toggle("active",t===tab);
-  });
-  buildCalendar();
+  const tabs=["dossiers","collabs","materiel","vehicules"];
+  document.querySelectorAll(".stab").forEach((element,index)=>element.classList.toggle("active",tabs[index]===tab));
+  showSidebarPanel(tab);
   if(tab==="materiel")renderSidebarMat();
   if(tab==="vehicules")renderSidebarVehicles();
 }
 function handleCalendarDayClick(ds){
-  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
-  if(materielTab){
+  const activeTab=document.querySelector(".stab.active")?.textContent||"";
+  if(activeTab.includes("Matériel")){
     selectedMaterielDate=ds;
     renderSidebarMat();
+    buildCalendar();
+    return;
+  }
+  if(activeTab.includes("Véhicules")){
+    selectedVehicleDate=ds;
+    renderSidebarVehicles();
     buildCalendar();
     return;
   }
@@ -2543,6 +2784,7 @@ async function loadCalendar(silent){
       calEvents=newEvents;
       requestAnimationFrame(buildCalendar);
       if(selectedMaterielDate)renderSidebarMat();
+      if(selectedVehicleDate)renderSidebarVehicles();
       if(document.getElementById("modal-bg")?.classList.contains("open"))checkMatConflict();
       else updateModalMatAvailability();
     }
@@ -2646,8 +2888,9 @@ function buildCalendar(){
   const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
   const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
-  const materielTab=document.querySelector(".stab.active")?.textContent?.includes("Matériel");
-  const selectedDate=materielTab?selectedMaterielDate:null;
+  const activeTab=document.querySelector(".stab.active")?.textContent||"";
+  const selectedDate=activeTab.includes("Matériel")?selectedMaterielDate:
+    activeTab.includes("Véhicules")?selectedVehicleDate:null;
   const maxShow=window.innerWidth<=768?2:6;
   const weekColWidth=window.innerWidth<=768?24:28;
 
@@ -2713,8 +2956,7 @@ function getEventColor(ev){
 function getEventLabel(ev){
   const parts=(ev.summary||"").split("_");
   if(parts.length>=2){
-    // parts[1] peut être "HT" ou "HT" suivi de "_M"/"_AM" — on prend juste dos_code
-    const code=parts[1].replace(/^(HT|1T|B|N|S3D).*/,"$1"); // sécurité
+    const code=parts[1];
     return `${parts[0]}_${code}`+(parts.length>2?" "+parts[parts.length-1]:"");
   }
   return(ev.summary||"").slice(0,14);
@@ -2802,7 +3044,7 @@ function openEditModal(evId){
   }
   if(parts.length>=2){
     const rawCode=parts[1]; // "HT", "1T", "B", "N", "S3D"
-    const validCode=PREST_KEYS.includes(rawCode)?rawCode:"1T";
+    const validCode=PREST_KEYS.includes(rawCode)?rawCode:(PREST_KEYS[0]||"");
     // Appeler setPrest pour les horaires par défaut + gérer l'affichage ½ journée
     const btn=document.querySelector(`[data-code="${validCode}"]`);
     setPrest(validCode,btn);
@@ -2849,6 +3091,8 @@ function filterModalDos(){
 let selectedHalfDay="matin"; // "matin" ou "aprem"
 
 function setPrest(code,el){
+  const service=PRESTATIONS.find(item=>item.code===code);
+  if(!service)return;
   selectedPrest=code;
   document.querySelectorAll("#m-prest-toggle button").forEach(b=>b.classList.remove("active"));
   if(el)el.classList.add("active");
@@ -2857,11 +3101,14 @@ function setPrest(code,el){
   if(code==="HT"||code==="B2"){hdToggle.classList.add("visible");}
   else{hdToggle.classList.remove("visible");}
   // Pré-remplit les horaires par défaut du type de prestation — reste modifiable ensuite
-  const ph=PREST_HOURS[code]||{s:8,d:8};
-  document.getElementById("m-time-start").value=String(ph.s).padStart(2,"0")+":00";
-  document.getElementById("m-time-end").value=String(ph.s+ph.d).padStart(2,"0")+":00";
+  const startMinutes=Math.min(23*60+59,Math.round(service.start*60));
+  const endMinutes=Math.min(23*60+59,Math.round((service.start+service.duration)*60));
+  const toTime=minutes=>`${String(Math.floor(minutes/60)).padStart(2,"0")}:${String(minutes%60).padStart(2,"0")}`;
+  document.getElementById("m-time-start").value=toTime(startMinutes);
+  document.getElementById("m-time-end").value=toTime(endMinutes);
   checkMatConflict();
 }
+function addPrestationFromEvent(){openPrestationManager("event");}
 function setHalfDay(period,el,applyTimes){
   selectedHalfDay=period;
   document.querySelectorAll(".hd-btn").forEach(b=>b.classList.remove("active"));
@@ -3055,12 +3302,14 @@ function buildGlobalWorkbook(year,month,byDossier){
     return cell;
   }
 
-  // ── Feuille unique : même structure que le modèle Excel ──────────────────
-  // Colonnes : A:N°  B:Dossier  C:Client/Chantier  D:Interlocuteur  E:Email
-  //            F:1T  G:HT  H:B  I:N  J:S3D  K:TotalJ  L:Montant
-  //            M:Ptg  N:BC  O:Facture  P:Notes
-  //            Q:Prix1T  R:PrixHT  S:PrixB  T:PrixN  U:PrixS3D (cachées)
+  // Keep the historical template columns intact, then append any other
+  // catalogue services and their prices after the existing hidden price block.
   const ws1={};
+  const legacyKeys=["1T","HT","B","N","S3D"];
+  const legacyLabels={"1T":"Terr. 1J",HT:"Terr. ½J",B:"Bureau",N:"Nuit",S3D:"Scan 3D"};
+  const legacyPriceLabels={"1T":"Prix 1J",HT:"Prix ½J",B:"Prix Bureau",N:"Prix Nuit",S3D:"Prix Scan"};
+  const extraKeys=PREST_KEYS.filter(k=>!legacyKeys.includes(k));
+  const extraStart=21;
   const dataEndRow = 4 + dosKeys.length;
 
   // Ligne 1 : titre
@@ -3073,10 +3322,12 @@ function buildGlobalWorkbook(year,month,byDossier){
 
   // Ligne 4 : en-têtes (identiques au modèle)
   ["N°","N° Dossier","Client / Chantier","Interlocuteur","Email",
-   "Terr. 1J","Terr. ½J","Bureau","Nuit","Scan 3D",
+   ...legacyKeys.map(k=>legacyLabels[k]),
    "Total Jours","Montant (€)",
    "Pointage Envoyé","BC Reçu","Facture Envoyée","Observations",
-   "Prix 1J","Prix ½J","Prix Bureau","Prix Nuit","Prix Scan"
+   ...legacyKeys.map(k=>legacyPriceLabels[k]),
+   ...extraKeys.map(k=>PRESTATIONS.find(service=>service.code===k)?.label||k),
+   ...extraKeys.map(k=>`Prix ${PRESTATIONS.find(service=>service.code===k)?.label||k}`)
   ].forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
 
   // Lignes données
@@ -3088,13 +3339,9 @@ function buildGlobalWorkbook(year,month,byDossier){
     const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
     // Prix depuis le Sheet (ou défaut) — via prestPrice() pour rester juste
     // même si l'ordre interne des types de prestations évolue.
-    const p1T=prestPrice(di,"1T"), pHT=prestPrice(di,"HT"), pB=prestPrice(di,"B"),
-          pN=prestPrice(di,"N"), pS3D=prestPrice(di,"S3D");
-    // Le total, lui, inclut TOUTES les prestations (y compris ½ Bureau /
-    // Préparation / Rapport) même si cette feuille, pour rester compatible
-    // "coller ici" avec ton modèle Excel historique, ne détaille que les 5
-    // colonnes Terrain/Bureau/Nuit/Scan3D ci-dessous.
-    const total = PREST_KEYS.reduce((sum,k)=>sum+tot[k]*prestPrice(di,k),0);
+    const legacyPrices=legacyKeys.map(k=>prestPrice(di,k));
+    // The existing template columns stay fixed; extra catalogue services and
+    // their prices are included in the additional columns at the right.
 
     // Colonnes A→P (visibles)
     ws1[xlsCell(row,0)] = s(idx+1);
@@ -3102,19 +3349,13 @@ function buildGlobalWorkbook(year,month,byDossier){
     ws1[xlsCell(row,2)] = s(`${di?.client||""} – ${di?.lieu||""}`);
     ws1[xlsCell(row,3)] = s(di?.interlocuteur||"");
     ws1[xlsCell(row,4)] = s(di?.email||"");
-    ws1[xlsCell(row,5)] = s(tot["1T"]);
-    ws1[xlsCell(row,6)] = s(tot["HT"]);
-    ws1[xlsCell(row,7)] = s(tot["B"]);
-    ws1[xlsCell(row,8)] = s(tot["N"]);
-    ws1[xlsCell(row,9)] = s(tot["S3D"]);
+    legacyKeys.forEach((k,i)=>ws1[xlsCell(row,5+i)]=s(tot[k]||0));
     // K→P : vides (calculés dans le modèle Excel via formules)
     for(let c=10;c<=15;c++) ws1[xlsCell(row,c)]=s("");
     // Colonnes Q→U : prix (à coller dans les colonnes cachées du modèle)
-    ws1[xlsCell(row,16)]= s(p1T);
-    ws1[xlsCell(row,17)]= s(pHT);
-    ws1[xlsCell(row,18)]= s(pB);
-    ws1[xlsCell(row,19)]= s(pN);
-    ws1[xlsCell(row,20)]= s(pS3D);
+    legacyPrices.forEach((price,i)=>ws1[xlsCell(row,16+i)]=s(price));
+    extraKeys.forEach((k,i)=>ws1[xlsCell(row,extraStart+i)]=s(tot[k]||0));
+    extraKeys.forEach((k,i)=>ws1[xlsCell(row,extraStart+extraKeys.length+i)]=s(prestPrice(di,k)));
     row++;
   });
 
@@ -3124,9 +3365,10 @@ function buildGlobalWorkbook(year,month,byDossier){
     {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},        // F→J
     {wch:9},{wch:14},                                // K→L
     {wch:13},{wch:12},{wch:13},{wch:20},             // M→P
-    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},         // Q→U (prix)
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},         // Q→U (prix historiques)
+    ...extraKeys.map(()=>({wch:12})),...extraKeys.map(()=>({wch:10})),
   ];
-  ws1["!ref"]=`A1:U${row}`;
+  ws1["!ref"]=`A1:${sheetColLetter(Math.max(21,extraStart+extraKeys.length*2))}${row}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
   return wb;
@@ -3380,10 +3622,9 @@ function renderRecapList(){
       </td>
     </tr>`;
     if(priceOpen){
-      // ½ Bureau (B2) n'a pas de champ dédié : toujours = Bureau ÷ 2, non éditable ici
-      const priceFields=PREST_KEYS.filter(k=>k!=="B2").map(k=>{
-        const label=PREST_LABELS[PREST_KEYS.indexOf(k)];
-        return `<div class="rc-price-field"><label>Prix ${label}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
+      const priceFields=PRESTATIONS.map(service=>{
+        const k=service.code,label=service.label;
+        return `<div class="rc-price-field"><label>Prix ${escapeHtml(label)}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
       }).join("");
       rowsHtml+=`<tr class="rc-price-row"><td colspan="${6+nPrest}">
         <div class="rc-price-grid">
@@ -3391,14 +3632,14 @@ function renderRecapList(){
           <button class="btn-modal-save" style="flex:none;padding:8px 14px" onclick="saveRecapPrice('${d}')">Enregistrer dans le Sheet</button>
           <button class="rc-btn" onclick="toggleRecapPriceEdit('${d}')">Annuler</button>
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:6px">ℹ️ ½ Bureau n'a pas de prix propre : toujours = Bureau ÷ 2. Un prix à 0 masque la prestation du récap pour ce dossier.</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">Un prix à 0 masque la prestation du récap pour ce dossier.</div>
       </td></tr>`;
     }
   });
 
   const globalChecked=recapSelected.has("GLOBAL")?"checked":"";
   const prestHeaders=cols.map(k=>{
-    const label=PREST_LABELS[PREST_KEYS.indexOf(k)].replace(/ /g,"<br>");
+    const label=escapeHtml(PREST_LABELS[PREST_KEYS.indexOf(k)]).replace(/ /g,"<br>");
     return `<th class="rc-th-prest">${label}</th>`;
   }).join("");
   const html=`<div class="rc-table-wrap"><table class="rc-table">
@@ -3441,14 +3682,12 @@ async function saveRecapPrice(dos){
   if(idx<0)return;
   const d={...sheetDossiers[idx]};
   const values={};
-  PREST_KEYS.forEach(k=>{
-    if(k==="B2")return; // pas de champ propre : toujours Bureau ÷ 2
-    const field=PRIX_KEYS[PREST_KEYS.indexOf(k)];
-    const input=document.getElementById(`rcp-${k}`);
-    if(!field||!input)return;
+  PRESTATIONS.forEach(service=>{
+    const input=document.getElementById(`rcp-${service.code}`);
+    if(!input)return;
     const val=parseFloat(input.value)||0;
-    d[field]=val;
-    values[field]=val||"";
+    d[service.priceKey]=val;
+    values[service.priceKey]=val||"";
   });
   sheetDossiers[idx]=d;
   try{
@@ -3680,7 +3919,13 @@ function closeExpensesPage(){
 async function openExpensesPage(){
   if(!accessToken){signIn();return;}
   document.getElementById("expenses-page").classList.add("open");
+  document.getElementById("expense-identity-action").style.display="none";
+  currentUser=await fetchUserInfo();
   await loadExpenseData();
+}
+function authorizeExpenseIdentity(){
+  if(!tokenClient){showToast("Connexion Google en cours de chargement, réessaie dans un instant",true);return;}
+  signIn("consent");
 }
 function closeExpenseForm(){
   document.getElementById("expense-form-wrap").style.display="none";
@@ -3688,16 +3933,36 @@ function closeExpenseForm(){
 }
 function openExpenseForm(){
   if(!currentCollaborator||!expenseSheetId){showToast("Configure d’abord l’adresse mail Google et l’ID Sheet frais du collaborateur",true);return;}
-  if(!sheetVehicles.length){showToast("Aucun véhicule disponible pour saisir ce frais",true);return;}
   const form=document.getElementById("expense-form");
   form.reset();
   document.getElementById("expense-date").value=todayInputDate();
   const registration=document.getElementById("expense-registration");
   registration.innerHTML=`<option value="">— Choisir un véhicule —</option>`+sheetVehicles.map(vehicle=>
     `<option value="${htmlEscape(vehicle.registration)}">${htmlEscape(vehicle.registration)}</option>`).join("");
+  const assignedVehicle=assignedVehicleForCollaborator(currentCollaborator.name);
+  if(assignedVehicle)registration.value=assignedVehicle.registration;
   document.getElementById("expense-form-wrap").style.display="block";
+  onExpenseTypeChange();
   onExpenseVehicleChange();
   document.getElementById("expense-date").focus();
+}
+function onExpenseTypeChange(){
+  const isFuel=document.getElementById("expense-type").value==="Carburant";
+  const vehicleFields=document.getElementById("expense-vehicle-fields");
+  const registration=document.getElementById("expense-registration");
+  const mileage=document.getElementById("expense-mileage");
+  const updateMileage=document.getElementById("expense-update-mileage");
+  vehicleFields.style.display=isFuel?"contents":"none";
+  document.getElementById("expense-update-mileage-wrap").style.display=isFuel?"flex":"none";
+  registration.required=isFuel;
+  mileage.required=isFuel;
+  if(!isFuel){
+    registration.value="";
+    mileage.value="";
+    updateMileage.checked=false;
+  }else{
+    onExpenseVehicleChange();
+  }
 }
 function onExpenseVehicleChange(){
   const registration=document.getElementById("expense-registration").value;
@@ -3725,9 +3990,78 @@ async function ensureExpenseTab(spreadsheetId){
   }
   await ensureSheetHeaders(SHEET_TABS.expenses,EXPENSE_HEADERS,spreadsheetId);
 }
+async function createCollaboratorExpenseSheet(){
+  if(!currentCollaborator||!currentCollaborator._sheetRow||collabCI.expenseSheetId===undefined){
+    showToast("La ligne du collaborateur est introuvable dans le mapping",true);return;
+  }
+  if(expenseSheetId){await loadExpenseData();return;}
+  if(pendingExpenseSpreadsheet?.ownerEmail!==currentUser?.email?.trim().toLocaleLowerCase())
+    pendingExpenseSpreadsheet=null;
+  const button=document.getElementById("expense-create-sheet-btn");
+  if(button){button.disabled=true;button.textContent="Création de la feuille…";}
+  try{
+    if(!pendingExpenseSpreadsheet){
+      const response=await fetch("https://sheets.googleapis.com/v4/spreadsheets",{
+        method:"POST",
+        headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+        body:JSON.stringify({properties:{title:`Frais - ${currentCollaborator.name}`}})
+      });
+      if(!response.ok)throw new Error(`Création de la feuille Google Sheets impossible (${response.status})`);
+      const created=await response.json();
+      if(!created.spreadsheetId)throw new Error("Google n’a pas retourné l’ID de la nouvelle feuille.");
+      pendingExpenseSpreadsheet={
+        id:created.spreadsheetId,
+        url:created.spreadsheetUrl||`https://docs.google.com/spreadsheets/d/${encodeURIComponent(created.spreadsheetId)}/edit`,
+        firstSheet:created.sheets?.[0]?.properties||null,
+        ownerEmail:currentUser.email.trim().toLocaleLowerCase()
+      };
+    }
+    const spreadsheet=pendingExpenseSpreadsheet;
+    if(spreadsheet.firstSheet?.sheetId!==undefined&&spreadsheet.firstSheet.title!==SHEET_TABS.expenses){
+      const renameResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheet.id)}:batchUpdate`,{
+        method:"POST",
+        headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+        body:JSON.stringify({requests:[{updateSheetProperties:{
+          properties:{sheetId:spreadsheet.firstSheet.sheetId,title:SHEET_TABS.expenses},fields:"title"
+        }}]})
+      });
+      if(!renameResponse.ok)throw new Error(`Renommage de l’onglet des frais impossible (${renameResponse.status})`);
+      spreadsheet.firstSheet.title=SHEET_TABS.expenses;
+    }
+    await ensureExpenseTab(spreadsheet.id);
+    await sheetUpdateMerged(SHEET_TABS.collabs,currentCollaborator._sheetRow,collabCI,collabHC,
+      {expenseSheetId:spreadsheet.id});
+    currentCollaborator.expenseSheetId=spreadsheet.id;
+    pendingExpenseSpreadsheet=null;
+    const loaded=await loadExpenseData();
+    if(!loaded)return;
+    showToast("Feuille de frais créée dans ton Google Drive et attribuée ✓");
+  }catch(error){
+    console.warn("Création ou attribution de la feuille de frais impossible",error);
+    showToast("Impossible de créer ou d’attribuer la feuille. Vérifie les droits Google Sheets.",true);
+    renderExpenseSheetPrompt();
+  }finally{
+    const currentButton=document.getElementById("expense-create-sheet-btn");
+    if(currentButton){currentButton.disabled=false;currentButton.textContent=pendingExpenseSpreadsheet?"Réessayer l’attribution":"Créer ma feuille de frais";}
+  }
+}
 function renderExpenseMessage(message){
   document.getElementById("expenses-list").innerHTML=
     `<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">${htmlEscape(message)}</div>`;
+  document.getElementById("expenses-total").textContent="";
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+  const identityAction=document.getElementById("expense-identity-action");
+  if(identityAction)identityAction.style.display=!currentUser?.email&&!!accessToken?"block":"none";
+}
+function renderExpenseSheetPrompt(){
+  const list=document.getElementById("expenses-list");
+  const retry=pendingExpenseSpreadsheet;
+  const link=retry?`<div style="margin-top:8px"><a href="${htmlEscape(retry.url)}" target="_blank" rel="noopener">Ouvrir la feuille créée dans Google Drive</a></div>`:"";
+  list.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
+    <div>Aucune feuille de frais n’est encore attribuée à ${htmlEscape(currentCollaborator?.name||"ce collaborateur")}.</div>
+    <div style="margin:8px 0 14px">L’application peut créer une feuille dans le Drive du compte Google connecté et enregistrer son ID dans le mapping des collaborateurs.</div>
+    <button class="btn-modal-save" id="expense-create-sheet-btn" onclick="createCollaboratorExpenseSheet()">${retry?"Réessayer l’attribution":"Créer ma feuille de frais"}</button>${link}
+  </div>`;
   document.getElementById("expenses-total").textContent="";
   document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
 }
@@ -3745,30 +4079,40 @@ function loadExpenseRow(row,index){
     registration:cellOf(row,expenseCI,"registration").trim(),
     mileage:parseInt(cellOf(row,expenseCI,"mileage"),10)||0,
     amount:parseExpenseAmount(cellOf(row,expenseCI,"amount")),
+    type:cellOf(row,expenseCI,"type").trim(),
+    comment:cellOf(row,expenseCI,"comment").trim(),
     updateMileage:parseBool(cellOf(row,expenseCI,"updateMileage")),
+    batchId:cellOf(row,expenseCI,"batchId").trim(),
+    submittedAt:sheetDateToInput(cellOf(row,expenseCI,"submittedAt")),
+    reimbursed:parseBool(cellOf(row,expenseCI,"reimbursed")),
     _sheetRow:index+2,
   };
 }
 async function loadExpenseData(){
+  if(accessToken&&!currentUser?.email){
+    currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
+    renderExpenseMessage("Adresse Google non disponible. Autorise l’accès à ton adresse Google pour associer les frais au bon collaborateur.");
+    return false;
+  }
   if(!accessToken||!currentUser?.email){
     currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
     renderExpenseMessage("Connecte-toi avec le compte Google associé à un collaborateur.");
-    return;
+    return false;
   }
   const email=currentUser.email.trim().toLocaleLowerCase();
   const matches=sheetCollabs.filter(collaborator=>collaborator.email?.trim().toLocaleLowerCase()===email);
   if(matches.length!==1){
     currentCollaborator=null;expenseSheetId="";sheetExpenses=[];selectedExpenseRows.clear();
     renderExpenseMessage(matches.length?"Plusieurs collaborateurs utilisent cette adresse mail. Corrige le mapping dans l’onglet Collaborateurs.":"Aucun collaborateur ne correspond à ce compte Google. Renseigne son adresse mail et son ID Sheet frais dans l’onglet Collaborateurs.");
-    return;
+    return false;
   }
   currentCollaborator=matches[0];
   expenseSheetId=normalizeExpenseSheetId(currentCollaborator.expenseSheetId);
   document.getElementById("expenses-collaborator").textContent=currentCollaborator.name;
   if(!expenseSheetId){
     sheetExpenses=[];selectedExpenseRows.clear();
-    renderExpenseMessage("L’ID de feuille Google Sheets des frais n’est pas encore renseigné pour ce collaborateur.");
-    return;
+    renderExpenseSheetPrompt();
+    return false;
   }
   try{
     await ensureExpenseTab(expenseSheetId);
@@ -3776,11 +4120,13 @@ async function loadExpenseData(){
     expenseCI=table.colIndex;expenseHC=table.headerCount;
     sheetExpenses=table.rows.map(loadExpenseRow).filter(expense=>expense.date||expense.registration||expense.amount);
     selectedExpenseRows.clear();
-    renderExpensesList();
+    renderExpenseTrackingList();
+    return true;
   }catch(error){
     console.warn("Chargement des frais impossible",error);
     sheetExpenses=[];selectedExpenseRows.clear();
     renderExpenseMessage("Impossible d’accéder à la feuille de frais. Vérifie son ID et son partage Google Drive avec ce compte.");
+    return false;
   }
 }
 function renderExpensesList(){
@@ -3813,24 +4159,12 @@ function toggleExpenseSelection(input){
 function createExpenseSummary(){
   const expenses=sheetExpenses.filter(expense=>selectedExpenseRows.has(expense._sheetRow));
   if(!expenses.length){showToast("Sélectionne au moins un frais pour créer la fiche récap",true);return;}
-  const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
-  const rows=expenses.map(expense=>`
-    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.registration)}</td>
-    <td>${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km</td><td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
-  document.getElementById("expense-summary").innerHTML=`
-    <h2>Fiche récapitulative des frais</h2>
-    <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
-    <span>Date d’édition : ${htmlEscape(new Date().toLocaleDateString("fr-FR"))}</span></div>
-    <table><thead><tr><th>Date</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
-    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="printExpenseSummary()">Imprimer / Enregistrer en PDF</button>
-    <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
-  document.getElementById("expense-summary").style.display="block";
-  showToast("Fiche récap prête à imprimer ou enregistrer en PDF");
+  showExpenseBatchSummary(expenses,"","");
 }
 function closeExpenseSummary(){
   const summary=document.getElementById("expense-summary");
   if(summary)summary.style.display="none";
+  expenseSummaryData=null;
   document.body.classList.remove("expense-print-mode");
 }
 function printExpenseSummary(){
@@ -3839,23 +4173,89 @@ function printExpenseSummary(){
   window.print();
   window.setTimeout(()=>document.body.classList.remove("expense-print-mode"),1000);
 }
+function expenseSummaryFilename(summary=expenseSummaryData){
+  if(!summary)return"";
+  const safeName=(currentCollaborator?.name||"Collaborateur").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"_");
+  const batchSuffix=summary.batchId?`_${summary.batchId.slice(0,8)}`:"";
+  return`Frais_${safeName}_${summary.submittedAt||todayInputDate()}${batchSuffix}.pdf`;
+}
+function buildExpenseSummaryPDF(summary=expenseSummaryData){
+  if(!summary)throw new Error("Aucune fiche récapitulative à télécharger.");
+  if(!window.jspdf?.jsPDF)throw new Error("La bibliothèque PDF n’est pas disponible.");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const width=doc.internal.pageSize.getWidth();
+  const total=summary.expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  doc.setFillColor(31,56,100);doc.rect(0,0,width,19,"F");
+  doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(15);
+  doc.text("FICHE RÉCAPITULATIVE DES FRAIS",12,12);
+  doc.setTextColor(0,0,0);doc.setFont("helvetica","normal");doc.setFontSize(10);
+  doc.text(`Collaborateur : ${currentCollaborator?.name||""}`,12,29);
+  let metaY=35;
+  if(summary.submittedAt){doc.text(`Demande du : ${formatDateFr(summary.submittedAt)}`,12,metaY);metaY+=6;}
+  doc.text(`Date d’édition : ${summary.editedAt}`,12,metaY);
+  doc.autoTable({
+    startY:metaY+6,
+    head:[["Date","Type","Commentaire","Immatriculation","Kilométrage véhicule","Montant TTC"]],
+    body:summary.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>[
+      formatDateFr(expense.date),expense.type||"",expense.comment||"",
+      expense.type==="Carburant"?expense.registration:"",
+      expense.type==="Carburant"?`${expense.mileage.toLocaleString("fr-FR").replace(/[\u00a0\u202f]/g," ")} km`:"",
+      formatExpenseAmount(expense.amount)
+    ]),
+    foot:[[{content:"Total TTC",colSpan:5,styles:{halign:"right"}},formatExpenseAmount(total)]],
+    styles:{fontSize:9,cellPadding:3,font:"helvetica"},
+    headStyles:{fillColor:[46,117,182],textColor:255,fontStyle:"bold"},
+    footStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontStyle:"bold"},
+    columnStyles:{0:{cellWidth:25},1:{cellWidth:23},2:{cellWidth:48},3:{cellWidth:35},4:{cellWidth:35},5:{halign:"right"}}
+  });
+  const finalY=doc.lastAutoTable.finalY||metaY+12;
+  doc.setFontSize(8);doc.setTextColor(140);
+  doc.text(`Généré via Arragon Planning le ${summary.editedAt}`,12,Math.min(finalY+8,285));
+  return doc;
+}
+function downloadExpenseSummaryPDF(){
+  try{
+    buildExpenseSummaryPDF().save(expenseSummaryFilename());
+    showToast("Fiche PDF téléchargée");
+  }catch(error){
+    console.warn("Téléchargement de la fiche PDF impossible",error);
+    showToast("Impossible de générer ou télécharger la fiche PDF",true);
+  }
+}
+function prepareExpenseSummaryEmail(){
+  const email=currentCollaborator?.email?.trim();
+  if(!email){showToast("Aucune adresse Google renseignée pour ce collaborateur",true);return;}
+  if(!expenseSummaryData){showToast("Aucune fiche récapitulative à envoyer",true);return;}
+  const total=expenseSummaryData.expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  const subject=`Demande de remboursement de frais – ${currentCollaborator.name} – ${formatDateFr(expenseSummaryData.submittedAt||todayInputDate())}`;
+  const body=`Bonjour,\n\nVeuillez trouver ci-joint ma demande de remboursement de frais professionnels, pour un montant total de ${formatExpenseAmount(total)}.\n\nLa fiche récapitulative PDF a été téléchargée sous le nom « ${expenseSummaryFilename()} ». Merci de la joindre à ce courriel avant envoi.\n\nCordialement,\n${currentCollaborator.name}`;
+  window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  showToast("Brouillon d’email ouvert — pense à joindre le PDF téléchargé avant l’envoi");
+}
 window.addEventListener("afterprint",()=>document.body.classList.remove("expense-print-mode"));
 async function saveExpense(event){
   event.preventDefault();
   const form=document.getElementById("expense-form");
   if(!form.reportValidity())return;
   const date=document.getElementById("expense-date").value;
+  const type=document.getElementById("expense-type").value;
+  const isFuel=type==="Carburant";
   const registration=document.getElementById("expense-registration").value;
-  const mileage=Number(document.getElementById("expense-mileage").value);
+  const mileageValue=document.getElementById("expense-mileage").value;
+  const mileage=isFuel?Number(mileageValue):"";
   const amount=Number(document.getElementById("expense-amount").value);
-  const updateMileage=document.getElementById("expense-update-mileage").checked;
-  const vehicle=sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration));
-  if(!vehicle){showToast("Choisis un véhicule enregistré",true);return;}
-  if(!Number.isInteger(mileage)||mileage<0){showToast("Saisis un kilométrage entier positif",true);return;}
+  const comment=document.getElementById("expense-comment").value.trim();
+  const updateMileage=isFuel&&document.getElementById("expense-update-mileage").checked;
+  const vehicle=isFuel?sheetVehicles.find(item=>normalizedRegistration(item.registration)===normalizedRegistration(registration)):null;
+  if(!EXPENSE_TYPES.includes(type)){showToast("Choisis un type de frais valide",true);return;}
+  if(isFuel&&!vehicle){showToast("Choisis un véhicule enregistré pour le carburant",true);return;}
+  if(isFuel&&(!mileageValue||!Number.isInteger(mileage)||mileage<0)){showToast("Saisis un kilométrage entier positif",true);return;}
   if(!Number.isFinite(amount)||amount<=0){showToast("Saisis un montant TTC supérieur à zéro",true);return;}
   if(updateMileage&&!vehicle._sheetRow){showToast("La fiche de ce véhicule est introuvable dans Google Sheets",true);return;}
   if(!expenseSheetId||!currentCollaborator){showToast("La feuille de frais du collaborateur n’est pas configurée",true);return;}
-  const expense={date,registration:vehicle.registration,mileage,amount,updateMileage:updateMileage?"Oui":"Non"};
+  const expense={date,registration:isFuel?vehicle.registration:"",mileage,amount,
+    updateMileage:updateMileage?"Oui":"Non",type,comment};
   const button=document.getElementById("expense-save-btn");
   button.disabled=true;button.textContent="Enregistrement…";
   try{
@@ -3868,7 +4268,7 @@ async function saveExpense(event){
     return;
   }
   sheetExpenses.push(expense);
-  closeExpenseForm();renderExpensesList();
+  closeExpenseForm();renderExpenseTrackingList();
   if(updateMileage){
     try{
       await sheetUpdateMerged(SHEET_TABS.vehicles,vehicle._sheetRow,vehicleCI,vehicleHC,
@@ -3884,6 +4284,250 @@ async function saveExpense(event){
     showToast("Frais enregistré ✓");
   }
   button.disabled=false;button.textContent="Enregistrer le frais";
+}
+
+function expenseRowMarkup(expense,allowAssembly,grouped=false,isGroupLast=false){
+  const fuel=expense.type==="Carburant";
+  return `<tr class="${grouped?`expense-batch-item${isGroupLast?" expense-batch-item-last":""}`:""}">
+    <td><input type="checkbox" aria-label="Assembler le frais du ${htmlEscape(expense.date)}"
+      data-expense-row="${expense._sheetRow}" ${allowAssembly?"":"disabled"}
+      ${selectedExpenseRows.has(expense._sheetRow)?"checked":""} onchange="toggleExpenseSelection(this)"></td>
+    <td class="expense-date-cell">${htmlEscape(formatDateFr(expense.date))}</td>
+    <td>${htmlEscape(expense.type||"")}</td>
+    <td class="expense-comment-cell">${htmlEscape(expense.comment||"")}</td>
+    <td>${fuel?htmlEscape(expense.registration):""}</td>
+    <td>${fuel?`${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km`:""}</td>
+    <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td>
+    <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer remboursé le frais du ${htmlEscape(expense.date)}"
+      data-expense-reimbursed="${expense._sheetRow}" ${expense.reimbursed?"checked":""}
+      onchange="toggleExpenseReimbursement(this)"></td>
+    <td class="expense-row-actions"><button class="rc-btn" onclick="deleteExpense(${expense._sheetRow})">Supprimer</button></td>
+  </tr>`;
+}
+function expenseTableMarkup(expenses,allowAssembly){
+  const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>expenseRowMarkup(expense,allowAssembly)).join("");
+  return `<div class="rc-table-wrap"><table class="expense-table">
+    <thead><tr><th>Assembler</th><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+function expenseBatchToggleState(input,batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  const reimbursed=expenses.filter(expense=>expense.reimbursed).length;
+  input.checked=expenses.length>0&&reimbursed===expenses.length;
+  input.indeterminate=reimbursed>0&&reimbursed<expenses.length;
+}
+function renderExpenseTrackingList(){
+  const list=document.getElementById("expenses-list");
+  const activeExpenses=sheetExpenses.filter(expense=>!expense.reimbursed);
+  const historyExpenses=sheetExpenses.filter(expense=>expense.reimbursed);
+  const total=activeExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+  document.getElementById("expenses-total").textContent=`Total des frais actifs : ${formatExpenseAmount(total)}`;
+  document.getElementById("expenses-collaborator").textContent=currentCollaborator?.name||"";
+  const batches=new Map();
+  activeExpenses.filter(expense=>expense.batchId).forEach(expense=>{
+    if(!batches.has(expense.batchId))batches.set(expense.batchId,[]);
+    batches.get(expense.batchId).push(expense);
+  });
+  const entries=[
+    ...activeExpenses.filter(expense=>!expense.batchId).map(expense=>({date:expense.date,expense})),
+    ...Array.from(batches,([batchId,expenses])=>({
+      date:expenses.map(expense=>expense.date).sort().pop()||"",
+      batchId,expenses
+    }))
+  ].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=entries.map(entry=>{
+    if(entry.expense)return expenseRowMarkup(entry.expense,true);
+    const expenses=entry.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const allBatchExpenses=sheetExpenses.filter(expense=>expense.batchId===entry.batchId);
+    const refundedCount=allBatchExpenses.filter(expense=>expense.reimbursed).length;
+    const submittedAt=allBatchExpenses.map(expense=>expense.submittedAt).sort().pop()||"";
+    const batchTotal=allBatchExpenses.reduce((sum,expense)=>sum+expense.amount,0);
+    const groupedRows=expenses.map((expense,index)=>expenseRowMarkup(expense,false,true,index===expenses.length-1)).join("");
+    return `<tr class="expense-batch-header">
+      <td></td><td colspan="5"><strong>Demande du ${htmlEscape(formatDateFr(submittedAt))} · ${allBatchExpenses.length} frais, ${expenses.length} actifs</strong></td>
+      <td><button class="rc-btn" onclick="printExpenseBatch('${htmlEscape(entry.batchId)}')">Voir / imprimer le PDF</button></td>
+      <td><input class="expense-reimbursed" type="checkbox" aria-label="Marquer toute la demande comme remboursée"
+        data-batch-toggle="${htmlEscape(entry.batchId)}" ${refundedCount===allBatchExpenses.length?"checked":""}
+        onchange="toggleExpenseBatchReimbursement(this)"></td>
+      <td class="expense-row-actions"><button class="rc-btn" onclick="explodeExpenseBatch('${htmlEscape(entry.batchId)}')">Dégrouper</button></td>
+    </tr>${groupedRows}
+    <tr class="expense-batch-total"><td colspan="6">Total de la demande</td><td>${htmlEscape(formatExpenseAmount(batchTotal))}</td><td></td><td></td></tr>`;
+  }).join("");
+  const activeTable=rows?`<div class="rc-table-wrap"><table class="expense-table">
+    <thead><tr><th>Assembler</th><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage</th><th>Montant TTC</th><th>Remboursé</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`:`<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Aucun frais actif.</div>`;
+  list.innerHTML=activeTable+renderExpenseHistoryByMonth(historyExpenses);
+  list.querySelectorAll("[data-batch-toggle]").forEach(input=>expenseBatchToggleState(input,input.dataset.batchToggle));
+}
+function renderExpenseHistoryByMonth(expenses){
+  if(!expenses.length)return"";
+  const months=new Map();
+  expenses.forEach(expense=>{
+    const key=expense.date.slice(0,7)||"date-inconnue";
+    if(!months.has(key))months.set(key,[]);
+    months.get(key).push(expense);
+  });
+  const monthSections=Array.from(months).sort(([a],[b])=>b.localeCompare(a)).map(([month,items])=>{
+    const monthTotal=items.reduce((sum,expense)=>sum+expense.amount,0);
+    const label=month==="date-inconnue"?"Date inconnue":
+      new Date(`${month}-01T12:00:00`).toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    return `<details class="expense-history-month">
+      <summary><span>${htmlEscape(label)} · ${items.length} frais</span><strong>${htmlEscape(formatExpenseAmount(monthTotal))}</strong></summary>
+      ${expenseTableMarkup(items,false)}
+    </details>`;
+  }).join("");
+  const historyTotal=expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  return `<details class="expense-history">
+    <summary>Historique remboursé · ${expenses.length} frais · ${htmlEscape(formatExpenseAmount(historyTotal))}</summary>
+    ${monthSections}
+  </details>`;
+}
+async function updateExpenseReimbursement(sheetRows,reimbursed){
+  const expenses=sheetExpenses.filter(expense=>sheetRows.includes(expense._sheetRow));
+  const column=expenseCI.reimbursed;
+  if(column===undefined)throw new Error("Colonne de remboursement absente de la feuille.");
+  const data=expenses.map(expense=>({
+    range:`${SHEET_TABS.expenses}!${sheetColLetter(column+1)}${expense._sheetRow}`,
+    values:[[reimbursed?"Oui":"Non"]]
+  }));
+  await sheetBatchUpdateValues(data,expenseSheetId);
+  expenses.forEach(expense=>{expense.reimbursed=reimbursed;});
+  renderExpenseTrackingList();
+}
+async function toggleExpenseReimbursement(input){
+  const sheetRow=Number(input.dataset.expenseReimbursed);
+  try{
+    await updateExpenseReimbursement([sheetRow],input.checked);
+  }catch(error){
+    console.warn("Mise à jour du remboursement impossible",error);
+    showToast("Impossible d’enregistrer le statut du remboursement",true);
+    renderExpenseTrackingList();
+  }
+}
+async function toggleExpenseBatchReimbursement(input){
+  const batchId=input.dataset.batchToggle;
+  const sheetRows=sheetExpenses.filter(expense=>expense.batchId===batchId).map(expense=>expense._sheetRow);
+  try{
+    await updateExpenseReimbursement(sheetRows,input.checked);
+  }catch(error){
+    console.warn("Mise à jour du remboursement de l’assemblage impossible",error);
+    showToast("Impossible d’enregistrer le statut du remboursement",true);
+    renderExpenseTrackingList();
+  }
+}
+async function deleteExpense(sheetRow){
+  const expense=sheetExpenses.find(item=>item._sheetRow===sheetRow);
+  if(!expense)return;
+  if(!window.confirm(`Supprimer définitivement le frais du ${formatDateFr(expense.date)} (${formatExpenseAmount(expense.amount)}) ?`))return;
+  try{
+    const metadataResponse=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(expenseSheetId)}?fields=sheets.properties(sheetId,title)`,
+      {headers:{Authorization:"Bearer "+accessToken}});
+    if(!metadataResponse.ok)throw new Error(`Lecture de la feuille des frais impossible (${metadataResponse.status})`);
+    const metadata=await metadataResponse.json();
+    const sheet=(metadata.sheets||[]).find(item=>item.properties?.title===SHEET_TABS.expenses);
+    if(!sheet)throw new Error("Onglet Frais introuvable.");
+    const response=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(expenseSheetId)}:batchUpdate`,{
+      method:"POST",
+      headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+      body:JSON.stringify({requests:[{deleteDimension:{range:{
+        sheetId:sheet.properties.sheetId,dimension:"ROWS",startIndex:sheetRow-1,endIndex:sheetRow
+      }}}]})
+    });
+    if(!response.ok)throw new Error(`Suppression du frais impossible (${response.status})`);
+    sheetExpenses=sheetExpenses.filter(item=>item!==expense);
+    const shiftedSelections=Array.from(selectedExpenseRows,row=>row===sheetRow?null:row>sheetRow?row-1:row).filter(row=>row!==null);
+    selectedExpenseRows.clear();
+    shiftedSelections.forEach(row=>selectedExpenseRows.add(row));
+    sheetExpenses.forEach(item=>{if(item._sheetRow>sheetRow)item._sheetRow--;});
+    renderExpenseTrackingList();
+    showToast("Frais supprimé");
+  }catch(error){
+    console.warn("Suppression du frais impossible",error);
+    showToast("Impossible de supprimer le frais dans Google Sheets",true);
+  }
+}
+async function explodeExpenseBatch(batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  if(!expenses.length)return;
+  if(!window.confirm(`Dégrouper cette demande ? Ses ${expenses.length} frais resteront dans la liste et pourront être assemblés à nouveau.`))return;
+  if(expenseCI.batchId===undefined||expenseCI.submittedAt===undefined){
+    showToast("Colonnes de regroupement absentes de la feuille",true);return;
+  }
+  try{
+    const data=[];
+    expenses.forEach(expense=>{
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.batchId+1)}${expense._sheetRow}`,values:[[""]]});
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.submittedAt+1)}${expense._sheetRow}`,values:[[""]]});
+    });
+    await sheetBatchUpdateValues(data,expenseSheetId);
+    expenses.forEach(expense=>{expense.batchId="";expense.submittedAt="";});
+    renderExpenseTrackingList();
+    showToast("Demande dégroupée : les frais sont de nouveau individuels et assemblables");
+  }catch(error){
+    console.warn("Dégroupage de la demande impossible",error);
+    showToast("Impossible de dégrouper la demande dans Google Sheets",true);
+  }
+}
+function createExpenseBatchId(){
+  return window.crypto?.randomUUID?window.crypto.randomUUID():`frais-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
+}
+async function createExpenseBatch(){
+  const expenses=sheetExpenses.filter(expense=>
+    selectedExpenseRows.has(expense._sheetRow)&&!expense.reimbursed&&!expense.batchId);
+  if(!expenses.length){showToast("Sélectionne au moins un frais actif non encore envoyé",true);return;}
+  const batchId=createExpenseBatchId();
+  const submittedAt=todayInputDate();
+  const button=document.querySelector(".expense-list-toolbar button");
+  if(button){button.disabled=true;button.textContent="Assemblage…";}
+  try{
+    const data=[];
+    expenses.forEach(expense=>{
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.batchId+1)}${expense._sheetRow}`,values:[[batchId]]});
+      data.push({range:`${SHEET_TABS.expenses}!${sheetColLetter(expenseCI.submittedAt+1)}${expense._sheetRow}`,values:[[submittedAt]]});
+    });
+    await sheetBatchUpdateValues(data,expenseSheetId);
+    expenses.forEach(expense=>{expense.batchId=batchId;expense.submittedAt=submittedAt;});
+    selectedExpenseRows.clear();
+    renderExpenseTrackingList();
+    showExpenseBatchSummary(expenses,batchId,submittedAt,true);
+  }catch(error){
+    console.warn("Assemblage des frais impossible",error);
+    showToast("Impossible d’enregistrer la demande de remboursement dans Google Sheets",true);
+  }finally{
+    if(button){button.disabled=false;button.textContent="Assembler et générer le PDF";}
+  }
+}
+function showExpenseBatchSummary(expenses,batchId,submittedAt,downloadPDF=false){
+  const summary={expenses:expenses.slice(),batchId,submittedAt,editedAt:new Date().toLocaleDateString("fr-FR")};
+  expenseSummaryData=summary;
+  const total=expenses.reduce((sum,expense)=>sum+expense.amount,0);
+  const rows=expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(expense=>`
+    <tr><td>${htmlEscape(formatDateFr(expense.date))}</td><td>${htmlEscape(expense.type||"")}</td>
+    <td>${htmlEscape(expense.comment||"")}</td><td>${expense.type==="Carburant"?htmlEscape(expense.registration):""}</td>
+    <td>${expense.type==="Carburant"?`${htmlEscape(expense.mileage.toLocaleString("fr-FR"))} km`:""}</td>
+    <td>${htmlEscape(formatExpenseAmount(expense.amount))}</td></tr>`).join("");
+  document.getElementById("expense-summary").innerHTML=`
+    <h2>Fiche récapitulative des frais</h2>
+    <div class="expense-summary-meta"><strong>Collaborateur : ${htmlEscape(currentCollaborator.name)}</strong>
+    <span>Demande du ${htmlEscape(formatDateFr(submittedAt))} · Éditée le ${htmlEscape(summary.editedAt)}</span></div>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Commentaire</th><th>Immatriculation</th><th>Kilométrage véhicule</th><th>Montant TTC</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="5">Total TTC</td><td>${htmlEscape(formatExpenseAmount(total))}</td></tr></tfoot></table>
+    <div class="expense-summary-actions"><button class="btn-modal-save" onclick="downloadExpenseSummaryPDF()">Télécharger le PDF</button>
+    <button class="rc-btn" onclick="printExpenseSummary()">Imprimer</button>
+    <button class="rc-btn" ${currentCollaborator?.email?"":"disabled"} onclick="prepareExpenseSummaryEmail()">Préparer l’email</button>
+    <button class="rc-btn" onclick="closeExpenseSummary()">Fermer</button></div>`;
+  document.getElementById("expense-summary").dataset.batchId=batchId;
+  document.getElementById("expense-summary").style.display="block";
+  if(downloadPDF)downloadExpenseSummaryPDF();
+  else showToast("Fiche récap prête à télécharger, imprimer ou envoyer par email");
+}
+function printExpenseBatch(batchId){
+  const expenses=sheetExpenses.filter(expense=>expense.batchId===batchId);
+  if(!expenses.length){showToast("Aucun frais trouvé pour cette demande",true);return;}
+  const submittedAt=expenses.map(expense=>expense.submittedAt).sort().pop()||"";
+  showExpenseBatchSummary(expenses,batchId,submittedAt);
 }
 
 renderSidebarDos();renderSidebarCollabs();renderSidebarMat();
