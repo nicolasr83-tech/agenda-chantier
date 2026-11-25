@@ -386,6 +386,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
           <div class="s-field"><label>Téléphone interlocuteur</label><input id="f-dos-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="off"></div>
           <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="12 Rue de la Paix, 83000" autocomplete="off"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <label style="font-size:12px;font-weight:600">Prestations du dossier</label>
+            <button type="button" class="btn-add-s" onclick="openDossierPrestationsPopup()" title="Ajouter des prestations et tarifs">＋</button>
+          </div>
           <div class="s-grid2" id="f-dos-prices"></div>
           <button type="button" class="rc-btn" onclick="openPrestationManager('dossier')" style="margin:-2px 0 8px">Gérer les prestations</button>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:4px">
@@ -604,7 +608,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <span class="search-modal-icon">🔍</span>
           <input type="search" id="m-dos-search" placeholder="Rechercher un dossier…" oninput="filterModalDos()" autocomplete="off">
         </div>
-        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0"></select>
+        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0" onchange="onEventDossierChange()"></select>
       </div>
       <div class="m-field">
         <label>Collaborateur</label>
@@ -618,7 +622,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
         <label>Prestation</label>
         <div class="m-toggle" id="m-prest-toggle">
         </div>
-        <button type="button" class="rc-btn" onclick="addPrestationFromEvent()" style="margin-top:6px">＋ Nouvelle prestation</button>
         <div class="half-day-toggle" id="half-day-toggle">
           <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
           <button class="hd-btn" id="hd-aprem" onclick="setHalfDay('aprem',this)">🌇 Après-midi<br><span style="font-size:10px;font-weight:400">14h – 17h</span></button>
@@ -653,6 +656,20 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <button class="btn-modal-del" id="btn-del" onclick="deleteEvent()" style="display:none" title="Supprimer">🗑</button>
       <button class="btn-modal-cancel" onclick="closeModal()">Annuler</button>
       <button class="btn-modal-save" onclick="saveEvent()" id="btn-modal-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="dos-prestation-price-modal-bg" style="z-index:410" onclick="if(event.target===this)closeDossierPrestationsPopup()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div><div class="modal-title">Prestations et tarifs du dossier</div></div>
+      <button class="modal-close" onclick="closeDossierPrestationsPopup()">✕</button>
+    </div>
+    <div class="modal-body" id="dos-prestation-price-list"></div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeDossierPrestationsPopup()">Annuler</button>
+      <button class="btn-modal-save" onclick="saveDossierPrestationsPopup()">Valider</button>
     </div>
   </div>
 </div>
@@ -809,6 +826,7 @@ let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre c
 let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicleIdx=null;
+let dossierPriceDraft={};
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
@@ -1250,17 +1268,44 @@ function renderPrestations(){
   }
   renderDosPriceFields();
 }
-function renderDosPriceFields(){
+function renderDosPriceFields(captureCurrent=true){
   const fields=document.getElementById("f-dos-prices");
   if(!fields)return;
-  const previousValues=Object.fromEntries(PRESTATIONS.map(service=>[
-    service.code,document.getElementById(`f-dos-price-${service.code}`)?.value||""
-  ]));
-  fields.innerHTML=PRESTATIONS.map(service=>`<div class="s-field"><label>Prix ${escapeHtml(service.label)}</label><input id="f-dos-price-${service.code}" type="number" placeholder="0"></div>`).join("");
+  if(captureCurrent)captureDossierPriceDraft();
+  const active=PRESTATIONS.filter(service=>parseFloat(dossierPriceDraft[service.code])>0);
+  fields.innerHTML=active.length?active.map(service=>`<div class="s-field"><label>Prix ${escapeHtml(service.label)}</label><input id="f-dos-price-${service.code}" type="number" min="0" value="${escapeHtml(dossierPriceDraft[service.code])}" oninput="updateDossierPriceDraft('${service.code}',this.value)" onchange="updateDossierPriceDraft('${service.code}',this.value);renderDosPriceFields(false)" placeholder="0"></div>`).join("")
+    :`<div style="font-size:11px;color:var(--muted);padding:4px 0 8px">Aucune prestation tarifée pour ce dossier.</div>`;
+}
+function captureDossierPriceDraft(){
   PRESTATIONS.forEach(service=>{
     const input=document.getElementById(`f-dos-price-${service.code}`);
-    if(input)input.value=previousValues[service.code]||"";
+    if(input)dossierPriceDraft[service.code]=input.value;
+    else if(dossierPriceDraft[service.code]===undefined)dossierPriceDraft[service.code]="";
   });
+}
+function updateDossierPriceDraft(code,value){
+  dossierPriceDraft[code]=value;
+}
+function openDossierPrestationsPopup(){
+  captureDossierPriceDraft();
+  const list=document.getElementById("dos-prestation-price-list");
+  list.innerHTML=PRESTATIONS.map(service=>`<label style="display:grid;grid-template-columns:1fr 130px;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+    <span>${escapeHtml(service.label)}</span>
+    <input class="m-input" type="number" min="0" step="0.01" data-prestation-code="${service.code}" value="${escapeHtml(parseFloat(dossierPriceDraft[service.code])>0?dossierPriceDraft[service.code]:"")}" placeholder="Prix (€)">
+  </label>`).join("");
+  document.getElementById("dos-prestation-price-modal-bg").classList.add("open");
+}
+function closeDossierPrestationsPopup(){
+  document.getElementById("dos-prestation-price-modal-bg").classList.remove("open");
+}
+function saveDossierPrestationsPopup(){
+  PRESTATIONS.forEach(service=>{
+    const input=document.querySelector(`#dos-prestation-price-list [data-prestation-code="${service.code}"]`);
+    const price=parseFloat(input?.value)||0;
+    dossierPriceDraft[service.code]=price>0?String(price):"";
+  });
+  closeDossierPrestationsPopup();
+  renderDosPriceFields(false);
 }
 function mapDossierRow(row,index){
   const dossier={
@@ -1419,8 +1464,7 @@ async function savePrestation(){
     await reloadPrestations();
     closePrestationForm();
     showToast(service?"Horaires mis à jour ✓":`Prestation ${label} ajoutée ✓`);
-    if(!service&&(prestationReturnContext==="event"||prestationReturnContext==="dossier")){
-      if(prestationReturnContext==="event")setPrest(code,document.querySelector(`#m-prest-toggle [data-code="${code}"]`));
+    if(!service&&prestationReturnContext==="dossier"){
       returnFromPrestationManager();
     }
   }catch(error){
@@ -1813,6 +1857,10 @@ function openDosForm(idx){
   const f=document.getElementById("dos-form");f.classList.add("visible");
   document.getElementById("dos-form-title").textContent=idx!=null?"Modifier le dossier":"Nouveau dossier";
   const d=idx!=null?sheetDossiers[idx]:null;
+  dossierPriceDraft=Object.fromEntries(PRESTATIONS.map(service=>[
+    service.code,d&&parseFloat(d[service.priceKey])>0?String(d[service.priceKey]):""
+  ]));
+  document.getElementById("f-dos-prices").innerHTML="";
   renderDosPriceFields();
   document.getElementById("f-dos-num").value=d?.num||"";
   populateDosClientSelect(d?.client||"");
@@ -1821,10 +1869,6 @@ function openDosForm(idx){
   document.getElementById("f-dos-email").value=d?.email||"";
   document.getElementById("f-dos-tel").value=d?.tel||"";
   document.getElementById("f-dos-adresse").value=d?.adresse||"";
-  PRESTATIONS.forEach(service=>{
-    const input=document.getElementById(`f-dos-price-${service.code}`);
-    if(input)input.value=d?.[service.priceKey]||"";
-  });
   document.getElementById("f-dos-archive").checked=d?.archive||false;
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
@@ -1862,8 +1906,9 @@ async function saveDos(){
     adresse:document.getElementById("f-dos-adresse").value.trim(),
     archive:document.getElementById("f-dos-archive")?.checked||false,
   };
+  captureDossierPriceDraft();
   PRESTATIONS.forEach(service=>{
-    d[service.priceKey]=parseFloat(document.getElementById(`f-dos-price-${service.code}`)?.value)||0;
+    d[service.priceKey]=parseFloat(dossierPriceDraft[service.code])||0;
   });
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
   const values={num:d.num,client:d.client,lieu:d.lieu,interlocuteur:d.interlocuteur,adresse:d.adresse,
@@ -3001,12 +3046,13 @@ function openModal(ds){
   document.getElementById("m-notes").value="";
   document.getElementById("m-dos-search").value="";
   setModalMatSelection([]);
-  setPrest("1T",document.querySelector("[data-code='1T']"));
   selectedHalfDay="matin";
   document.getElementById("hd-matin").classList.add("active");
   document.getElementById("hd-aprem").classList.remove("active");
   document.getElementById("half-day-toggle").classList.remove("visible");
-  filterModalDos();updateModalCollab();updateModalMat();
+  filterModalDos();
+  updateEventPrestOptions();
+  updateModalCollab();updateModalMat();
   document.getElementById("m-collab").value=sheetCollabs.length?"0":"";
   onEventCollabChange();
   document.getElementById("m-mat-warning").style.display="none";
@@ -3044,7 +3090,9 @@ function openEditModal(evId){
   }
   if(parts.length>=2){
     const rawCode=parts[1]; // "HT", "1T", "B", "N", "S3D"
-    const validCode=PREST_KEYS.includes(rawCode)?rawCode:(PREST_KEYS[0]||"");
+    updateEventPrestOptions(rawCode);
+    const visibleCodes=Array.from(document.querySelectorAll("#m-prest-toggle [data-code]")).map(button=>button.dataset.code);
+    const validCode=visibleCodes.includes(rawCode)?rawCode:(visibleCodes.includes("1T")?"1T":visibleCodes[0]||"");
     // Appeler setPrest pour les horaires par défaut + gérer l'affichage ½ journée
     const btn=document.querySelector(`[data-code="${validCode}"]`);
     setPrest(validCode,btn);
@@ -3090,6 +3138,29 @@ function filterModalDos(){
 }
 let selectedHalfDay="matin"; // "matin" ou "aprem"
 
+function eventPrestOptions(dossierNum){
+  const dossier=dosById(dossierNum);
+  const active=dossier?PRESTATIONS.filter(service=>prestActive(dossier,service.code)):[];
+  if(active.length)return active;
+  const defaultService=PRESTATIONS.find(service=>service.code==="1T")||PRESTATIONS[0];
+  return defaultService?[defaultService]:[];
+}
+function updateEventPrestOptions(preserveCode){
+  const allowed=eventPrestOptions(document.getElementById("m-dossier")?.value);
+  if(preserveCode&&!allowed.some(service=>service.code===preserveCode)){
+    const existing=PRESTATIONS.find(service=>service.code===preserveCode);
+    if(existing)allowed.push(existing);
+  }
+  const toggle=document.getElementById("m-prest-toggle");
+  toggle.innerHTML=allowed.map(service=>`<button data-code="${service.code}" onclick="setPrest('${service.code}',this)">${escapeHtml(service.label)}</button>`).join("");
+  const selected=allowed.find(service=>service.code===selectedPrest);
+  const fallback=allowed.find(service=>service.code==="1T")||allowed[0];
+  const chosen=selected||fallback;
+  if(chosen)setPrest(chosen.code,toggle.querySelector(`[data-code="${chosen.code}"]`));
+}
+function onEventDossierChange(){
+  updateEventPrestOptions();
+}
 function setPrest(code,el){
   const service=PRESTATIONS.find(item=>item.code===code);
   if(!service)return;
@@ -3108,7 +3179,6 @@ function setPrest(code,el){
   document.getElementById("m-time-end").value=toTime(endMinutes);
   checkMatConflict();
 }
-function addPrestationFromEvent(){openPrestationManager("event");}
 function setHalfDay(period,el,applyTimes){
   selectedHalfDay=period;
   document.querySelectorAll(".hd-btn").forEach(b=>b.classList.remove("active"));
@@ -3158,6 +3228,9 @@ async function saveEvent(){
   const ds=document.getElementById("m-date-start")?.value;
   const de=document.getElementById("m-date-end")?.value||ds;
   if(!dos||!ds){showToast("Remplis les champs obligatoires",true);return;}
+  if(!document.querySelector(`#m-prest-toggle [data-code="${selectedPrest}"]`)){
+    showToast("Choisis une prestation autorisée pour ce dossier",true);return;
+  }
   const idx=parseInt(document.getElementById("m-collab")?.value);
   const collab=(!isNaN(idx)&&sheetCollabs[idx])?sheetCollabs[idx]:null;
   const tStart=document.getElementById("m-time-start")?.value||"08:00";
