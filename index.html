@@ -3332,7 +3332,7 @@ function parseEventsToByDossier(events){
     const qty=nbJ;
     if(!byDossier[dos])byDossier[dos]=[];
     const evDesc = ev.description||"";
-    const evNote = evDesc.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0]||"";
+    const evNote = evDesc.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Véhicule")&&!l.includes("Créé via"))[0]||"";
     byDossier[dos].push({date:ds,dateEnd:de,code,title:ev.summary,nbJ,qty,description:evDesc,note:evNote});
   });
   return byDossier;
@@ -3911,7 +3911,7 @@ function buildDossierPDF(dos,year,month,byDossier){
     body:evs.sort((a,b)=>a.date.localeCompare(b.date)).map(ev=>[
       formatDateShort(ev.date), ev.dateEnd&&ev.dateEnd!==ev.date?formatDateShort(ev.dateEnd):"",
       PREST_LABELS[PREST_KEYS.indexOf(ev.code)]||ev.code, ev.qty,
-      (ev.note || (ev.description? ev.description.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Créé via"))[0] : "") )||""
+      ((ev.note&&!ev.note.includes("Véhicule"))?ev.note:(ev.description?ev.description.split("\n").filter(l=>!l.includes("–")&&!l.includes("Collaborateur")&&!l.includes("Interlocuteur")&&!l.includes("Matériel")&&!l.includes("Véhicule")&&!l.includes("Créé via"))[0]: "") )||""
     ]),
     styles:{fontSize:8,cellPadding:2,font:"helvetica"},
     headStyles:{fillColor:[214,228,247],textColor:[31,56,100],fontSize:8},
