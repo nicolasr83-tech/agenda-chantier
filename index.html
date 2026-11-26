@@ -134,17 +134,29 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 /* Calendar */
 .cal-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .cal-nav{display:flex;align-items:center;padding:8px 12px;gap:6px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0}
-.cal-title{flex:1;font-size:15px;font-weight:700;text-align:center}
+.cal-title{flex:1;display:flex;align-items:center;justify-content:center;gap:2px;min-width:0}
+.cal-date-select{border:0;background:transparent;color:var(--text);font-size:15px;font-weight:700;padding:4px 2px;cursor:pointer}
+.cal-date-select:hover{color:var(--blue)}
+.cal-date-select:focus-visible,.cal-view-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+.cal-year-select{font-weight:500}
+.cal-view-toggle{display:flex;align-items:center;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0}
+.cal-view-btn{border:0;border-right:1px solid var(--border);background:var(--white);color:var(--text);padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.cal-view-btn:last-child{border-right:0}
+.cal-view-btn:hover{background:var(--grey)}
+.cal-view-btn.active{background:var(--blue);color:var(--white)}
 .cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:13px;color:var(--text)}
 .cal-nav-btn:hover{background:var(--grey)}
 .btn-today{background:var(--blue);color:var(--white);border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
-.cal-grid{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cal-grid{flex:1;overflow-x:auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .cal-dow{display:grid;grid-template-columns:28px repeat(7,minmax(0,1fr));background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
 .cal-dow-cell{padding:5px 0;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase}
 .cal-week-label{padding:5px 0;text-align:center;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;border-right:1px solid var(--border)}
 .cal-dow-cell:first-child,.cal-dow-cell:last-child{color:var(--red)}
 .cal-days{display:grid;grid-template-columns:28px repeat(7,minmax(0,1fr));grid-auto-rows:160px}
+.cal-days.week-view{grid-auto-rows:minmax(160px,1fr)}
 .cal-week-cell{display:flex;align-items:flex-start;justify-content:center;padding-top:7px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--grey);color:var(--muted);font-size:10px;font-weight:700}
+.cal-week-cell button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:4px}
+.cal-week-cell button:hover{color:var(--blue);text-decoration:underline}
 .cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:3px;cursor:pointer;background:var(--white);overflow:hidden}
 .cal-cell.week-last{border-right:none}
 .cal-cell:hover{background:#f8faff}
@@ -159,6 +171,13 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .ev-chip:hover{opacity:.85}
 .ev-more{font-size:9px;color:var(--muted);padding:1px 3px;cursor:pointer;font-weight:600}
 .ev-more:hover{color:var(--blue);text-decoration:underline}
+.planning-all-day-label,.planning-all-day{min-height:44px;border-bottom:1px solid var(--border);background:var(--white)}
+.planning-all-day-label{position:sticky;top:0;left:0;z-index:3;padding:6px 4px;font-size:9px;color:var(--muted);text-align:center}
+.planning-all-day{position:sticky;top:0;z-index:2;padding:3px;border-left:1px solid var(--border);overflow:hidden}
+.planning-hour-label{position:sticky;left:0;z-index:2;padding:0 5px;text-align:right;font-size:10px;color:var(--muted);background:var(--white);border-bottom:1px solid var(--border);transform:translateY(-7px)}
+.planning-day-column{position:relative;grid-row:2/26;height:1440px;border-left:1px solid var(--border);background:repeating-linear-gradient(to bottom,var(--white) 0,var(--white) 59px,var(--border) 59px,var(--border) 60px)}
+.planning-event{position:absolute;left:2px;right:2px;overflow:hidden;border-radius:4px;padding:2px 4px;color:var(--white);font-size:10px;font-weight:600;line-height:1.3;cursor:pointer;z-index:1}
+.planning-event:hover{filter:brightness(.92)}
 
 /* Mobile */
 .fab{display:none;position:fixed;bottom:calc(20px + var(--safe-bottom));right:20px;width:50px;height:50px;border-radius:50%;background:var(--blue);color:var(--white);border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(46,117,182,.4);z-index:100;align-items:center;justify-content:center}
@@ -219,6 +238,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 
 /* Mobile responsive */
 @media(max-width:768px){
+  .cal-nav{flex-wrap:wrap;padding:6px 8px}
+  .cal-title{flex:1 1 120px;order:0}
+  .cal-date-select{font-size:14px}
+  .cal-view-toggle{order:1}
+  .cal-nav>.btn-today{order:2}
+  .cal-view-btn{padding:5px 6px;font-size:10px}
   .fab{display:flex}
   .sidebar{position:absolute;top:0;left:0;height:100%;transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
@@ -572,8 +597,16 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   <div class="cal-wrap">
     <div class="cal-nav">
       <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
-      <div class="cal-title" id="cal-title"></div>
+      <div class="cal-title" id="cal-title" aria-label="Choisir le mois et l’année">
+        <select class="cal-date-select" id="cal-month-select" aria-label="Mois affiché" onchange="onCalendarDateChange()"></select>
+        <select class="cal-date-select cal-year-select" id="cal-year-select" aria-label="Année affichée" onchange="onCalendarDateChange()"></select>
+      </div>
       <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      <div class="cal-view-toggle" role="group" aria-label="Vue du calendrier">
+        <button class="cal-view-btn active" data-view="month" onclick="setCalendarView('month')">Mois</button>
+        <button class="cal-view-btn" data-view="week" onclick="setCalendarView('week')">Semaine</button>
+        <button class="cal-view-btn" data-view="planning" onclick="setCalendarView('planning')">Planning</button>
+      </div>
       <button class="btn-today" onclick="goToday()">Aujourd'hui</button>
       <button id="btn-weekend" onclick="toggleWeekend()" title="Afficher/masquer Sam/Dim"
         style="background:var(--grey);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">S/D</button>
@@ -819,6 +852,7 @@ const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
+let calAnchorDate=new Date(),calView="month";
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[], sheetVehicleDefects=[];
 let prestationsCI={},prestationsHC=0;
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
@@ -2807,14 +2841,20 @@ function handleCalendarDayClick(ds){
 
 async function loadCalendar(silent){
   if(!accessToken)return;
-  // Charger les semaines complètes qui contiennent le mois, afin que les
-  // jours juste avant/après le mois puissent afficher leurs événements.
-  const monthFirst=new Date(curYear,curMonth,1);
-  const monthLast=new Date(curYear,curMonth+1,0);
-  const firstOffset=monthFirst.getDay()===0?6:monthFirst.getDay()-1;
-  const lastOffset=monthLast.getDay()===0?0:6-monthLast.getDay();
-  const rangeFirst=new Date(curYear,curMonth,1-firstOffset);
-  const rangeLast=new Date(curYear,curMonth+1,lastOffset,23,59,59);
+  let rangeFirst,rangeLast;
+  if(calView==="month"){
+    const monthFirst=new Date(curYear,curMonth,1);
+    const monthLast=new Date(curYear,curMonth+1,0);
+    const firstOffset=monthFirst.getDay()===0?6:monthFirst.getDay()-1;
+    const lastOffset=monthLast.getDay()===0?0:6-monthLast.getDay();
+    rangeFirst=new Date(curYear,curMonth,1-firstOffset);
+    rangeLast=new Date(curYear,curMonth+1,lastOffset,23,59,59);
+  }else{
+    rangeFirst=getCalendarWeekStart(calAnchorDate);
+    rangeLast=new Date(rangeFirst);
+    rangeLast.setDate(rangeLast.getDate()+7);
+    rangeLast.setSeconds(rangeLast.getSeconds()-1);
+  }
   const first=rangeFirst.toISOString();
   const last=rangeLast.toISOString();
   if(!silent)setLoading(true);
@@ -2876,11 +2916,59 @@ function updateWeekendButton(){
 
 function renderDow(){
   const days=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-  const filtered=hideWeekend?days.slice(0,5):days;
-  document.getElementById("cal-dow").innerHTML=`<div class="cal-week-label">Sem.</div>`+filtered.map((d,i)=>{
+  const count=hideWeekend?5:7;
+  const start=getCalendarWeekStart(calAnchorDate);
+  if(calView==="planning"){
+    const headings=Array.from({length:count},(_,i)=>{
+      const date=new Date(start);date.setDate(date.getDate()+i);
+      const label=date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
+      const weekend=date.getDay()===0||date.getDay()===6;
+      return `<div class="cal-dow-cell"${weekend?' style="color:var(--red)"':""}>${label}</div>`;
+    }).join("");
+    document.getElementById("cal-dow").style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
+    document.getElementById("cal-dow").innerHTML=`<div class="cal-week-label"></div>${headings}`;
+    return;
+  }
+  const filtered=days.slice(0,count);
+  const labels=filtered.map((day,i)=>{
+    const date=new Date(start);date.setDate(date.getDate()+i);
+    const label=calView==="week"?`${day} ${date.getDate()}`:day;
     const isWE=!hideWeekend&&i>=5;
-    return `<div class="cal-dow-cell"${isWE?' style="color:var(--red)"':""}>${d}</div>`;
+    return `<div class="cal-dow-cell"${isWE?' style="color:var(--red)"':""}>${label}</div>`;
   }).join("");
+  document.getElementById("cal-dow").style.gridTemplateColumns=`${window.innerWidth<=768?24:28}px repeat(${count},minmax(0,1fr))`;
+  document.getElementById("cal-dow").innerHTML=`<div class="cal-week-label">Sem.</div>${labels}`;
+}
+
+function getCalendarWeekStart(date){
+  const start=new Date(date);
+  start.setHours(12,0,0,0);
+  start.setDate(start.getDate()-(start.getDay()+6)%7);
+  return start;
+}
+
+function updateCalendarDateSelectors(){
+  const monthSelect=document.getElementById("cal-month-select");
+  const yearSelect=document.getElementById("cal-year-select");
+  if(monthSelect.options.length!==MONTHS_FR.length){
+    monthSelect.innerHTML=MONTHS_FR.map((month,index)=>`<option value="${index}">${month}</option>`).join("");
+  }
+  const currentYear=new Date().getFullYear();
+  const minYear=Math.min(currentYear-10,curYear);
+  const maxYear=Math.max(currentYear+10,curYear);
+  if(yearSelect.dataset.minYear!==String(minYear)||yearSelect.dataset.maxYear!==String(maxYear)){
+    yearSelect.innerHTML=Array.from({length:maxYear-minYear+1},(_,index)=>minYear+index)
+      .map(year=>`<option value="${year}">${year}</option>`).join("");
+    yearSelect.dataset.minYear=String(minYear);
+    yearSelect.dataset.maxYear=String(maxYear);
+  }
+  monthSelect.value=String(curMonth);
+  yearSelect.value=String(curYear);
+  document.querySelectorAll(".cal-view-btn").forEach(button=>{
+    const active=button.dataset.view===calView;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-pressed",String(active));
+  });
 }
 
 function getISOWeek(date){
@@ -2923,14 +3011,25 @@ function eventDossier(ev){
 }
 
 function buildCalendar(){
-  document.getElementById("cal-title").textContent=`${MONTHS_FR[curMonth]} ${curYear}`;
+  updateCalendarDateSelectors();
+  renderDow();
+  if(calView==="planning"){
+    buildPlanningCalendar();
+    return;
+  }
   const today=new Date();
   const cols=hideWeekend?5:7;
-  const monthFirst=new Date(curYear,curMonth,1);
-  const monthLast=new Date(curYear,curMonth+1,0);
-  const firstOffset=(monthFirst.getDay()+6)%7; // lundi=0 ... dimanche=6
-  const gridStart=new Date(curYear,curMonth,1-firstOffset);
-  const weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
+  let gridStart,weekCount;
+  if(calView==="week"){
+    gridStart=getCalendarWeekStart(calAnchorDate);
+    weekCount=1;
+  }else{
+    const monthFirst=new Date(curYear,curMonth,1);
+    const monthLast=new Date(curYear,curMonth+1,0);
+    const firstOffset=(monthFirst.getDay()+6)%7; // lundi=0 ... dimanche=6
+    gridStart=new Date(curYear,curMonth,1-firstOffset);
+    weekCount=Math.ceil((firstOffset+monthLast.getDate())/7);
+  }
   const totalCells=weekCount*cols;
   const byDate=eventsIndexedByDate();
   const activeTab=document.querySelector(".stab.active")?.textContent||"";
@@ -2940,18 +3039,21 @@ function buildCalendar(){
   const weekColWidth=window.innerWidth<=768?24:28;
 
   // Mettre à jour la grille CSS
-  document.getElementById("cal-days").style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
-  document.getElementById("cal-dow").style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
+  const calendarDays=document.getElementById("cal-days");
+  calendarDays.classList.toggle("week-view",calView==="week");
+  calendarDays.style.gridTemplateRows="";
+  calendarDays.style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
   let html="";
   for(let i=0;i<totalCells;i++){
     if(i%cols===0){
       const weekStart=new Date(gridStart);
       weekStart.setDate(weekStart.getDate()+Math.floor(i/cols)*7);
-      html+=`<div class="cal-week-cell">${getISOWeek(weekStart)}</div>`;
+      const weekDate=`${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,"0")}-${String(weekStart.getDate()).padStart(2,"0")}`;
+      html+=`<div class="cal-week-cell"><button type="button" onclick="event.stopPropagation();showCalendarWeek('${weekDate}')" title="Afficher la semaine ${getISOWeek(weekStart)}">${getISOWeek(weekStart)}</button></div>`;
     }
     const dt=new Date(gridStart);
     dt.setDate(dt.getDate()+Math.floor(i/cols)*7+(i%cols));
-    const inMonth=dt.getMonth()===curMonth;
+    const inMonth=calView==="week"||dt.getMonth()===curMonth;
 
     const y=dt.getFullYear(),m=dt.getMonth(),d=dt.getDate();
     const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
@@ -2976,7 +3078,47 @@ function buildCalendar(){
     const dayNum=isToday?`<div class="day-num"><span>${d}</span></div>`:`<div class="day-num">${d}</div>`;
     html+=`<div class="${cls}" onclick="handleCalendarDayClick('${ds}')">${dayNum}${chips}${more}</div>`;
   }
-  document.getElementById("cal-days").innerHTML=html;
+  calendarDays.innerHTML=html;
+}
+
+function buildPlanningCalendar(){
+  const start=getCalendarWeekStart(calAnchorDate);
+  const count=hideWeekend?5:7;
+  const byDate=eventsIndexedByDate();
+  const grid=document.getElementById("cal-days");
+  grid.classList.remove("week-view");
+  grid.style.gridTemplateRows="44px repeat(24,60px)";
+  grid.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
+  const dateKeys=Array.from({length:count},(_,index)=>{
+    const date=new Date(start);date.setDate(date.getDate()+index);
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+  });
+  let html=`<div class="planning-all-day-label" style="grid-column:1;grid-row:1">Journée</div>`;
+  dateKeys.forEach((dateKey,index)=>{
+    const events=(byDate[dateKey]||[]).filter(event=>event.start?.date);
+    const chips=events.map(event=>`<div class="ev-chip" style="background:${getEventColor(event)}" onclick="event.stopPropagation();openEditModal('${event.id}')" title="${event.summary||""}">${getEventLabel(event)}</div>`).join("");
+    html+=`<div class="planning-all-day" style="grid-column:${index+2};grid-row:1">${chips}</div>`;
+  });
+  for(let hour=0;hour<24;hour++){
+    html+=`<div class="planning-hour-label" style="grid-column:1;grid-row:${hour+2}">${String(hour).padStart(2,"0")}:00</div>`;
+  }
+  dateKeys.forEach((dateKey,index)=>{
+    const events=(byDate[dateKey]||[]).filter(event=>event.start?.dateTime);
+    const timedEvents=events.map(event=>{
+      const startKey=event.start.dateTime.slice(0,10);
+      const endValue=event.end?.dateTime||event.start.dateTime;
+      const endKey=endValue.slice(0,10);
+      if(dateKey<startKey||dateKey>endKey)return "";
+      const startMinutes=dateKey===startKey?parseInt(event.start.dateTime.slice(11,13),10)*60+parseInt(event.start.dateTime.slice(14,16),10):0;
+      const endMinutes=dateKey===endKey?parseInt(endValue.slice(11,13),10)*60+parseInt(endValue.slice(14,16),10):1440;
+      if(endMinutes<=startMinutes)return "";
+      const top=Math.max(0,startMinutes);
+      const height=Math.max(18,Math.min(1440,endMinutes)-top);
+      return `<div class="planning-event" style="top:${top}px;height:${height}px;background:${getEventColor(event)}" onclick="event.stopPropagation();openEditModal('${event.id}')" title="${event.summary||""}">${getEventLabel(event)}</div>`;
+    }).join("");
+    html+=`<div class="planning-day-column" style="grid-column:${index+2}" onclick="openModal('${dateKey}')">${timedEvents}</div>`;
+  });
+  grid.innerHTML=html;
 }
 
 function eventCollab(ev){
@@ -3026,11 +3168,49 @@ function showMorePopup(el,ds){
   setTimeout(()=>document.addEventListener("click",function h(){popup.remove();document.removeEventListener("click",h);},),10);
 }
 
-function changeMonth(d){
-  curMonth+=d;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}
-  buildCalendar();loadCalendar();
+function onCalendarDateChange(){
+  curMonth=parseInt(document.getElementById("cal-month-select").value,10);
+  curYear=parseInt(document.getElementById("cal-year-select").value,10);
+  calAnchorDate=new Date(curYear,curMonth,1,12);
+  buildCalendar();
+  loadCalendar();
 }
-function goToday(){curYear=new Date().getFullYear();curMonth=new Date().getMonth();buildCalendar();loadCalendar();}
+
+function setCalendarView(view){
+  if(!["month","week","planning"].includes(view))return;
+  calView=view;
+  buildCalendar();
+  document.querySelector(".cal-grid").scrollTop=view==="planning"?7*60:0;
+  loadCalendar();
+}
+
+function showCalendarWeek(dateKey){
+  calAnchorDate=new Date(dateKey+"T12:00:00");
+  curYear=calAnchorDate.getFullYear();
+  curMonth=calAnchorDate.getMonth();
+  setCalendarView("week");
+}
+
+function changeMonth(direction){
+  if(calView==="week"||calView==="planning"){
+    calAnchorDate.setDate(calAnchorDate.getDate()+direction*7);
+    curYear=calAnchorDate.getFullYear();
+    curMonth=calAnchorDate.getMonth();
+  }else{
+    calAnchorDate=new Date(curYear,curMonth+direction,1,12);
+    curYear=calAnchorDate.getFullYear();
+    curMonth=calAnchorDate.getMonth();
+  }
+  buildCalendar();
+  loadCalendar();
+}
+function goToday(){
+  calAnchorDate=new Date();
+  curYear=calAnchorDate.getFullYear();
+  curMonth=calAnchorDate.getMonth();
+  buildCalendar();
+  loadCalendar();
+}
 
 
 function openModal(ds){
