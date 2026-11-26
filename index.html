@@ -360,7 +360,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
     <div class="sidebar-tabs">
       <div class="stab active" onclick="switchSTab('dossiers')">📁 Dossiers</div>
       <div class="stab" onclick="switchSTab('collabs')">👤 Collabs</div>
-      <div class="stab" onclick="switchSTab('contacts')">📇 Contacts</div>
       <div class="stab" onclick="switchSTab('materiel')">🔧 Matériel</div>
       <div class="stab" onclick="switchSTab('vehicules')">🚗 Véhicules</div>
     </div>
@@ -381,24 +380,18 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <div class="s-field"><label>Interlocuteur(s)</label>
             <div style="display:flex;gap:6px;align-items:center">
               <select class="m-select" id="f-dos-interloc-input" multiple size="5" style="flex:1;min-height:92px;max-height:240px" onchange="onDosInterlocInputChange()"></select>
-              <button type="button" class="btn-add-s" onclick="openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
+              <button type="button" class="btn-add-s" onclick="openContactsManager();openInterlocForm(null)" title="Gérer les contacts" style="flex:none;width:34px">👥</button>
             </div>
           </div>
           <div class="s-field"><label>Email interlocuteur</label><input id="f-dos-email" type="email" placeholder="j.martin@client.fr" autocomplete="off"></div>
           <div class="s-field"><label>Téléphone interlocuteur</label><input id="f-dos-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="off"></div>
           <div class="s-field"><label>Adresse précise</label><input id="f-dos-adresse" placeholder="12 Rue de la Paix, 83000" autocomplete="off"></div>
-          <div class="s-grid2">
-            <div class="s-field"><label>Prix 1J Terrain</label><input id="f-dos-p1t" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix ½J Terrain</label><input id="f-dos-pht" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Bureau</label><input id="f-dos-pb" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Nuit</label><input id="f-dos-pn" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Scan 3D</label><input id="f-dos-ps3d" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Préparation</label><input id="f-dos-pprep" type="number" placeholder="0"></div>
-            <div class="s-field"><label>Prix Rapport</label><input id="f-dos-prap" type="number" placeholder="0"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <label style="font-size:12px;font-weight:600">Prestations du dossier</label>
+            <button type="button" class="btn-add-s" onclick="openDossierPrestationsPopup()" title="Ajouter des prestations et tarifs">＋</button>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin:-2px 0 8px;padding:6px 9px;background:var(--grey);border-radius:7px">
-            ℹ️ Le prix "½ Bureau" n'a pas de champ dédié : il est toujours calculé automatiquement comme la moitié du prix Bureau ci-dessus.
-          </div>
+          <div class="s-grid2" id="f-dos-prices"></div>
+          <button type="button" class="rc-btn" onclick="openPrestationManager('dossier')" style="margin:-2px 0 8px">Gérer les prestations</button>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:4px">
             <input type="checkbox" id="f-dos-archive" style="width:15px;height:15px"> Dossier archivé (masqué de la liste et des nouveaux pointages)
           </label>
@@ -406,6 +399,10 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
             <button class="s-btn-cancel" onclick="closeDosForm()">Annuler</button>
             <button class="s-btn-save" id="dos-save-btn" onclick="saveDos()">Enregistrer</button>
           </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button type="button" class="rc-btn" onclick="openPrestationManager('dossiers')" style="flex:1">Prestations</button>
+          <button type="button" class="rc-btn" onclick="openContactsManager()" style="flex:1">Contacts</button>
         </div>
         <div class="search-row-s">
           <input type="search" id="s-search-dos" placeholder="Rechercher…" oninput="renderSidebarDos()">
@@ -443,6 +440,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 
       <!-- CONTACTS -->
       <div class="sidebar-panel" id="sp-contacts">
+        <button type="button" class="rc-btn" onclick="returnToDossiersPanel()" style="margin-bottom:8px">‹ Retour aux dossiers</button>
         <div class="s-form" id="interloc-form">
           <div class="s-form-title" id="interloc-form-title">Nouveau contact</div>
           <div class="s-field"><label>Nom *</label><input id="f-interloc-name" placeholder="Jean Martin" autocomplete="off"></div>
@@ -463,6 +461,31 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <button class="btn-add-s" onclick="openInterlocForm(null)" title="Nouveau contact">＋</button>
         </div>
         <div id="s-interloc-list"></div>
+      </div>
+
+      <!-- PRESTATIONS -->
+      <div class="sidebar-panel" id="sp-prestations">
+        <button type="button" class="rc-btn" onclick="returnFromPrestationManager()" style="margin-bottom:8px">‹ Retour</button>
+        <div class="s-form" id="prestation-form">
+          <div class="s-form-title" id="prestation-form-title">Nouvelle prestation</div>
+          <div class="s-field"><label>Code *</label><input id="f-prestation-code" placeholder="EX : 1T" autocomplete="off"></div>
+          <div class="s-field"><label>Libellé *</label><input id="f-prestation-label" placeholder="Nom de la prestation" autocomplete="off"></div>
+          <div class="m-row">
+            <div class="s-field"><label>Heure début</label><input id="f-prestation-start" type="time"></div>
+            <div class="s-field"><label>Durée (h)</label><input id="f-prestation-duration" type="number" min="0.25" step="0.25" placeholder="8"></div>
+          </div>
+          <div class="s-form-btns">
+            <button type="button" class="s-btn-cancel" onclick="closePrestationForm()">Annuler</button>
+            <button type="button" class="s-btn-save" id="prestation-save-btn" onclick="savePrestation()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="search-row-s">
+          <input type="search" id="s-search-prestation" placeholder="Rechercher…" oninput="renderSidebarPrestations()">
+          <button class="btn-add-s" onclick="reloadPrestations()" title="Recharger depuis Sheets" style="background:var(--green);font-size:14px">🔄</button>
+          <button class="btn-add-s" onclick="openPrestationForm(null)" title="Nouvelle prestation">＋</button>
+        </div>
+        <div id="s-prestation-list"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Les codes existants ne sont pas supprimables ni modifiables pour préserver la lecture des événements déjà créés.</div>
       </div>
 
       <!-- MATERIEL -->
@@ -585,7 +608,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
           <span class="search-modal-icon">🔍</span>
           <input type="search" id="m-dos-search" placeholder="Rechercher un dossier…" oninput="filterModalDos()" autocomplete="off">
         </div>
-        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0"></select>
+        <select class="m-select" id="m-dossier" size="4" style="height:auto;padding:0" onchange="onEventDossierChange()"></select>
       </div>
       <div class="m-field">
         <label>Collaborateur</label>
@@ -598,14 +621,6 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <div class="m-field">
         <label>Prestation</label>
         <div class="m-toggle" id="m-prest-toggle">
-          <button class="active" data-code="1T" onclick="setPrest('1T',this)">1J Terrain</button>
-          <button data-code="HT" onclick="setPrest('HT',this)">½J Terrain</button>
-          <button data-code="B" onclick="setPrest('B',this)">Bureau</button>
-          <button data-code="B2" onclick="setPrest('B2',this)">½ Bureau</button>
-          <button data-code="N" onclick="setPrest('N',this)">Nuit</button>
-          <button data-code="S3D" onclick="setPrest('S3D',this)">Scan 3D</button>
-          <button data-code="PREP" onclick="setPrest('PREP',this)">Préparation</button>
-          <button data-code="RAP" onclick="setPrest('RAP',this)">Rapport</button>
         </div>
         <div class="half-day-toggle" id="half-day-toggle">
           <button class="hd-btn active" id="hd-matin" onclick="setHalfDay('matin',this)">🌅 Matin<br><span style="font-size:10px;font-weight:400">08h – 12h</span></button>
@@ -641,6 +656,20 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
       <button class="btn-modal-del" id="btn-del" onclick="deleteEvent()" style="display:none" title="Supprimer">🗑</button>
       <button class="btn-modal-cancel" onclick="closeModal()">Annuler</button>
       <button class="btn-modal-save" onclick="saveEvent()" id="btn-modal-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="dos-prestation-price-modal-bg" style="z-index:410" onclick="if(event.target===this)closeDossierPrestationsPopup()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div><div class="modal-title">Prestations et tarifs du dossier</div></div>
+      <button class="modal-close" onclick="closeDossierPrestationsPopup()">✕</button>
+    </div>
+    <div class="modal-body" id="dos-prestation-price-list"></div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeDossierPrestationsPopup()">Annuler</button>
+      <button class="btn-modal-save" onclick="saveDossierPrestationsPopup()">Valider</button>
     </div>
   </div>
 </div>
@@ -769,38 +798,21 @@ const GCAL_COLORS = [
   {id:"10",hex:"#0B8043"},{id:"11",hex:"#D50000"},
 ];
 const PREST_HOURS = {"1T":{s:8,d:8},"HT":{s:8,d:4},"B":{s:8,d:8},"B2":{s:8,d:4},"N":{s:21,d:8},"S3D":{s:7,d:10},"PREP":{s:8,d:2},"RAP":{s:8,d:2}};
-const PREST_KEYS  = ["1T","HT","B","B2","N","S3D","PREP","RAP"];
-const PREST_LABELS= ["Terrain 1J","Terrain ½J","Bureau","½ Bureau","Nuit","Scan 3D","Préparation","Rapport"];
-// PRIX_KEYS/PRIX_DEFAULT restent alignés sur PREST_KEYS par index. "B2" (½ Bureau)
-// n'a PAS de champ prix propre : son prix est toujours calculé comme Bureau ÷ 2
-// (voir prestPrice ci-dessous) — pas de colonne Sheet à créer, ni de saisie séparée.
-const PRIX_KEYS   = ["prix1T","prixHT","prixB",null,"prixN","prixS3D","prixPrep","prixRap"];
-const PRIX_DEFAULT= [0,0,0,0,0,0,0,0];
+let PRESTATIONS=[], PREST_KEYS=[], PREST_LABELS=[];
+const PREST_LEGACY_PRICE_KEYS = {"1T":"prix1T",HT:"prixHT",B:"prixB",B2:"prixB2",N:"prixN",S3D:"prixS3D",PREP:"prixPrep",RAP:"prixRap"};
+const PREST_LEGACY_FALLBACK = {"1T":5,HT:6,B:7,N:8,S3D:9,PREP:13,RAP:14};
 // Retourne le prix jour applicable pour un dossier (di) et un code de prestation.
 function prestPrice(di,code){
-  if(code==="B2"){
-    const idxB=PREST_KEYS.indexOf("B");
-    const bPrice=(di&&di.prixB)||PRIX_DEFAULT[idxB];
-    return bPrice/2; // toujours la moitié du prix Bureau courant, jamais stocké séparément
-  }
-  const idx=PREST_KEYS.indexOf(code);
-  if(idx<0)return 0;
-  const field=PRIX_KEYS[idx];
-  return (field&&di&&di[field])||PRIX_DEFAULT[idx]||0;
+  const service=PRESTATIONS.find(item=>item.code===code);
+  return service&&di?parseFloat(di[service.priceKey])||0:0;
 }
-// Un type de prestation est "actif" pour un dossier seulement si son prix est
-// réellement renseigné dans le Sheet (>0). Sert à masquer, dans les exports et
-// le récap, les prestations qui ne font pas partie du bordereau de prix du
-// client (chaque client peut avoir un bordereau différent).
 function prestActive(di,code){
   if(!di)return true; // dossier inconnu → comportement par défaut (tout affiché)
-  if(code==="B2")return !!di.prixB;
-  const idx=PREST_KEYS.indexOf(code);
-  const field=PRIX_KEYS[idx];
-  return !!(field&&di[field]);
+  const service=PRESTATIONS.find(item=>item.code===code);
+  return !!(service&&parseFloat(di[service.priceKey])>0);
 }
 const MONTHS_FR   = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const SHEET_TABS  = {dos:"Dossiers", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
+const SHEET_TABS  = {dos:"Dossiers", prestations:"Prestations", collabs:"Collaborateurs", mat:"Materiel", clients:"Clients", interlocuteurs:"Interlocuteurs", pointages:"Suivi Pointages", vehicles:"Vehicules", vehicleAssignments:"Historique Vehicules", vehicleDefects:"Défauts véhicules"};
 SHEET_TABS.expenses="Frais";
 const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 
@@ -808,11 +820,13 @@ const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[], sheetVehicleDefects=[];
+let prestationsCI={},prestationsHC=0;
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
 let calFilterCollab=null; // nom du collaborateur sélectionné dans le filtre calendrier, ou null = tous
 let calFilterDos=null; // numéro du dossier sélectionné dans le panneau gauche, ou null = tous
 let editingEventId=null, selectedPrest="1T", selectedCollabColorId="7";
 let editingDosIdx=null, editingCollabIdx=null, editingMatIdx=null, editingVehicleIdx=null;
+let dossierPriceDraft={};
 let expType="global";
 let hideWeekend=true;
 let selectedMaterielDate=null;
@@ -829,7 +843,7 @@ function collabColor(c){return(GCAL_COLORS.find(x=>x.id===(c&&c.colorId))||GCAL_
 function collabInit(name){return(name||"").trim().split(/\s+/).map(w=>w[0]||"").join("").toUpperCase().slice(0,2);}
 function collabTag(c){return c?(c.pseudo||collabInit(c.name)):"";}
 function dosById(num){return sheetDossiers.find(d=>d.num===num);}
-function colLetter(i){return String.fromCharCode(65+i);}
+function colLetter(i){return sheetColLetter(i+1);}
 function xlsCell(r,c){return colLetter(c)+(r+1);}
 function formatDateFr(d){if(!d)return"";const dt=new Date(d+"T12:00:00");return dt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
 
@@ -887,8 +901,13 @@ window.addEventListener("load", async ()=>{
     // Laisser le navigateur finir le rendu
     await new Promise(r=>setTimeout(r,300));
     fetchUserInfo();
-    await loadAll();
-    buildCalendar();
+    try{
+      await loadAll();
+      buildCalendar();
+    }catch(error){
+      console.warn("Chargement de l’application impossible",error);
+      showToast(`Impossible de charger les données Google : ${error.message}`,true);
+    }
   } else {
     document.getElementById("login-overlay").classList.add("visible");
   }
@@ -915,7 +934,7 @@ function initTokenClient(){
         buildCalendar();
       }catch(e){
         console.warn("Chargement de l’application impossible",e);
-        showToast("Impossible de charger les données Google",true);
+        showToast(`Impossible de charger les données Google : ${e.message}`,true);
       }
     }
   });
@@ -1040,7 +1059,7 @@ async function sheetGet(tab,range,spreadsheetId=SHEET_ID){
   return (await resp.json()).values||[];
 }
 async function sheetAppend(tab,values,spreadsheetId=SHEET_ID){
-  const r=encodeURIComponent(`${tab}!A:Z`);
+  const r=encodeURIComponent(`${tab}!A:ZZ`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -1049,7 +1068,8 @@ async function sheetAppend(tab,values,spreadsheetId=SHEET_ID){
 }
 async function sheetUpdate(tab,sheetRow,values,spreadsheetId=SHEET_ID){
   // sheetRow = numéro de ligne réel dans le Sheet (pas l'index JS)
-  const r=encodeURIComponent(`${tab}!A${sheetRow}:Z${sheetRow}`);
+  const width=Math.max(26,...values.map(row=>row.length));
+  const r=encodeURIComponent(`${tab}!A${sheetRow}:${sheetColLetter(width)}${sheetRow}`);
   const resp=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${r}?valueInputOption=USER_ENTERED`,
     {method:"PUT",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
      body:JSON.stringify({values})});
@@ -1172,11 +1192,10 @@ async function sheetUpdateMerged(tab,sheetRow,colIndex,headerCount,values,spread
 
 // Correspondance clé logique → intitulé attendu en ligne 1 de chaque onglet
 // (la casse / les accents n'ont pas d'importance, seul le texte compte)
+const PRESTATION_HEADERS = {code:"Code",label:"Prestation",start:"Heure début",duration:"Durée (h)"};
 const DOS_HEADERS = {
   num:"N° Dossier", client:"Client", lieu:"Lieu", interlocuteur:"Interlocuteur",
-  adresse:"Adresse", prix1T:"Prix Terrain 1J", prixHT:"Prix Terrain 1/2J", prixB:"Prix Bureau",
-  prixN:"Prix Nuit", prixS3D:"Prix Scan 3D", email:"Email", tel:"Telephone", archive:"Archive",
-  prixPrep:"Prix Preparation", prixRap:"Prix Rapport",
+  adresse:"Adresse", email:"Email", tel:"Telephone", archive:"Archive",
 };
 const COLLAB_HEADERS = {name:"Nom", pseudo:"Pseudo", colorId:"Couleur",email:"Adresse mail Google",expenseSheetId:"ID Sheet frais"};
 const MAT_HEADERS = {name:"Nom", cat:"Catégorie", unavailable:"Indisponible", lastRevision:"Dernière révision"};
@@ -1205,7 +1224,7 @@ const VEHICLE_DEFECT_HEADERS = {
 
 // Positions historiques (avant le passage en lecture par en-tête) — utilisées
 // en secours tant que les en-têtes du Sheet ne correspondent pas exactement.
-const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,prix1T:5,prixHT:6,prixB:7,prixN:8,prixS3D:9,email:10,tel:11,archive:12,prixPrep:13,prixRap:14};
+const DOS_FALLBACK = {num:0,client:1,lieu:2,interlocuteur:3,adresse:4,email:10,tel:11,archive:12};
 const COLLAB_FALLBACK = {name:0,pseudo:1,colorId:2,email:3,expenseSheetId:4};
 const MAT_FALLBACK = {name:0,cat:1};
 const CLIENT_FALLBACK = {nom:0};
@@ -1220,6 +1239,241 @@ const EXPENSE_FALLBACK = {date:0,registration:1,mileage:2,amount:3,updateMileage
 let dosCI={},dosHC=0, collabCI={},collabHC=0, matCI={},matHC=0, clientCI={},clientHC=0, interlocCI={},interlocHC=0;
 
 let _refTabsChecked=false;
+function prestationPriceKey(code){
+  return PREST_LEGACY_PRICE_KEYS[code]||`prix_${code}`;
+}
+function dossierHeaders(){
+  const headers={...DOS_HEADERS};
+  PRESTATIONS.forEach(service=>{headers[service.priceKey]=`Prix ${service.label}`;});
+  return headers;
+}
+function dossierFallback(){
+  const fallback={...DOS_FALLBACK};
+  PRESTATIONS.forEach(service=>{
+    const column=PREST_LEGACY_FALLBACK[service.code];
+    if(column!==undefined)fallback[service.priceKey]=column;
+  });
+  return fallback;
+}
+function escapeHtml(value){
+  return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+function renderPrestations(){
+  const toggle=document.getElementById("m-prest-toggle");
+  if(toggle){
+    toggle.innerHTML=PRESTATIONS.map(service=>`<button data-code="${service.code}" onclick="setPrest('${service.code}',this)">${escapeHtml(service.label)}</button>`).join("");
+    const selected=toggle.querySelector(`[data-code="${selectedPrest}"]`);
+    if(selected)selected.classList.add("active");
+    else if(PRESTATIONS.length)setPrest(PRESTATIONS[0].code,toggle.querySelector("button"));
+  }
+  renderDosPriceFields();
+}
+function renderDosPriceFields(captureCurrent=true){
+  const fields=document.getElementById("f-dos-prices");
+  if(!fields)return;
+  if(captureCurrent)captureDossierPriceDraft();
+  const active=PRESTATIONS.filter(service=>parseFloat(dossierPriceDraft[service.code])>0);
+  fields.innerHTML=active.length?active.map(service=>`<div class="s-field"><label>Prix ${escapeHtml(service.label)}</label><input id="f-dos-price-${service.code}" type="number" min="0" value="${escapeHtml(dossierPriceDraft[service.code])}" oninput="updateDossierPriceDraft('${service.code}',this.value)" onchange="updateDossierPriceDraft('${service.code}',this.value);renderDosPriceFields(false)" placeholder="0"></div>`).join("")
+    :`<div style="font-size:11px;color:var(--muted);padding:4px 0 8px">Aucune prestation tarifée pour ce dossier.</div>`;
+}
+function captureDossierPriceDraft(){
+  PRESTATIONS.forEach(service=>{
+    const input=document.getElementById(`f-dos-price-${service.code}`);
+    if(input)dossierPriceDraft[service.code]=input.value;
+    else if(dossierPriceDraft[service.code]===undefined)dossierPriceDraft[service.code]="";
+  });
+}
+function updateDossierPriceDraft(code,value){
+  dossierPriceDraft[code]=value;
+}
+function openDossierPrestationsPopup(){
+  captureDossierPriceDraft();
+  const list=document.getElementById("dos-prestation-price-list");
+  list.innerHTML=PRESTATIONS.map(service=>`<label style="display:grid;grid-template-columns:1fr 130px;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+    <span>${escapeHtml(service.label)}</span>
+    <input class="m-input" type="number" min="0" step="0.01" data-prestation-code="${service.code}" value="${escapeHtml(parseFloat(dossierPriceDraft[service.code])>0?dossierPriceDraft[service.code]:"")}" placeholder="Prix (€)">
+  </label>`).join("");
+  document.getElementById("dos-prestation-price-modal-bg").classList.add("open");
+}
+function closeDossierPrestationsPopup(){
+  document.getElementById("dos-prestation-price-modal-bg").classList.remove("open");
+}
+function saveDossierPrestationsPopup(){
+  PRESTATIONS.forEach(service=>{
+    const input=document.querySelector(`#dos-prestation-price-list [data-prestation-code="${service.code}"]`);
+    const price=parseFloat(input?.value)||0;
+    dossierPriceDraft[service.code]=price>0?String(price):"";
+  });
+  closeDossierPrestationsPopup();
+  renderDosPriceFields(false);
+}
+function mapDossierRow(row,index){
+  const dossier={
+    num:cellOf(row,dosCI,"num")?.trim(),
+    client:cellOf(row,dosCI,"client")?.trim()||"—",
+    lieu:cellOf(row,dosCI,"lieu")?.trim()||"—",
+    interlocuteur:cellOf(row,dosCI,"interlocuteur")?.trim()||"",
+    adresse:cellOf(row,dosCI,"adresse")?.trim()||"",
+    email:cellOf(row,dosCI,"email")?.trim()||"",
+    tel:cellOf(row,dosCI,"tel")?.trim()||"",
+    archive:parseBool(cellOf(row,dosCI,"archive")),
+    _sheetRow:index+2,
+  };
+  PRESTATIONS.forEach(service=>{dossier[service.priceKey]=parseFloat(cellOf(row,dosCI,service.priceKey))||0;});
+  return dossier;
+}
+async function loadPrestations(){
+  const table=await sheetGetTable(SHEET_TABS.prestations,PRESTATION_HEADERS,{});
+  for(const key of Object.keys(PRESTATION_HEADERS)){
+    if(table.colIndex[key]===undefined)throw new Error(`Colonne "${PRESTATION_HEADERS[key]}" manquante dans l’onglet Prestations.`);
+  }
+  const seenCodes=new Set(),seenLabels=new Set();
+  const services=table.rows.map((row,index)=>({row,index})).filter(({row})=>row.some(value=>String(value||"").trim())).map(({row,index})=>{
+    const code=String(cellOf(row,table.colIndex,"code")||"").trim();
+    const label=String(cellOf(row,table.colIndex,"label")||"").trim();
+    if(!code||!label)throw new Error(`Ligne ${index+2} de Prestations : Code et Prestation sont obligatoires.`);
+    if(!/^[A-Za-z0-9-]+$/.test(code))throw new Error(`Code de prestation invalide "${code}" : utiliser uniquement lettres, chiffres et tirets.`);
+    const normalizedCode=code.toUpperCase(),normalizedLabel=normHeader(label);
+    if(seenCodes.has(normalizedCode))throw new Error(`Code de prestation en double : ${code}.`);
+    if(seenLabels.has(normalizedLabel))throw new Error(`Libellé de prestation en double : ${label}.`);
+    seenCodes.add(normalizedCode);seenLabels.add(normalizedLabel);
+    const defaults=PREST_HOURS[normalizedCode]||{s:8,d:8};
+    const startValue=String(cellOf(row,table.colIndex,"start")||"").trim();
+    const startMatch=startValue.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?\s*(am|pm)?$/i);
+    const numericStart=Number(startValue.replace(",","."));
+    const startHour=startMatch?parseInt(startMatch[1],10):0;
+    const startMinute=startMatch?parseInt(startMatch[2]||"0",10):0;
+    const meridiem=startMatch?.[3]?.toLowerCase();
+    const validClock=!!startMatch&&startMinute<=59&&
+      (meridiem?startHour>=1&&startHour<=12:startHour<=23);
+    const validNumericStart=!startMatch&&Number.isFinite(numericStart)&&numericStart>=0&&numericStart<24;
+    if(startValue&&!validClock&&!validNumericStart)
+      throw new Error(`Heure de début invalide pour la prestation ${code} (ligne ${index+2}).`);
+    const start=startMatch?((meridiem?(startHour%12)+(meridiem==="pm"?12:0):startHour)+startMinute/60):
+      startValue?(numericStart<1?numericStart*24:numericStart):defaults.s;
+    const rawDuration=String(cellOf(row,table.colIndex,"duration")||"").trim().replace(",",".");
+    if(rawDuration&&(!Number.isFinite(Number(rawDuration))||Number(rawDuration)<=0))
+      throw new Error(`Durée invalide pour la prestation ${code} (ligne ${index+2}).`);
+    const duration=rawDuration?Number(rawDuration):defaults.d;
+    return {code:normalizedCode,label,start,duration,priceKey:prestationPriceKey(normalizedCode),_sheetRow:index+2};
+  });
+  if(!services.length)throw new Error("L’onglet Prestations ne contient aucune prestation.");
+  prestationsCI=table.colIndex;prestationsHC=table.headerCount;
+  PRESTATIONS=services;PREST_KEYS=services.map(service=>service.code);PREST_LABELS=services.map(service=>service.label);
+  renderPrestations();
+}
+async function ensureDossierPrestHeaders(){
+  const headers={};
+  PRESTATIONS.forEach(service=>{
+    if(PREST_LEGACY_FALLBACK[service.code]===undefined)headers[service.priceKey]=`Prix ${service.label}`;
+  });
+  if(Object.keys(headers).length)await ensureSheetHeaders(SHEET_TABS.dos,headers);
+}
+async function reloadDossierColumnMap(){
+  const table=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
+  dosCI=table.colIndex;dosHC=table.headerCount;
+}
+let prestationReturnContext="dossiers",editingPrestationIdx=null;
+function showSidebarPanel(name){
+  document.querySelectorAll(".sidebar-panel").forEach(panel=>panel.classList.toggle("active",panel.id==="sp-"+name));
+  buildCalendar();
+}
+function openContactsManager(){
+  renderSidebarInterlocs();
+  showSidebarPanel("contacts");
+}
+function returnToDossiersPanel(){showSidebarPanel("dossiers");}
+async function openPrestationManager(returnContext="dossiers"){
+  if(!accessToken){showToast("Connecte-toi pour gérer les prestations",true);return;}
+  prestationReturnContext=returnContext;
+  try{
+    await reloadPrestations();
+    showSidebarPanel("prestations");
+  }catch(error){
+    console.warn("Chargement des prestations impossible",error);
+    showToast(`Chargement des prestations impossible : ${error.message}`,true);
+  }
+}
+async function reloadPrestations(){
+  await loadPrestations();
+  await ensureDossierPrestHeaders();
+  await reloadDossierColumnMap();
+  renderSidebarPrestations();
+}
+function renderSidebarPrestations(){
+  const query=normalizeText(document.getElementById("s-search-prestation")?.value||"");
+  const list=document.getElementById("s-prestation-list");
+  if(!list)return;
+  const matches=PRESTATIONS.filter(service=>!query||normalizeText(`${service.code} ${service.label}`).includes(query));
+  list.innerHTML=matches.map(service=>{
+    const idx=PRESTATIONS.indexOf(service);
+    return `<div class="s-item"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">${escapeHtml(service.code)} · ${escapeHtml(service.label)}</div><div style="font-size:11px;color:var(--muted)">${String(Math.floor(service.start)).padStart(2,"0")}:${String(Math.round(service.start%1*60)).padStart(2,"0")} · ${service.duration} h</div></div><button class="s-edit" onclick="openPrestationForm(${idx})" title="Modifier les horaires">✏️</button></div>`;
+  }).join("")||`<div style="padding:12px;color:var(--muted);font-size:12px">Aucune prestation trouvée.</div>`;
+}
+function openPrestationForm(idx){
+  editingPrestationIdx=idx;
+  const service=idx===null?null:PRESTATIONS[idx];
+  const form=document.getElementById("prestation-form");
+  form.classList.add("visible");
+  document.getElementById("prestation-form-title").textContent=service?"Modifier les horaires":"Nouvelle prestation";
+  const code=document.getElementById("f-prestation-code");
+  const label=document.getElementById("f-prestation-label");
+  code.value=service?.code||"";
+  label.value=service?.label||"";
+  code.disabled=!!service;
+  label.disabled=!!service;
+  const minutes=service?Math.round(service.start*60):NaN;
+  document.getElementById("f-prestation-start").value=Number.isFinite(minutes)?`${String(Math.floor(minutes/60)).padStart(2,"0")}:${String(minutes%60).padStart(2,"0")}`:"";
+  document.getElementById("f-prestation-duration").value=service?service.duration:"";
+}
+function closePrestationForm(){
+  editingPrestationIdx=null;
+  document.getElementById("prestation-form").classList.remove("visible");
+}
+function returnFromPrestationManager(){
+  const context=prestationReturnContext;
+  closePrestationForm();
+  showSidebarPanel(context==="contacts"?"contacts":"dossiers");
+}
+async function savePrestation(){
+  const code=document.getElementById("f-prestation-code").value.trim().toUpperCase();
+  const label=document.getElementById("f-prestation-label").value.trim();
+  const start=document.getElementById("f-prestation-start").value;
+  const duration=document.getElementById("f-prestation-duration").value.trim();
+  if(!code||!label){showToast("Code et libellé obligatoires",true);return;}
+  if(!/^[A-Z0-9-]+$/.test(code)){showToast("Code invalide : lettres, chiffres et tirets uniquement",true);return;}
+  if(PRESTATIONS.some((service,index)=>index!==editingPrestationIdx&&service.code===code)){
+    showToast(`Le code ${code} existe déjà`,true);return;
+  }
+  if(PRESTATIONS.some((service,index)=>index!==editingPrestationIdx&&normHeader(service.label)===normHeader(label))){
+    showToast(`Le libellé "${label}" existe déjà`,true);return;
+  }
+  if(duration&&(!Number.isFinite(Number(duration.replace(",",".")))||Number(duration.replace(",","."))<=0)){
+    showToast("La durée doit être un nombre positif",true);return;
+  }
+  const service=editingPrestationIdx===null?null:PRESTATIONS[editingPrestationIdx];
+  const values={code:service?.code||code,label:service?.label||label,start,duration};
+  const button=document.getElementById("prestation-save-btn");
+  button.textContent="⏳";button.disabled=true;
+  try{
+    if(service){
+      await sheetUpdateMerged(SHEET_TABS.prestations,service._sheetRow,prestationsCI,prestationsHC,values);
+    }else{
+      await sheetAppend(SHEET_TABS.prestations,[buildRowFromMap(prestationsCI,prestationsHC,values)]);
+    }
+    await reloadPrestations();
+    closePrestationForm();
+    showToast(service?"Horaires mis à jour ✓":`Prestation ${label} ajoutée ✓`);
+    if(!service&&prestationReturnContext==="dossier"){
+      returnFromPrestationManager();
+    }
+  }catch(error){
+    console.warn("Enregistrement de la prestation impossible",error);
+    showToast(`Enregistrement de la prestation impossible : ${error.message}`,true);
+  }finally{
+    button.textContent="Enregistrer";button.disabled=false;
+  }
+}
 async function ensureRefTabs(){
   // Crée les onglets de référentiels et de suivi s'ils n'existent pas encore.
   if(_refTabsChecked)return;
@@ -1264,30 +1518,15 @@ async function ensureRefTabs(){
 
 async function loadSheetData(){
   if(!accessToken)return;
-  await ensureRefTabs();
   try{
+    await loadPrestations();
+    await ensureDossierPrestHeaders();
+    await ensureRefTabs();
     // Dossiers
-    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
     dosCI=colIndex;dosHC=headerCount;
     const seenNums=new Set();
-    sheetDossiers=drows.map((r,i)=>({
-      num:cellOf(r,dosCI,"num")?.trim(),
-      client:cellOf(r,dosCI,"client")?.trim()||"—",
-      lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
-      interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
-      adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
-      prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
-      prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
-      prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
-      prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
-      prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
-      email:cellOf(r,dosCI,"email")?.trim()||"",
-      tel:cellOf(r,dosCI,"tel")?.trim()||"",
-      archive:parseBool(cellOf(r,dosCI,"archive")),
-      prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
-      prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
-      _sheetRow:i+2, // ligne réelle dans le Sheet (commence à 2 car ligne 1 = en-tête)
-    })).filter(d=>{
+    sheetDossiers=drows.map((r,i)=>mapDossierRow(r,i)).filter(d=>{
       if(!d.num)return false;
       if(seenNums.has(d.num))return false;
       seenNums.add(d.num);return true;
@@ -1326,7 +1565,7 @@ async function loadSheetData(){
     // Véhicules et historique d'attribution
     try{await loadSheetVehicles();}
     catch(e){console.warn("Chargement des véhicules impossible",e);showToast("Chargement des véhicules impossible",true);}
-  }catch(e){console.warn("Sheet load error",e);}
+  }catch(e){console.warn("Sheet load error",e);showToast(`Chargement des données impossible : ${e.message}`,true);throw e;}
 
   // Référentiels Clients / Interlocuteurs (isolés : une erreur ici ne doit pas
   // empêcher le chargement des dossiers/collaborateurs/matériel ci-dessus)
@@ -1360,32 +1599,17 @@ async function reloadSheetDossiers(){
   sheetDossiers=[];
   renderSidebarDos();
   try{
-    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,DOS_HEADERS,DOS_FALLBACK);
+    await loadPrestations();
+    await ensureDossierPrestHeaders();
+    const {colIndex,headerCount,rows:drows}=await sheetGetTable(SHEET_TABS.dos,dossierHeaders(),dossierFallback());
     dosCI=colIndex;dosHC=headerCount;
     // Dédoublonnage : on garde la première occurrence de chaque N° dossier
     const seen=new Set();
     const duplicates=[];
     sheetDossiers=drows
-      .filter(r=>cellOf(r,dosCI,"num")?.trim())
-      .map((r,i)=>({
-        num:cellOf(r,dosCI,"num")?.trim(),
-        client:cellOf(r,dosCI,"client")?.trim()||"—",
-        lieu:cellOf(r,dosCI,"lieu")?.trim()||"—",
-        interlocuteur:cellOf(r,dosCI,"interlocuteur")?.trim()||"",
-        adresse:cellOf(r,dosCI,"adresse")?.trim()||"",
-        prix1T:parseFloat(cellOf(r,dosCI,"prix1T"))||0,
-        prixHT:parseFloat(cellOf(r,dosCI,"prixHT"))||0,
-        prixB:parseFloat(cellOf(r,dosCI,"prixB"))||0,
-        prixN:parseFloat(cellOf(r,dosCI,"prixN"))||0,
-        prixS3D:parseFloat(cellOf(r,dosCI,"prixS3D"))||0,
-        email:cellOf(r,dosCI,"email")?.trim()||"",
-        tel:cellOf(r,dosCI,"tel")?.trim()||"",
-        archive:parseBool(cellOf(r,dosCI,"archive")),
-        prixPrep:parseFloat(cellOf(r,dosCI,"prixPrep"))||0,
-        prixRap:parseFloat(cellOf(r,dosCI,"prixRap"))||0,
-        _sheetRow:i+2,
-      }))
+      .map((r,i)=>mapDossierRow(r,i))
       .filter(d=>{
+        if(!d.num)return false;
         if(seen.has(d.num)){duplicates.push(d.num);return false;}
         seen.add(d.num);return true;
       })
@@ -1633,6 +1857,11 @@ function openDosForm(idx){
   const f=document.getElementById("dos-form");f.classList.add("visible");
   document.getElementById("dos-form-title").textContent=idx!=null?"Modifier le dossier":"Nouveau dossier";
   const d=idx!=null?sheetDossiers[idx]:null;
+  dossierPriceDraft=Object.fromEntries(PRESTATIONS.map(service=>[
+    service.code,d&&parseFloat(d[service.priceKey])>0?String(d[service.priceKey]):""
+  ]));
+  document.getElementById("f-dos-prices").innerHTML="";
+  renderDosPriceFields();
   document.getElementById("f-dos-num").value=d?.num||"";
   populateDosClientSelect(d?.client||"");
   document.getElementById("f-dos-lieu").value=d?.lieu||"";
@@ -1640,13 +1869,6 @@ function openDosForm(idx){
   document.getElementById("f-dos-email").value=d?.email||"";
   document.getElementById("f-dos-tel").value=d?.tel||"";
   document.getElementById("f-dos-adresse").value=d?.adresse||"";
-  document.getElementById("f-dos-p1t").value=d?.prix1T||"";
-  document.getElementById("f-dos-pht").value=d?.prixHT||"";
-  document.getElementById("f-dos-pb").value=d?.prixB||"";
-  document.getElementById("f-dos-pn").value=d?.prixN||"";
-  document.getElementById("f-dos-ps3d").value=d?.prixS3D||"";
-  document.getElementById("f-dos-pprep").value=d?.prixPrep||"";
-  document.getElementById("f-dos-prap").value=d?.prixRap||"";
   document.getElementById("f-dos-archive").checked=d?.archive||false;
   setTimeout(()=>document.getElementById("f-dos-num").focus(),100);
 }
@@ -1682,20 +1904,17 @@ async function saveDos(){
     email:document.getElementById("f-dos-email").value.trim(),
     tel:document.getElementById("f-dos-tel").value.trim(),
     adresse:document.getElementById("f-dos-adresse").value.trim(),
-    prix1T:parseFloat(document.getElementById("f-dos-p1t").value)||0,
-    prixHT:parseFloat(document.getElementById("f-dos-pht").value)||0,
-    prixB:parseFloat(document.getElementById("f-dos-pb").value)||0,
-    prixN:parseFloat(document.getElementById("f-dos-pn").value)||0,
-    prixS3D:parseFloat(document.getElementById("f-dos-ps3d").value)||0,
-    prixPrep:parseFloat(document.getElementById("f-dos-pprep").value)||0,
-    prixRap:parseFloat(document.getElementById("f-dos-prap").value)||0,
     archive:document.getElementById("f-dos-archive")?.checked||false,
   };
+  captureDossierPriceDraft();
+  PRESTATIONS.forEach(service=>{
+    d[service.priceKey]=parseFloat(dossierPriceDraft[service.code])||0;
+  });
   const btn=document.getElementById("dos-save-btn");btn.textContent="⏳";
   const values={num:d.num,client:d.client,lieu:d.lieu,interlocuteur:d.interlocuteur,adresse:d.adresse,
-    prix1T:d.prix1T||"",prixHT:d.prixHT||"",prixB:d.prixB||"",prixN:d.prixN||"",prixS3D:d.prixS3D||"",
     email:d.email||"",tel:d.tel||"",archive:d.archive?"OUI":"",
-    prixPrep:d.prixPrep||"",prixRap:d.prixRap||""};
+  };
+  PRESTATIONS.forEach(service=>{values[service.priceKey]=d[service.priceKey]||"";});
   if(editingDosIdx!=null){
     const existing=sheetDossiers[editingDosIdx];
     const oldNum = existing.num;
@@ -2562,11 +2781,9 @@ function applySidebar(){
   document.getElementById("overlay").classList.toggle("visible",sidebarOpen&&window.innerWidth<=768);
 }
 function switchSTab(tab){
-  ["dossiers","collabs","contacts","materiel","vehicules"].forEach((t,i)=>{
-    document.querySelectorAll(".stab")[i].classList.toggle("active",t===tab);
-    document.getElementById("sp-"+t).classList.toggle("active",t===tab);
-  });
-  buildCalendar();
+  const tabs=["dossiers","collabs","materiel","vehicules"];
+  document.querySelectorAll(".stab").forEach((element,index)=>element.classList.toggle("active",tabs[index]===tab));
+  showSidebarPanel(tab);
   if(tab==="materiel")renderSidebarMat();
   if(tab==="vehicules")renderSidebarVehicles();
 }
@@ -2784,8 +3001,7 @@ function getEventColor(ev){
 function getEventLabel(ev){
   const parts=(ev.summary||"").split("_");
   if(parts.length>=2){
-    // parts[1] peut être "HT" ou "HT" suivi de "_M"/"_AM" — on prend juste dos_code
-    const code=parts[1].replace(/^(HT|1T|B|N|S3D).*/,"$1"); // sécurité
+    const code=parts[1];
     return `${parts[0]}_${code}`+(parts.length>2?" "+parts[parts.length-1]:"");
   }
   return(ev.summary||"").slice(0,14);
@@ -2830,12 +3046,13 @@ function openModal(ds){
   document.getElementById("m-notes").value="";
   document.getElementById("m-dos-search").value="";
   setModalMatSelection([]);
-  setPrest("1T",document.querySelector("[data-code='1T']"));
   selectedHalfDay="matin";
   document.getElementById("hd-matin").classList.add("active");
   document.getElementById("hd-aprem").classList.remove("active");
   document.getElementById("half-day-toggle").classList.remove("visible");
-  filterModalDos();updateModalCollab();updateModalMat();
+  filterModalDos();
+  updateEventPrestOptions();
+  updateModalCollab();updateModalMat();
   document.getElementById("m-collab").value=sheetCollabs.length?"0":"";
   onEventCollabChange();
   document.getElementById("m-mat-warning").style.display="none";
@@ -2873,7 +3090,9 @@ function openEditModal(evId){
   }
   if(parts.length>=2){
     const rawCode=parts[1]; // "HT", "1T", "B", "N", "S3D"
-    const validCode=PREST_KEYS.includes(rawCode)?rawCode:"1T";
+    updateEventPrestOptions(rawCode);
+    const visibleCodes=Array.from(document.querySelectorAll("#m-prest-toggle [data-code]")).map(button=>button.dataset.code);
+    const validCode=visibleCodes.includes(rawCode)?rawCode:(visibleCodes.includes("1T")?"1T":visibleCodes[0]||"");
     // Appeler setPrest pour les horaires par défaut + gérer l'affichage ½ journée
     const btn=document.querySelector(`[data-code="${validCode}"]`);
     setPrest(validCode,btn);
@@ -2919,7 +3138,32 @@ function filterModalDos(){
 }
 let selectedHalfDay="matin"; // "matin" ou "aprem"
 
+function eventPrestOptions(dossierNum){
+  const dossier=dosById(dossierNum);
+  const active=dossier?PRESTATIONS.filter(service=>prestActive(dossier,service.code)):[];
+  if(active.length)return active;
+  const defaultService=PRESTATIONS.find(service=>service.code==="1T")||PRESTATIONS[0];
+  return defaultService?[defaultService]:[];
+}
+function updateEventPrestOptions(preserveCode){
+  const allowed=eventPrestOptions(document.getElementById("m-dossier")?.value);
+  if(preserveCode&&!allowed.some(service=>service.code===preserveCode)){
+    const existing=PRESTATIONS.find(service=>service.code===preserveCode);
+    if(existing)allowed.push(existing);
+  }
+  const toggle=document.getElementById("m-prest-toggle");
+  toggle.innerHTML=allowed.map(service=>`<button data-code="${service.code}" onclick="setPrest('${service.code}',this)">${escapeHtml(service.label)}</button>`).join("");
+  const selected=allowed.find(service=>service.code===selectedPrest);
+  const fallback=allowed.find(service=>service.code==="1T")||allowed[0];
+  const chosen=selected||fallback;
+  if(chosen)setPrest(chosen.code,toggle.querySelector(`[data-code="${chosen.code}"]`));
+}
+function onEventDossierChange(){
+  updateEventPrestOptions();
+}
 function setPrest(code,el){
+  const service=PRESTATIONS.find(item=>item.code===code);
+  if(!service)return;
   selectedPrest=code;
   document.querySelectorAll("#m-prest-toggle button").forEach(b=>b.classList.remove("active"));
   if(el)el.classList.add("active");
@@ -2928,9 +3172,11 @@ function setPrest(code,el){
   if(code==="HT"||code==="B2"){hdToggle.classList.add("visible");}
   else{hdToggle.classList.remove("visible");}
   // Pré-remplit les horaires par défaut du type de prestation — reste modifiable ensuite
-  const ph=PREST_HOURS[code]||{s:8,d:8};
-  document.getElementById("m-time-start").value=String(ph.s).padStart(2,"0")+":00";
-  document.getElementById("m-time-end").value=String(ph.s+ph.d).padStart(2,"0")+":00";
+  const startMinutes=Math.min(23*60+59,Math.round(service.start*60));
+  const endMinutes=Math.min(23*60+59,Math.round((service.start+service.duration)*60));
+  const toTime=minutes=>`${String(Math.floor(minutes/60)).padStart(2,"0")}:${String(minutes%60).padStart(2,"0")}`;
+  document.getElementById("m-time-start").value=toTime(startMinutes);
+  document.getElementById("m-time-end").value=toTime(endMinutes);
   checkMatConflict();
 }
 function setHalfDay(period,el,applyTimes){
@@ -2982,6 +3228,9 @@ async function saveEvent(){
   const ds=document.getElementById("m-date-start")?.value;
   const de=document.getElementById("m-date-end")?.value||ds;
   if(!dos||!ds){showToast("Remplis les champs obligatoires",true);return;}
+  if(!document.querySelector(`#m-prest-toggle [data-code="${selectedPrest}"]`)){
+    showToast("Choisis une prestation autorisée pour ce dossier",true);return;
+  }
   const idx=parseInt(document.getElementById("m-collab")?.value);
   const collab=(!isNaN(idx)&&sheetCollabs[idx])?sheetCollabs[idx]:null;
   const tStart=document.getElementById("m-time-start")?.value||"08:00";
@@ -3126,12 +3375,14 @@ function buildGlobalWorkbook(year,month,byDossier){
     return cell;
   }
 
-  // ── Feuille unique : même structure que le modèle Excel ──────────────────
-  // Colonnes : A:N°  B:Dossier  C:Client/Chantier  D:Interlocuteur  E:Email
-  //            F:1T  G:HT  H:B  I:N  J:S3D  K:TotalJ  L:Montant
-  //            M:Ptg  N:BC  O:Facture  P:Notes
-  //            Q:Prix1T  R:PrixHT  S:PrixB  T:PrixN  U:PrixS3D (cachées)
+  // Keep the historical template columns intact, then append any other
+  // catalogue services and their prices after the existing hidden price block.
   const ws1={};
+  const legacyKeys=["1T","HT","B","N","S3D"];
+  const legacyLabels={"1T":"Terr. 1J",HT:"Terr. ½J",B:"Bureau",N:"Nuit",S3D:"Scan 3D"};
+  const legacyPriceLabels={"1T":"Prix 1J",HT:"Prix ½J",B:"Prix Bureau",N:"Prix Nuit",S3D:"Prix Scan"};
+  const extraKeys=PREST_KEYS.filter(k=>!legacyKeys.includes(k));
+  const extraStart=21;
   const dataEndRow = 4 + dosKeys.length;
 
   // Ligne 1 : titre
@@ -3144,10 +3395,12 @@ function buildGlobalWorkbook(year,month,byDossier){
 
   // Ligne 4 : en-têtes (identiques au modèle)
   ["N°","N° Dossier","Client / Chantier","Interlocuteur","Email",
-   "Terr. 1J","Terr. ½J","Bureau","Nuit","Scan 3D",
+   ...legacyKeys.map(k=>legacyLabels[k]),
    "Total Jours","Montant (€)",
    "Pointage Envoyé","BC Reçu","Facture Envoyée","Observations",
-   "Prix 1J","Prix ½J","Prix Bureau","Prix Nuit","Prix Scan"
+   ...legacyKeys.map(k=>legacyPriceLabels[k]),
+   ...extraKeys.map(k=>PRESTATIONS.find(service=>service.code===k)?.label||k),
+   ...extraKeys.map(k=>`Prix ${PRESTATIONS.find(service=>service.code===k)?.label||k}`)
   ].forEach((h,i)=>{ws1[xlsCell(3,i)]=s(h);});
 
   // Lignes données
@@ -3159,13 +3412,9 @@ function buildGlobalWorkbook(year,month,byDossier){
     const totalJ=PREST_KEYS.reduce((acc,k)=>acc+tot[k],0);
     // Prix depuis le Sheet (ou défaut) — via prestPrice() pour rester juste
     // même si l'ordre interne des types de prestations évolue.
-    const p1T=prestPrice(di,"1T"), pHT=prestPrice(di,"HT"), pB=prestPrice(di,"B"),
-          pN=prestPrice(di,"N"), pS3D=prestPrice(di,"S3D");
-    // Le total, lui, inclut TOUTES les prestations (y compris ½ Bureau /
-    // Préparation / Rapport) même si cette feuille, pour rester compatible
-    // "coller ici" avec ton modèle Excel historique, ne détaille que les 5
-    // colonnes Terrain/Bureau/Nuit/Scan3D ci-dessous.
-    const total = PREST_KEYS.reduce((sum,k)=>sum+tot[k]*prestPrice(di,k),0);
+    const legacyPrices=legacyKeys.map(k=>prestPrice(di,k));
+    // The existing template columns stay fixed; extra catalogue services and
+    // their prices are included in the additional columns at the right.
 
     // Colonnes A→P (visibles)
     ws1[xlsCell(row,0)] = s(idx+1);
@@ -3173,19 +3422,13 @@ function buildGlobalWorkbook(year,month,byDossier){
     ws1[xlsCell(row,2)] = s(`${di?.client||""} – ${di?.lieu||""}`);
     ws1[xlsCell(row,3)] = s(di?.interlocuteur||"");
     ws1[xlsCell(row,4)] = s(di?.email||"");
-    ws1[xlsCell(row,5)] = s(tot["1T"]);
-    ws1[xlsCell(row,6)] = s(tot["HT"]);
-    ws1[xlsCell(row,7)] = s(tot["B"]);
-    ws1[xlsCell(row,8)] = s(tot["N"]);
-    ws1[xlsCell(row,9)] = s(tot["S3D"]);
+    legacyKeys.forEach((k,i)=>ws1[xlsCell(row,5+i)]=s(tot[k]||0));
     // K→P : vides (calculés dans le modèle Excel via formules)
     for(let c=10;c<=15;c++) ws1[xlsCell(row,c)]=s("");
     // Colonnes Q→U : prix (à coller dans les colonnes cachées du modèle)
-    ws1[xlsCell(row,16)]= s(p1T);
-    ws1[xlsCell(row,17)]= s(pHT);
-    ws1[xlsCell(row,18)]= s(pB);
-    ws1[xlsCell(row,19)]= s(pN);
-    ws1[xlsCell(row,20)]= s(pS3D);
+    legacyPrices.forEach((price,i)=>ws1[xlsCell(row,16+i)]=s(price));
+    extraKeys.forEach((k,i)=>ws1[xlsCell(row,extraStart+i)]=s(tot[k]||0));
+    extraKeys.forEach((k,i)=>ws1[xlsCell(row,extraStart+extraKeys.length+i)]=s(prestPrice(di,k)));
     row++;
   });
 
@@ -3195,9 +3438,10 @@ function buildGlobalWorkbook(year,month,byDossier){
     {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},        // F→J
     {wch:9},{wch:14},                                // K→L
     {wch:13},{wch:12},{wch:13},{wch:20},             // M→P
-    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},         // Q→U (prix)
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},         // Q→U (prix historiques)
+    ...extraKeys.map(()=>({wch:12})),...extraKeys.map(()=>({wch:10})),
   ];
-  ws1["!ref"]=`A1:U${row}`;
+  ws1["!ref"]=`A1:${sheetColLetter(Math.max(21,extraStart+extraKeys.length*2))}${row}`;
   wb.SheetNames.push(`Suivi ${mn}`);wb.Sheets[`Suivi ${mn}`]=ws1;
 
   return wb;
@@ -3451,10 +3695,9 @@ function renderRecapList(){
       </td>
     </tr>`;
     if(priceOpen){
-      // ½ Bureau (B2) n'a pas de champ dédié : toujours = Bureau ÷ 2, non éditable ici
-      const priceFields=PREST_KEYS.filter(k=>k!=="B2").map(k=>{
-        const label=PREST_LABELS[PREST_KEYS.indexOf(k)];
-        return `<div class="rc-price-field"><label>Prix ${label}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
+      const priceFields=PRESTATIONS.map(service=>{
+        const k=service.code,label=service.label;
+        return `<div class="rc-price-field"><label>Prix ${escapeHtml(label)}</label><input type="number" id="rcp-${k}" value="${prestPrice(di,k)}" placeholder="0 = masqué du récap"></div>`;
       }).join("");
       rowsHtml+=`<tr class="rc-price-row"><td colspan="${6+nPrest}">
         <div class="rc-price-grid">
@@ -3462,14 +3705,14 @@ function renderRecapList(){
           <button class="btn-modal-save" style="flex:none;padding:8px 14px" onclick="saveRecapPrice('${d}')">Enregistrer dans le Sheet</button>
           <button class="rc-btn" onclick="toggleRecapPriceEdit('${d}')">Annuler</button>
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:6px">ℹ️ ½ Bureau n'a pas de prix propre : toujours = Bureau ÷ 2. Un prix à 0 masque la prestation du récap pour ce dossier.</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">Un prix à 0 masque la prestation du récap pour ce dossier.</div>
       </td></tr>`;
     }
   });
 
   const globalChecked=recapSelected.has("GLOBAL")?"checked":"";
   const prestHeaders=cols.map(k=>{
-    const label=PREST_LABELS[PREST_KEYS.indexOf(k)].replace(/ /g,"<br>");
+    const label=escapeHtml(PREST_LABELS[PREST_KEYS.indexOf(k)]).replace(/ /g,"<br>");
     return `<th class="rc-th-prest">${label}</th>`;
   }).join("");
   const html=`<div class="rc-table-wrap"><table class="rc-table">
@@ -3512,14 +3755,12 @@ async function saveRecapPrice(dos){
   if(idx<0)return;
   const d={...sheetDossiers[idx]};
   const values={};
-  PREST_KEYS.forEach(k=>{
-    if(k==="B2")return; // pas de champ propre : toujours Bureau ÷ 2
-    const field=PRIX_KEYS[PREST_KEYS.indexOf(k)];
-    const input=document.getElementById(`rcp-${k}`);
-    if(!field||!input)return;
+  PRESTATIONS.forEach(service=>{
+    const input=document.getElementById(`rcp-${service.code}`);
+    if(!input)return;
     const val=parseFloat(input.value)||0;
-    d[field]=val;
-    values[field]=val||"";
+    d[service.priceKey]=val;
+    values[service.priceKey]=val||"";
   });
   sheetDossiers[idx]=d;
   try{
