@@ -153,7 +153,7 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .cal-week-label{padding:5px 0;text-align:center;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;border-right:1px solid var(--border)}
 .cal-dow-cell:first-child,.cal-dow-cell:last-child{color:var(--red)}
 .cal-days{display:grid;grid-template-columns:28px repeat(7,minmax(0,1fr));grid-auto-rows:160px}
-.cal-days.week-view{grid-template-rows:44px repeat(14,36px);grid-auto-rows:unset;flex:none}
+.cal-days.week-view{grid-template-rows:repeat(14,40px);grid-auto-rows:unset;flex:none}
 .cal-days.planning-list{display:block}
 .cal-week-cell{display:flex;align-items:flex-start;justify-content:center;padding-top:7px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--grey);color:var(--muted);font-size:10px;font-weight:700}
 .cal-week-cell button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:4px}
@@ -172,11 +172,12 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
 .ev-chip:hover{opacity:.85}
 .ev-more{font-size:9px;color:var(--muted);padding:1px 3px;cursor:pointer;font-weight:600}
 .ev-more:hover{color:var(--blue);text-decoration:underline}
-.week-all-day-label,.week-all-day{min-height:44px;border-bottom:1px solid var(--border);background:var(--white)}
-.week-all-day-label{position:sticky;top:0;left:0;z-index:3;padding:6px 4px;font-size:9px;color:var(--muted);text-align:center}
-.week-all-day{position:sticky;top:0;z-index:2;padding:3px;border-left:1px solid var(--border);overflow:hidden}
-.week-hour-label{position:sticky;left:0;z-index:2;padding:0 5px;text-align:right;font-size:10px;color:var(--muted);background:var(--white);border-bottom:1px solid var(--border);transform:translateY(-7px)}
-.week-day-column{position:relative;grid-row:2/16;height:504px;border-left:1px solid var(--border);background:repeating-linear-gradient(to bottom,var(--white) 0,var(--white) 35px,var(--border) 35px,var(--border) 36px)}
+.week-day-heading{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px;padding:4px 2px;background:var(--white);border-bottom:1px solid var(--border)}
+.week-heading-date{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.week-heading-allday{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:3px;padding:0 3px;color:var(--white);font-size:9px;line-height:1.4;cursor:pointer}
+.week-label-heading{display:flex;align-items:center;justify-content:center;min-height:44px;padding:4px 2px;background:var(--white);border-bottom:1px solid var(--border);font-size:9px;color:var(--muted)}
+.week-hour-label{position:sticky;left:0;z-index:2;padding:2px 5px 0;text-align:right;font-size:10px;color:var(--muted);background:var(--white);border-bottom:1px solid var(--border)}
+.week-day-column{position:relative;height:560px;border-left:1px solid var(--border);background:repeating-linear-gradient(to bottom,var(--white) 0,var(--white) 39px,var(--border) 39px,var(--border) 40px)}
 .week-event{position:absolute;overflow:hidden;border-radius:4px;padding:2px 4px;color:var(--white);font-size:10px;font-weight:600;line-height:1.3;cursor:pointer;z-index:1;box-sizing:border-box}
 .week-event:hover{filter:brightness(.92)}
 .planning-list{display:block;min-width:0}
@@ -262,8 +263,8 @@ html,body{height:100%;background:var(--grey);font-family:-apple-system,BlinkMacS
   .cal-view-toggle{order:1}
   .cal-nav>.btn-today{order:2}
   .cal-view-btn{padding:5px 6px;font-size:10px}
-  .cal-days.week-view{grid-template-rows:44px repeat(24,60px)}
-  .week-day-column{grid-row:2/26;height:1440px;background:repeating-linear-gradient(to bottom,var(--white) 0,var(--white) 59px,var(--border) 59px,var(--border) 60px)}
+  .cal-days.week-view{grid-template-rows:repeat(24,60px)}
+  .week-day-column{height:1440px;background:repeating-linear-gradient(to bottom,var(--white) 0,var(--white) 59px,var(--border) 59px,var(--border) 60px)}
   .planning-day{grid-template-columns:78px minmax(0,1fr)}
   .planning-date{gap:6px;padding:10px 6px}
   .planning-date-number{font-size:16px}
@@ -2874,6 +2875,9 @@ async function loadCalendar(silent){
     const lastOffset=monthLast.getDay()===0?0:6-monthLast.getDay();
     rangeFirst=new Date(curYear,curMonth,1-firstOffset);
     rangeLast=new Date(curYear,curMonth+1,lastOffset,23,59,59);
+  }else if(calView==="planning"){
+    rangeFirst=new Date(curYear,curMonth,1);
+    rangeLast=new Date(curYear,curMonth+1,7,23,59,59);
   }else{
     rangeFirst=getCalendarWeekStart(calAnchorDate);
     rangeLast=new Date(rangeFirst);
@@ -2951,14 +2955,21 @@ function renderDow(){
   }
   dow.style.display="grid";
   if(calView==="week"){
+    const byDate=eventsIndexedByDate();
     const headings=Array.from({length:count},(_,i)=>{
       const date=new Date(start);date.setDate(date.getDate()+i);
+      const dateKey=calendarDateKey(date);
       const label=date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
       const weekend=date.getDay()===0||date.getDay()===6;
-      return `<div class="cal-dow-cell"${weekend?' style="color:var(--red)"':""}>${label}</div>`;
+      const allDayEvents=(byDate[dateKey]||[]).filter(event=>event.start?.date);
+      const allDayChips=allDayEvents.slice(0,1).map(event=>
+        `<span class="week-heading-allday" style="background:${getEventColor(event)}" onclick="event.stopPropagation();openEditModal('${event.id}')" title="${escapeCalendarText(event.summary)}">${escapeCalendarText(getEventLabel(event))}</span>`
+      ).join("");
+      const more=allDayEvents.length>1?`<span class="week-heading-allday" style="background:var(--muted)" title="${allDayEvents.length-1} autre(s) événement(s) sur la journée">+${allDayEvents.length-1}</span>`:"";
+      return `<div class="week-day-heading"${weekend?' style="color:var(--red)"':""}><span class="week-heading-date">${label}</span>${allDayChips}${more}</div>`;
     }).join("");
     dow.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
-    dow.innerHTML=`<div class="cal-week-label"></div>${headings}`;
+    dow.innerHTML=`<div class="week-label-heading">Journée</div>${headings}`;
     return;
   }
   const filtered=days.slice(0,count);
@@ -3126,25 +3137,20 @@ function buildWeekCalendar(){
   const compact=window.innerWidth>768;
   const firstHour=compact?6:0;
   const hourCount=compact?14:24;
-  const hourHeight=compact?36:60;
+  const hourHeight=compact?40:60;
   const byDate=eventsIndexedByDate();
   const grid=document.getElementById("cal-days");
   grid.classList.add("week-view");
   grid.classList.remove("planning-list");
-  grid.style.gridTemplateRows=`44px repeat(${hourCount},${hourHeight}px)`;
+  grid.style.gridTemplateRows=`repeat(${hourCount},${hourHeight}px)`;
   grid.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
   const dateKeys=Array.from({length:count},(_,index)=>{
     const date=new Date(start);date.setDate(date.getDate()+index);
     return calendarDateKey(date);
   });
-  let html=`<div class="week-all-day-label" style="grid-column:1;grid-row:1">Journée</div>`;
-  dateKeys.forEach((dateKey,index)=>{
-    const events=(byDate[dateKey]||[]).filter(event=>event.start?.date);
-    const chips=events.map(event=>`<div class="ev-chip" style="background:${getEventColor(event)}" onclick="event.stopPropagation();openEditModal('${event.id}')" title="${escapeCalendarText(event.summary)}">${escapeCalendarText(getEventLabel(event))}</div>`).join("");
-    html+=`<div class="week-all-day" style="grid-column:${index+2};grid-row:1">${chips}</div>`;
-  });
+  let html="";
   for(let hour=0;hour<hourCount;hour++){
-    html+=`<div class="week-hour-label" style="grid-column:1;grid-row:${hour+2}">${String(hour+firstHour).padStart(2,"0")}:00</div>`;
+    html+=`<div class="week-hour-label" style="grid-column:1;grid-row:${hour+1}">${String(hour+firstHour).padStart(2,"0")}:00</div>`;
   }
   dateKeys.forEach((dateKey,index)=>{
     const events=(byDate[dateKey]||[]).filter(event=>event.start?.dateTime);
@@ -3188,7 +3194,7 @@ function buildWeekCalendar(){
       });
     }).join("");
     const height=hourCount*hourHeight;
-    html+=`<div class="week-day-column" style="grid-column:${index+2};grid-row:2/${hourCount+2};height:${height}px" onclick="openModal('${dateKey}')">${timedEvents}</div>`;
+    html+=`<div class="week-day-column" style="grid-column:${index+2};grid-row:1/${hourCount+1};height:${height}px" onclick="openModal('${dateKey}')">${timedEvents}</div>`;
   });
   grid.innerHTML=html;
 }
@@ -3206,8 +3212,8 @@ function formatPlanningTime(event,dateKey){
 }
 
 function buildPlanningListCalendar(){
-  const start=getCalendarWeekStart(calAnchorDate);
-  const count=hideWeekend?5:7;
+  const start=new Date(curYear,curMonth,1,12);
+  const end=new Date(curYear,curMonth+1,7,12);
   const byDate=eventsIndexedByDate();
   const grid=document.getElementById("cal-days");
   grid.classList.remove("week-view");
@@ -3215,8 +3221,8 @@ function buildPlanningListCalendar(){
   grid.style.gridTemplateRows="";
   grid.style.gridTemplateColumns="";
   let html="";
-  for(let index=0;index<count;index++){
-    const date=new Date(start);date.setDate(date.getDate()+index);
+  for(const date=new Date(start);date<=end;date.setDate(date.getDate()+1)){
+    if(hideWeekend&&(date.getDay()===0||date.getDay()===6))continue;
     const dateKey=calendarDateKey(date);
     const events=(byDate[dateKey]||[]).slice().sort((a,b)=>{
       const timeOf=event=>event.start?.dateTime?new Date(event.start.dateTime).getTime():0;
@@ -3316,7 +3322,7 @@ function showCalendarWeek(dateKey){
 }
 
 function changeMonth(direction){
-  if(calView==="week"||calView==="planning"){
+  if(calView==="week"){
     calAnchorDate.setDate(calAnchorDate.getDate()+direction*7);
     curYear=calAnchorDate.getFullYear();
     curMonth=calAnchorDate.getMonth();
