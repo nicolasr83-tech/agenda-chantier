@@ -879,6 +879,7 @@ const SECRETARIAT_EMAIL = "secretariat@arragon.fr";
 let accessToken=null, currentUser=null, tokenClient=null;
 let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
 let calAnchorDate=new Date(),calView="month";
+let calendarLoadRequest=0;
 let calEvents=[], sheetDossiers=[], sheetCollabs=[], sheetMat=[], sheetVehicles=[], sheetVehicleAssignments=[], sheetVehicleDefects=[];
 let prestationsCI={},prestationsHC=0;
 let sheetClients=[], sheetInterlocuteurs=[]; // référentiels réutilisables (onglets Clients / Interlocuteurs)
@@ -2867,6 +2868,7 @@ function handleCalendarDayClick(ds){
 
 async function loadCalendar(silent){
   if(!accessToken)return;
+  const requestId=++calendarLoadRequest;
   let rangeFirst,rangeLast;
   if(calView==="month"){
     const monthFirst=new Date(curYear,curMonth,1);
@@ -2888,10 +2890,19 @@ async function loadCalendar(silent){
   const last=rangeLast.toISOString();
   if(!silent)setLoading(true);
   try{
-    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(first)}&timeMax=${encodeURIComponent(last)}&singleEvents=true&orderBy=startTime&maxResults=500`;
-    const resp=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
-    if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}if(!silent)setLoading(false);return;}
-    const newEvents=(await resp.json()).items||[];
+    const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?timeMin=${encodeURIComponent(first)}&timeMax=${encodeURIComponent(last)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+    const newEvents=[];
+    let pageToken=null;
+    do{
+      const pageUrl=url+(pageToken?`&pageToken=${encodeURIComponent(pageToken)}`:"");
+      const resp=await fetch(pageUrl,{headers:{Authorization:"Bearer "+accessToken}});
+      if(requestId!==calendarLoadRequest)return;
+      if(!resp.ok){if(resp.status===401){accessToken=null;signIn();}setLoading(false);return;}
+      const data=await resp.json();
+      if(requestId!==calendarLoadRequest)return;
+      newEvents.push(...(data.items||[]));
+      pageToken=data.nextPageToken||null;
+    }while(pageToken);
     // En arrière-plan (silent), on ne redessine que si quelque chose a réellement changé
     const sig=ev=>ev.map(e=>e.id+"|"+(e.updated||"")).sort().join(",");
     if(!silent||sig(newEvents)!==sig(calEvents)){
@@ -2903,7 +2914,7 @@ async function loadCalendar(silent){
       else updateModalMatAvailability();
     }
   }catch(e){if(!silent)showToast("Erreur chargement",true);}
-  if(!silent)setLoading(false);
+  if(requestId===calendarLoadRequest)setLoading(false);
 }
 
 // ── Rafraîchissement automatique (détecte les modifs faites depuis Google Agenda) ─
@@ -2962,11 +2973,10 @@ function renderDow(){
       const label=date.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
       const weekend=date.getDay()===0||date.getDay()===6;
       const allDayEvents=(byDate[dateKey]||[]).filter(event=>event.start?.date);
-      const allDayChips=allDayEvents.slice(0,1).map(event=>
+      const allDayChips=allDayEvents.map(event=>
         `<span class="week-heading-allday" style="background:${getEventColor(event)}" onclick="event.stopPropagation();openEditModal('${event.id}')" title="${escapeCalendarText(event.summary)}">${escapeCalendarText(getEventLabel(event))}</span>`
       ).join("");
-      const more=allDayEvents.length>1?`<span class="week-heading-allday" style="background:var(--muted)" title="${allDayEvents.length-1} autre(s) événement(s) sur la journée">+${allDayEvents.length-1}</span>`:"";
-      return `<div class="week-day-heading"${weekend?' style="color:var(--red)"':""}><span class="week-heading-date">${label}</span>${allDayChips}${more}</div>`;
+      return `<div class="week-day-heading"${weekend?' style="color:var(--red)"':""}><span class="week-heading-date">${label}</span>${allDayChips}</div>`;
     }).join("");
     dow.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
     dow.innerHTML=`<div class="week-label-heading">Journée</div>${headings}`;
@@ -3057,7 +3067,13 @@ function buildCalendar(){
   updateCalendarDateSelectors();
   renderDow();
   if(calView==="planning"){
+    const scroller=document.querySelector(".cal-grid");
+    const previousToday=document.querySelector(".planning-day.today");
+    const todayOffset=previousToday&&scroller
+      ?previousToday.getBoundingClientRect().top-scroller.getBoundingClientRect().top
+      :0;
     buildPlanningListCalendar();
+    scrollPlanningToToday(todayOffset);
     return;
   }
   if(calView==="week"){
@@ -3082,6 +3098,7 @@ function buildCalendar(){
   // Mettre à jour la grille CSS
   const calendarDays=document.getElementById("cal-days");
   calendarDays.classList.remove("planning-list");
+  calendarDays.style.paddingBottom="";
   calendarDays.classList.toggle("week-view",calView==="week");
   calendarDays.style.gridTemplateRows="";
   calendarDays.style.gridTemplateColumns=`${weekColWidth}px repeat(${cols},minmax(0,1fr))`;
@@ -3135,19 +3152,35 @@ function buildWeekCalendar(){
   const start=getCalendarWeekStart(calAnchorDate);
   const count=hideWeekend?5:7;
   const compact=window.innerWidth>768;
-  const firstHour=compact?6:0;
-  const hourCount=compact?14:24;
+  let firstHour=compact?6:0;
+  let lastHour=compact?20:24;
   const hourHeight=compact?40:60;
   const byDate=eventsIndexedByDate();
   const grid=document.getElementById("cal-days");
-  grid.classList.add("week-view");
-  grid.classList.remove("planning-list");
-  grid.style.gridTemplateRows=`repeat(${hourCount},${hourHeight}px)`;
-  grid.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
   const dateKeys=Array.from({length:count},(_,index)=>{
     const date=new Date(start);date.setDate(date.getDate()+index);
     return calendarDateKey(date);
   });
+  if(compact){
+    dateKeys.forEach(dateKey=>{
+      (byDate[dateKey]||[]).filter(event=>event.start?.dateTime).forEach(event=>{
+        const startKey=event.start.dateTime.slice(0,10);
+        const endValue=event.end?.dateTime||event.start.dateTime;
+        const endKey=endValue.slice(0,10);
+        const startMinutes=dateKey===startKey?parseInt(event.start.dateTime.slice(11,13),10)*60+parseInt(event.start.dateTime.slice(14,16),10):0;
+        const endMinutes=dateKey===endKey?parseInt(endValue.slice(11,13),10)*60+parseInt(endValue.slice(14,16),10):1440;
+        if(endMinutes<=startMinutes)return;
+        firstHour=Math.min(firstHour,Math.floor(startMinutes/60));
+        lastHour=Math.max(lastHour,Math.ceil(endMinutes/60));
+      });
+    });
+  }
+  const hourCount=lastHour-firstHour;
+  grid.classList.add("week-view");
+  grid.classList.remove("planning-list");
+  grid.style.paddingBottom="";
+  grid.style.gridTemplateRows=`repeat(${hourCount},${hourHeight}px)`;
+  grid.style.gridTemplateColumns=`52px repeat(${count},minmax(120px,1fr))`;
   let html="";
   for(let hour=0;hour<hourCount;hour++){
     html+=`<div class="week-hour-label" style="grid-column:1;grid-row:${hour+1}">${String(hour+firstHour).padStart(2,"0")}:00</div>`;
@@ -3220,6 +3253,7 @@ function buildPlanningListCalendar(){
   grid.classList.add("planning-list");
   grid.style.gridTemplateRows="";
   grid.style.gridTemplateColumns="";
+  grid.style.paddingBottom="";
   let html="";
   for(const date=new Date(start);date<=end;date.setDate(date.getDate()+1)){
     if(hideWeekend&&(date.getDay()===0||date.getDay()===6))continue;
@@ -3308,10 +3342,27 @@ function onCalendarDateChange(){
 
 function setCalendarView(view){
   if(!["month","week","planning"].includes(view))return;
+  if(view==="planning"){
+    calAnchorDate=new Date();
+    curYear=calAnchorDate.getFullYear();
+    curMonth=calAnchorDate.getMonth();
+  }
   calView=view;
   buildCalendar();
-  document.querySelector(".cal-grid").scrollTop=view==="week"&&window.innerWidth<=768?6*60:0;
+  if(view!=="planning")document.querySelector(".cal-grid").scrollTop=view==="week"&&window.innerWidth<=768?6*60:0;
   loadCalendar();
+}
+
+function scrollPlanningToToday(topOffset){
+  const scroller=document.querySelector(".cal-grid");
+  const todayRow=document.querySelector(".planning-day.today");
+  if(!scroller||!todayRow)return;
+  const grid=document.getElementById("cal-days");
+  grid.style.paddingBottom="";
+  const targetTop=scroller.scrollTop+todayRow.getBoundingClientRect().top-scroller.getBoundingClientRect().top-(topOffset||0);
+  const maxScrollTop=scroller.scrollHeight-scroller.clientHeight;
+  if(targetTop>maxScrollTop)grid.style.paddingBottom=`${targetTop-maxScrollTop}px`;
+  scroller.scrollTop=targetTop;
 }
 
 function showCalendarWeek(dateKey){
