@@ -2882,9 +2882,9 @@ async function loadCalendar(silent){
     rangeLast=new Date(curYear,curMonth+1,7,23,59,59);
   }else{
     rangeFirst=getCalendarWeekStart(calAnchorDate);
+    rangeFirst.setHours(0,0,0,0);
     rangeLast=new Date(rangeFirst);
     rangeLast.setDate(rangeLast.getDate()+7);
-    rangeLast.setSeconds(rangeLast.getSeconds()-1);
   }
   const first=rangeFirst.toISOString();
   const last=rangeLast.toISOString();
